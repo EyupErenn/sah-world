@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   SAH WORLD — Global CSS Tokens & Base Styles
+   ============================================================ */
+:root {
+  --font-inter: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Brand Colors */
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-light: #eef2ff;
+  --secondary: #7c3aed;
+  --emerald: #059669;
+  --gold: #b8860b;
+  --danger: #ef4444;
+  --amber: #f59e0b;
+
+  /* Backgrounds */
+  --bg-page: #fafbfc;
+  --bg-white: #ffffff;
+  --bg-alt: #f4f6f9;
+  --border-color: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-inter);
+  background-color: var(--bg-page);
+  color: #1e293b;
+  line-height: 1.7;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: rgba(241, 245, 249, 0.5); }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* Panel transitions */
+.station-panel-enter { opacity: 0; transform: translateX(50px) scale(0.95); }
+.station-panel-enter-active { opacity: 1; transform: translateX(0) scale(1); transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.station-panel-exit { opacity: 1; transform: translateX(0) scale(1); }
+.station-panel-exit-active { opacity: 0; transform: translateX(50px) scale(0.95); transition: all 0.3s ease; }
+
+/* Mono numbers */
+.mono-num {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum";
+}
