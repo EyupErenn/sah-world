@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { gsap } from 'gsap';
@@ -18,37 +18,38 @@ interface XPOrbProps {
 export default function XPOrb({ startProgress, onComplete }: XPOrbProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const lightRef = useRef<THREE.PointLight>(null);
-  const aliveRef = useRef(true);
+  const [alive, setAlive] = useState(true);
   const posRef = useRef({ t: 0 });
 
   // Pre-calculate start and end points
-  const startPos = JOURNEY_CURVE.getPointAt(Math.min(startProgress, 0.92));
-  const endPos   = JOURNEY_CURVE.getPointAt(1.0);
-
-  // Bezier control point (elevated arc)
-  const midX = (startPos.x + endPos.x) / 2 + (Math.random() - 0.5) * 18;
-  const midY = Math.max(startPos.y, endPos.y) + 16;
-  const midZ = (startPos.z + endPos.z) / 2;
+  const { startPos, endPos, midX, midY, midZ } = useMemo(() => {
+    const s = JOURNEY_CURVE.getPointAt(Math.min(startProgress, 0.92));
+    const e = JOURNEY_CURVE.getPointAt(1.0);
+    const mx = (s.x + e.x) / 2 + 5;
+    const my = Math.max(s.y, e.y) + 16;
+    const mz = (s.z + e.z) / 2;
+    return { startPos: s, endPos: e, midX: mx, midY: my, midZ: mz };
+  }, [startProgress]);
 
   // GSAP flight animation on mount
   useEffect(() => {
-    if (!aliveRef.current) return;
-    gsap.to(posRef.current, {
+    const anim = posRef.current;
+    const tween = gsap.to(anim, {
       t: 1,
       duration: 1.35,
       ease: 'power2.inOut',
       onComplete: () => {
-        aliveRef.current = false;
+        setAlive(false);
         onComplete?.();
       },
     });
     return () => {
-      gsap.killTweensOf(posRef.current);
+      tween.kill();
     };
-  }, []);
+  }, [onComplete]);
 
   useFrame(() => {
-    if (!aliveRef.current || !meshRef.current) return;
+    if (!alive || !meshRef.current) return;
     const t = posRef.current.t;
     const inv = 1 - t;
 
@@ -63,14 +64,16 @@ export default function XPOrb({ startProgress, onComplete }: XPOrbProps) {
 
     // Fade out near end
     const mat = meshRef.current.material as THREE.MeshStandardMaterial;
-    mat.emissiveIntensity = t > 0.88 ? (1 - t) * 8 : 1.2;
+    if (mat) {
+      mat.emissiveIntensity = t > 0.88 ? (1 - t) * 8 : 1.2;
+    }
 
     if (lightRef.current) {
       lightRef.current.intensity = t > 0.88 ? (1 - t) * 10 : 1.8;
     }
   });
 
-  if (!aliveRef.current) return null;
+  if (!alive) return null;
 
   return (
     <mesh ref={meshRef} position={[startPos.x, startPos.y + 2, startPos.z]}>

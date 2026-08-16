@@ -1,25 +1,26 @@
 'use client';
 
-import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useRef, forwardRef, useImperativeHandle } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { JOURNEY_CURVE } from '@/lib/curve';
 
 // ============================================================
-// CameraRig — Scroll-scrubbed 3rd-person chase camera
+// CameraRig — Dynamic 3rd-person chase camera for the journey
 // ============================================================
 export interface CameraRigHandle {
   setProgress: (p: number) => void;
 }
 
 interface CameraRigProps {
-  vehicleGroupRef: React.RefObject<THREE.Group>;
+  vehicleGroupRef: React.RefObject<THREE.Group | null>;
 }
 
-const CHASE_OFFSET   = new THREE.Vector3(0, 4.5, -9.5);  // behind-above vehicle
-const LOOK_OFFSET    = new THREE.Vector3(0, 1.2,  6.0);   // ahead of vehicle
-const ORBIT_RADIUS   = 22;                                  // Ahiret Deposu orbit radius
-const LERP_FACTOR    = 0.065;                               // Camera damping (higher = snappier)
+// Framing: Camera sits slightly behind and above, looking forward down the track
+const CHASE_OFFSET   = new THREE.Vector3(0, 3.2, -7.2);   // Behind & elevated
+const LOOK_OFFSET    = new THREE.Vector3(0, 1.2,  4.0);   // Ahead along road
+const ORBIT_RADIUS   = 24;                                // Ahiret Deposu orbit radius
+const LERP_FACTOR    = 0.085;                             // Smooth chase interpolation
 
 const tmpVehiclePos  = new THREE.Vector3();
 const tmpTargetCam   = new THREE.Vector3();
@@ -44,28 +45,27 @@ const CameraRig = forwardRef<CameraRigHandle, CameraRigProps>(function CameraRig
     vehicle.getWorldPosition(tmpVehiclePos);
 
     if (p > 0.97) {
-      // === Ahiret Deposu Orbit Camera ===
-      orbitTimeRef.current += delta * 0.35;
+      // === Ahiret Deposu Orbit Mode ===
+      orbitTimeRef.current += delta * 0.4;
       const endPos = JOURNEY_CURVE.getPointAt(1.0);
       const orbitX = endPos.x + Math.sin(orbitTimeRef.current) * ORBIT_RADIUS;
       const orbitZ = endPos.z + Math.cos(orbitTimeRef.current) * ORBIT_RADIUS;
-      const orbitY = endPos.y + 11;
+      const orbitY = endPos.y + 12;
 
       camera.position.lerp(new THREE.Vector3(orbitX, orbitY, orbitZ), LERP_FACTOR);
-      tmpLookAt.set(endPos.x, endPos.y + 4, endPos.z);
+      tmpLookAt.set(endPos.x, endPos.y + 3.5, endPos.z);
       camera.lookAt(tmpLookAt);
     } else {
-      // === 3rd Person Chase Camera ===
+      // === 3rd Person Follow Mode ===
       const quat = vehicle.quaternion;
 
-      // Rotate offset by vehicle orientation
+      // Rotate camera offset with vehicle rotation
       tmpRotatedOff.copy(CHASE_OFFSET).applyQuaternion(quat);
       tmpTargetCam.copy(tmpVehiclePos).add(tmpRotatedOff);
 
-      // Smooth camera lerp
       camera.position.lerp(tmpTargetCam, LERP_FACTOR);
 
-      // Look-ahead point
+      // Target look-ahead position
       tmpRotatedLook.copy(LOOK_OFFSET).applyQuaternion(quat);
       tmpLookAt.copy(tmpVehiclePos).add(tmpRotatedLook);
       camera.lookAt(tmpLookAt);

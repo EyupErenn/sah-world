@@ -11,7 +11,7 @@ import type {
   SukurEntry,
   StreakData,
 } from '@/types';
-import { VEHICLE_DEFS, BADGES, getLevelForXP } from '@/lib/constants';
+import { VEHICLE_DEFS } from '@/lib/constants';
 
 // ============================================================
 // STORE STATE SHAPE

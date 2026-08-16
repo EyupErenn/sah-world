@@ -13,14 +13,7 @@ import type { JournalEntry, QuranNote, HadisNote, EisenhowerTask, LessonEntry, S
 // Dynamic import 3D canvas (client-only, SSR disabled)
 const JourneyCanvas = dynamic(() => import('@/components/journey/JourneyCanvas'), {
   ssr: false,
-  loading: () => (
-    <div className="fixed inset-0 bg-slate-50 flex items-center justify-center z-10">
-      <div className="text-center">
-        <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-slate-500 font-semibold">Yolculuğun hazırlanıyor…</p>
-      </div>
-    </div>
-  ),
+  loading: () => null,
 });
 
 gsap.registerPlugin(ScrollTrigger);
@@ -234,7 +227,12 @@ export default function HomePage() {
       createdAt: new Date().toISOString(),
     };
     store.addSukur(entry);
-    try { (window as any).confetti?.({ particleCount: 80, spread: 60 }); } catch (e) {}
+    try {
+      const w = window as unknown as { confetti?: (opts: { particleCount: number; spread: number }) => void };
+      w.confetti?.({ particleCount: 80, spread: 60 });
+    } catch {
+      // ignore
+    }
     earnXP(35, 'Şükür ve nimet kaydedildi ✨');
     e.currentTarget.reset();
   };
@@ -537,10 +535,16 @@ export default function HomePage() {
 }
 
 // ============================================================
+// ============================================================
 // INLINE PANEL CONTENT COMPONENTS
 // ============================================================
 
-function GunlukPanelContent({ onSubmit, entries }: any) {
+interface GunlukProps {
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  entries: JournalEntry[];
+}
+
+function GunlukPanelContent({ onSubmit, entries }: GunlukProps) {
   const [mood, setMood] = useState(3);
   return (
     <div>
@@ -576,7 +580,12 @@ function GunlukPanelContent({ onSubmit, entries }: any) {
   );
 }
 
-function KuranPanelContent({ onSubmit, entries }: any) {
+interface KuranProps {
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  entries: QuranNote[];
+}
+
+function KuranPanelContent({ onSubmit, entries }: KuranProps) {
   return (
     <div>
       <h3 className="text-xl font-black mb-1" style={{color:'#b8860b'}}>Kuran-ı Kerim Günlüğü</h3>
@@ -602,11 +611,16 @@ function KuranPanelContent({ onSubmit, entries }: any) {
   );
 }
 
-function HadisPanelContent({ onSubmit, entries }: any) {
+interface HadisProps {
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  entries: HadisNote[];
+}
+
+function HadisPanelContent({ onSubmit, entries }: HadisProps) {
   return (
     <div>
       <h3 className="text-xl font-black mb-1 text-emerald-700">Hadis-i Şerif Günlüğü</h3>
-      <p className="text-sm text-slate-500 mb-4">Peygamber Efendimiz'den hayatına dokunanları kaydet.</p>
+      <p className="text-sm text-slate-500 mb-4">Peygamber Efendimiz&apos;den hayatına dokunanları kaydet.</p>
       <form onSubmit={onSubmit} className="space-y-3">
         <textarea name="metin" required placeholder="Hadis metni..." className="w-full p-3 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 resize-none h-20" />
         <div className="grid grid-cols-2 gap-3">
@@ -622,7 +636,7 @@ function HadisPanelContent({ onSubmit, entries }: any) {
         {entries.map((n: HadisNote) => (
           <div key={n.id} className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm border-l-4 border-l-emerald-500">
             <strong>{n.konu} ({n.kaynak})</strong>
-            <p className="text-slate-500 text-xs mt-1 italic line-clamp-2">"{n.metin}"</p>
+            <p className="text-slate-500 text-xs mt-1 italic line-clamp-2">&quot;{n.metin}&quot;</p>
           </div>
         ))}
       </div>}
@@ -630,8 +644,14 @@ function HadisPanelContent({ onSubmit, entries }: any) {
   );
 }
 
-function MatrisPanelContent({ eisenhower, onAddTask, onToggle }: any) {
-  const quadrants = [
+interface MatrisProps {
+  eisenhower: { q1: EisenhowerTask[]; q2: EisenhowerTask[]; q3: EisenhowerTask[]; q4: EisenhowerTask[] };
+  onAddTask: (e: React.FormEvent<HTMLFormElement>, qKey: 'q1' | 'q2' | 'q3' | 'q4') => void;
+  onToggle: (qKey: 'q1' | 'q2' | 'q3' | 'q4', id: string) => void;
+}
+
+function MatrisPanelContent({ eisenhower, onAddTask, onToggle }: MatrisProps) {
+  const quadrants: Array<{ key: 'q1' | 'q2' | 'q3' | 'q4'; label: string; color: string; cls: string }> = [
     { key: 'q1', label: '🔴 ACİL + ÖNEMLİ', color: '#ef4444', cls: 'border-red-400' },
     { key: 'q2', label: '🟡 ÖNEMLİ', color: '#f59e0b', cls: 'border-amber-400' },
     { key: 'q3', label: '🔵 ACİL', color: '#3b82f6', cls: 'border-blue-400' },
@@ -664,7 +684,14 @@ function MatrisPanelContent({ eisenhower, onAddTask, onToggle }: any) {
   );
 }
 
-function HatalarPanelContent({ onSubmit, severity, onSeverityChange, entries }: any) {
+interface HatalarProps {
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  severity: number;
+  onSeverityChange: (v: number) => void;
+  entries: LessonEntry[];
+}
+
+function HatalarPanelContent({ onSubmit, severity, onSeverityChange, entries }: HatalarProps) {
   return (
     <div>
       <h3 className="text-xl font-black mb-1 text-red-600">Hatalar ve Çıkarılan Dersler</h3>
@@ -693,11 +720,16 @@ function HatalarPanelContent({ onSubmit, severity, onSeverityChange, entries }: 
   );
 }
 
-function SukurPanelContent({ onSubmit, entries }: any) {
+interface SukurProps {
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  entries: SukurEntry[];
+}
+
+function SukurPanelContent({ onSubmit, entries }: SukurProps) {
   return (
     <div>
       <h3 className="text-xl font-black mb-1 text-emerald-700">Şükür ve Nimet Köşesi</h3>
-      <p className="text-sm text-emerald-600 mb-4">"Şükrederseniz elbette artırırım." (İbrahim 14:7)</p>
+      <p className="text-sm text-emerald-600 mb-4">&quot;Şükrederseniz elbette artırırım.&quot; (İbrahim 14:7)</p>
       <form onSubmit={onSubmit} className="space-y-3">
         <textarea name="text" required placeholder="Bugün neye şükredeceksin?" className="w-full p-3 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 resize-none h-20" />
         <div className="grid grid-cols-3 gap-2">
@@ -709,14 +741,25 @@ function SukurPanelContent({ onSubmit, entries }: any) {
       </form>
       {entries.length > 0 && <div className="mt-5 space-y-2">
         {entries.map((s: SukurEntry) => (
-          <div key={s.id} className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs border-l-4 border-l-emerald-500">"{s.text.slice(0, 80)}..."</div>
+          <div key={s.id} className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs border-l-4 border-l-emerald-500">&quot;{s.text.slice(0, 80)}...&quot;</div>
         ))}
       </div>}
     </div>
   );
 }
 
-function MescidimPanelContent({ tespihCount, totalZikir, onTespih, zikirType, onZikirChange, onReset, dailyAyet, dailyHadis }: any) {
+interface MescidimProps {
+  tespihCount: number;
+  totalZikir: number;
+  onTespih: () => void;
+  zikirType: string;
+  onZikirChange: (z: string) => void;
+  onReset: () => void;
+  dailyAyet: { arabic: string; turkish: string };
+  dailyHadis: string;
+}
+
+function MescidimPanelContent({ tespihCount, totalZikir, onTespih, zikirType, onZikirChange, onReset, dailyAyet, dailyHadis }: MescidimProps) {
   return (
     <div className="space-y-4">
       <h3 className="text-xl font-black text-emerald-700">Dijital Mescid</h3>

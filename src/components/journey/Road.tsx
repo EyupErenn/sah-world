@@ -1,194 +1,110 @@
 'use client';
 
-import { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useMemo } from 'react';
 import * as THREE from 'three';
 import { JOURNEY_CURVE } from '@/lib/curve';
 
 // ============================================================
-// Road System: TubeGeometry following CatmullRomCurve3
-// with PBR asphalt material, lane markings, and indigo curbs
+// Smooth Ribbon Road Geometry Generator
+// Ensures the road is perfectly horizontal, flat, and non-twisting
 // ============================================================
 
-// Procedurally generate an asphalt-like canvas texture
-function createAsphaltTexture(): THREE.CanvasTexture {
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
+function createSmoothRoadGeometry(width: number, segments = 600) {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
 
-  // Dark base
-  ctx.fillStyle = '#27303f';
-  ctx.fillRect(0, 0, size, size);
+  const halfW = width / 2;
+  const up = new THREE.Vector3(0, 1, 0);
 
-  // Noise grain
-  for (let i = 0; i < 18000; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const r = Math.random() * 2;
-    const gray = Math.floor(35 + Math.random() * 30);
-    ctx.fillStyle = `rgba(${gray},${gray},${gray},0.6)`;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const pt = JOURNEY_CURVE.getPointAt(t);
+    const tangent = JOURNEY_CURVE.getTangentAt(t).normalize();
+    
+    // Horizontal normal vector perpendicular to direction of travel
+    const normal = new THREE.Vector3().crossVectors(tangent, up).normalize();
+    if (normal.lengthSq() < 0.001) {
+      normal.set(1, 0, 0);
+    }
+
+    const left = pt.clone().addScaledVector(normal, -halfW);
+    const right = pt.clone().addScaledVector(normal, halfW);
+
+    left.y += 0.04;
+    right.y += 0.04;
+
+    positions.push(left.x, left.y, left.z);
+    positions.push(right.x, right.y, right.z);
+
+    // UV mapping (v repeats along road length)
+    uvs.push(0, t * 60);
+    uvs.push(1, t * 60);
+
+    if (i < segments) {
+      const idx = i * 2;
+      indices.push(idx, idx + 1, idx + 2);
+      indices.push(idx + 1, idx + 3, idx + 2);
+    }
   }
 
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(1, 60);
-  return tex;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
 }
 
-// Dashed center lane texture
-function createLaneTexture(): THREE.CanvasTexture {
+// Procedural Road Texture with High-Visibility Neon & Lane Markings
+function createCleanRoadTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 64;
+  canvas.width = 512;
   canvas.height = 512;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = 'transparent';
-  ctx.clearRect(0, 0, 64, 512);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
 
-  // Dashed white line
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  for (let y = 0; y < 512; y += 80) {
-    ctx.fillRect(26, y, 12, 48);
+  // Dark slate asphalt
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Road borders (Bright Indigo Glowing Curbs)
+  ctx.fillStyle = '#6366f1';
+  ctx.fillRect(0, 0, 24, 512);
+  ctx.fillRect(488, 0, 24, 512);
+
+  // Shoulder lines (Crisp white solid lines)
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillRect(40, 0, 8, 512);
+  ctx.fillRect(464, 0, 8, 512);
+
+  // Center dashed lines (Bright glowing yellow-white dashes)
+  ctx.fillStyle = '#f8fafc';
+  for (let y = 0; y < 512; y += 128) {
+    ctx.fillRect(246, y + 20, 20, 88);
   }
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(1, 60);
+  tex.repeat.set(1, 1); // 1x1 since UVs already repeat via t * 60
   return tex;
 }
 
 export default function Road() {
-  const asphaltTex = useMemo(() => {
+  const roadGeo = useMemo(() => createSmoothRoadGeometry(5.8, 600), []);
+  const roadTex = useMemo(() => {
     if (typeof window === 'undefined') return null;
-    return createAsphaltTexture();
+    return createCleanRoadTexture();
   }, []);
-
-  const laneTex = useMemo(() => {
-    if (typeof window === 'undefined') return null;
-    return createLaneTexture();
-  }, []);
-
-  const roadRef = useRef<THREE.Mesh>(null);
-
-  // Asphalt road tube
-  const roadGeo = useMemo(() => {
-    return new THREE.TubeGeometry(JOURNEY_CURVE, 512, 2.9, 10, false);
-  }, []);
-
-  // Invisible flat road surface for shadow receiving
-  const flatSurfaceGeo = useMemo(() => {
-    const shape = new THREE.Shape();
-    shape.moveTo(-3.1, 0);
-    shape.lineTo(3.1, 0);
-    shape.lineTo(3.1, -0.15);
-    shape.lineTo(-3.1, -0.15);
-    shape.closePath();
-    return new THREE.ExtrudeGeometry(shape, {
-      steps: 512,
-      bevelEnabled: false,
-      extrudePath: JOURNEY_CURVE,
-    });
-  }, []);
-
-  // Center lane markings (thinner, on top)
-  const laneGeo = useMemo(() => {
-    const shape = new THREE.Shape();
-    shape.moveTo(-0.18, 0.01);
-    shape.lineTo(0.18, 0.01);
-    shape.lineTo(0.18, -0.12);
-    shape.lineTo(-0.18, -0.12);
-    shape.closePath();
-    return new THREE.ExtrudeGeometry(shape, {
-      steps: 512,
-      bevelEnabled: false,
-      extrudePath: JOURNEY_CURVE,
-    });
-  }, []);
-
-  // Left indigo curb
-  const leftCurbGeo = useMemo(() => {
-    const shape = new THREE.Shape();
-    shape.moveTo(-3.3, 0.06);
-    shape.lineTo(-2.8, 0.06);
-    shape.lineTo(-2.8, -0.28);
-    shape.lineTo(-3.3, -0.28);
-    shape.closePath();
-    return new THREE.ExtrudeGeometry(shape, {
-      steps: 512,
-      bevelEnabled: false,
-      extrudePath: JOURNEY_CURVE,
-    });
-  }, []);
-
-  // Right indigo curb
-  const rightCurbGeo = useMemo(() => {
-    const shape = new THREE.Shape();
-    shape.moveTo(2.8, 0.06);
-    shape.lineTo(3.3, 0.06);
-    shape.lineTo(3.3, -0.28);
-    shape.lineTo(2.8, -0.28);
-    shape.closePath();
-    return new THREE.ExtrudeGeometry(shape, {
-      steps: 512,
-      bevelEnabled: false,
-      extrudePath: JOURNEY_CURVE,
-    });
-  }, []);
-
-  // Animate lane markings dashing (slight scroll offset)
-  useFrame(({ clock }) => {
-    if (laneTex) {
-      laneTex.offset.y = clock.getElapsedTime() * 0.04;
-    }
-  });
 
   return (
     <group>
-      {/* Asphalt road surface */}
-      <mesh geometry={flatSurfaceGeo} receiveShadow>
+      {/* Main Asphalt Road */}
+      <mesh geometry={roadGeo} receiveShadow>
         <meshStandardMaterial
-          map={asphaltTex ?? undefined}
-          roughness={0.88}
-          metalness={0.02}
-          color="#2d3748"
-        />
-      </mesh>
-
-      {/* Dashed center lane markings */}
-      <mesh geometry={laneGeo}>
-        <meshStandardMaterial
-          map={laneTex ?? undefined}
-          transparent
-          roughness={0.5}
-          emissive="#ffffff"
-          emissiveIntensity={0.08}
-        />
-      </mesh>
-
-      {/* Left brand-color curb */}
-      <mesh geometry={leftCurbGeo} castShadow>
-        <meshStandardMaterial
-          color="#4f46e5"
-          emissive="#4f46e5"
-          emissiveIntensity={0.22}
-          roughness={0.5}
-          metalness={0.1}
-        />
-      </mesh>
-
-      {/* Right brand-color curb */}
-      <mesh geometry={rightCurbGeo} castShadow>
-        <meshStandardMaterial
-          color="#4f46e5"
-          emissive="#4f46e5"
-          emissiveIntensity={0.22}
-          roughness={0.5}
+          map={roadTex ?? undefined}
+          roughness={0.6}
           metalness={0.1}
         />
       </mesh>

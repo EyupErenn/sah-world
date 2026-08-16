@@ -7,8 +7,11 @@ function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
   if (!audioCtx) {
     try {
-      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    } catch (e) {
+      const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtxClass) {
+        audioCtx = new AudioCtxClass();
+      }
+    } catch {
       return null;
     }
   }
@@ -30,7 +33,9 @@ export function playTone(freq = 540, duration = 0.05, type: OscillatorType = 'si
     gain.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + duration);
-  } catch (e) {}
+  } catch {
+    // audio context error ignore
+  }
 }
 
 export function playSuccessChime() {
