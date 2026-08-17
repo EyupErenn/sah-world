@@ -1,48 +1,79 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useJourneyStore } from '@/store/useJourneyStore';
-import { STATIONS, STATION_PROXIMITY, getLevelForXP, DAILY_AYETS, DAILY_HADISLER } from '@/lib/constants';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getLevelForXP, DAILY_AYETS, DAILY_HADISLER } from '@/lib/constants';
+import { VILLAGE_LOCATIONS, INTERACTION_RADIUS, type VillageLocation } from '@/lib/villageData';
 import { playSuccessChime, playClickTone, playTespihTone, playMilestoneTone } from '@/lib/audio';
-import type { JourneyCanvasHandle } from '@/components/journey/JourneyCanvas';
+import Minimap from '@/components/village/Minimap';
+import MobileControls from '@/components/village/MobileControls';
+import LoginScreen from '@/components/auth/LoginScreen';
+import EvimHub from '@/components/hub/EvimHub';
 import type { JournalEntry, QuranNote, HadisNote, EisenhowerTask, LessonEntry, SukurEntry } from '@/types';
 
-// Dynamic import 3D canvas (client-only, SSR disabled)
-const JourneyCanvas = dynamic(() => import('@/components/journey/JourneyCanvas'), {
+// Dynamic import 3D Village Canvas (client-only, SSR disabled)
+const VillageCanvas = dynamic(() => import('@/components/village/VillageCanvas'), {
   ssr: false,
-  loading: () => null,
+  loading: () => (
+    <div className="w-full h-full flex flex-col items-center justify-center bg-[#090d16] text-white">
+      <div className="w-12 h-12 rounded-2xl bg-indigo-600 animate-spin mb-4" />
+      <span className="text-sm font-mono tracking-widest text-indigo-300">KÖY DÜNYASI YÜKLENİYOR...</span>
+    </div>
+  ),
 });
 
-gsap.registerPlugin(ScrollTrigger);
-
-// ============================================================
-// Helper: toast notification state
-// ============================================================
 interface Toast { id: number; title: string; msg: string; }
 
-// ============================================================
-// MAIN PAGE COMPONENT
-// ============================================================
 export default function HomePage() {
   const store = useJourneyStore();
-  const canvasRef = useRef<JourneyCanvasHandle>(null);
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [activeStationId, setActiveStationId] = useState<number | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const [classicMode, setClassicMode] = useState(false);
+  const { isAuthLoading, session } = useAuthStore();
+
+  // ── Auth Gate ────────────────────────────────────────────
+  // Supabase'in ilk getSession() çağrısı tamamlanana kadar bekle
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#08091a]">
+        <div
+          className="w-16 h-16 rounded-3xl mb-6 animate-pulse"
+          style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed, #06b6d4)' }}
+        />
+        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Giriş yapılmamış → Sinematik login ekranı
+  if (!session) {
+    return <LoginScreen />;
+  }
+
+  // Giriş yapılmış → Köy dünyası
+  return <VillageWorld />;
+}
+
+// ── Köy Dünyası (ayrı bileşen — auth geçildikten sonra mount edilir) ──
+function VillageWorld() {
+  const store = useJourneyStore();
+
+  // Navigation & World state
+  const [playerState, setPlayerState] = useState({ x: 0, y: 0.1, z: 0, heading: 0, speed: 0 });
+  const [activeNearbyLocation, setActiveNearbyLocation] = useState<VillageLocation | null>(null);
+  const [openModalId, setOpenModalId] = useState<number | null>(null);
   const [showVehicleGarage, setShowVehicleGarage] = useState(false);
+  const [showEvimHub, setShowEvimHub] = useState(false);
   const [pendingVehicle, setPendingVehicle] = useState(store.vehicle.type);
+  const [classicMode, setClassicMode] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [touchInput, setTouchInput] = useState<{ steer: number; throttle: number }>({ steer: 0, throttle: 0 });
+  const [showControlsHint, setShowControlsHint] = useState(true);
 
-  // Daily rotating content
+  // Daily content & level
   const todayIdx = new Date().getDate() % DAILY_AYETS.length;
-
-  // XP / level info
   const { level, nextLevel } = getLevelForXP(store.xp);
 
-  // Show vehicle garage on first visit
+  // First visit vehicle prompt
   useEffect(() => {
     if (!store.vehicleChosen) {
       setTimeout(() => setShowVehicleGarage(true), 600);
@@ -50,51 +81,83 @@ export default function HomePage() {
     store.updateStreak();
   }, []);
 
-  // ============================================================
-  // GSAP ScrollTrigger
-  // ============================================================
+  // Controls hint auto-fade refs
+  const movingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Update proximity detector and hint visibility as player moves
+  const handlePlayerUpdate = useCallback((x: number, y: number, z: number, heading: number, speed: number) => {
+    setPlayerState({ x, y, z, heading, speed });
+
+    // Auto-fade driving hint on movement, restore when idle
+    if (Math.abs(speed) > 0.8) {
+      if (!movingTimerRef.current) {
+        movingTimerRef.current = setTimeout(() => {
+          setShowControlsHint(false);
+        }, 1800);
+      }
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+    } else {
+      if (movingTimerRef.current) {
+        clearTimeout(movingTimerRef.current);
+        movingTimerRef.current = null;
+      }
+      if (!idleTimerRef.current) {
+        idleTimerRef.current = setTimeout(() => {
+          setShowControlsHint(true);
+        }, 2200);
+      }
+    }
+
+    let closest: VillageLocation | null = null;
+    let minDist = INTERACTION_RADIUS;
+
+    for (const loc of VILLAGE_LOCATIONS) {
+      if (loc.id === 0) continue; // Plaza
+      const dist = Math.hypot(x - loc.x, z - loc.z);
+      if (dist <= minDist) {
+        minDist = dist;
+        closest = loc;
+      }
+    }
+
+    setActiveNearbyLocation(closest);
+  }, []);
+
+  // Keyboard [E] Interaction Listener
   useEffect(() => {
-    if (classicMode) return;
-    const scrollTrack = document.getElementById('journey-scroll-track');
-    if (!scrollTrack) return;
-
-    const st = ScrollTrigger.create({
-      trigger: scrollTrack,
-      start: 'top top',
-      end: 'bottom bottom',
-      scrub: 0.5,
-      onUpdate: (self) => {
-        const p = self.progress;
-        setScrollProgress(p);
-        canvasRef.current?.setProgress(p);
-
-        // Evaluate station proximity
-        let matched: number | null = null;
-        for (const st of STATIONS) {
-          if (Math.abs(p - st.progress) <= STATION_PROXIMITY) {
-            matched = st.id;
-            break;
-          }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If modal is already open, ignore
+      if (openModalId !== null || showVehicleGarage) {
+        if (e.key === 'Escape') {
+          setOpenModalId(null);
+          setShowVehicleGarage(false);
         }
-        setActiveStationId(matched);
-      },
-    });
+        return;
+      }
 
-    return () => st.kill();
-  }, [classicMode]);
+      if ((e.key === 'e' || e.key === 'E') && activeNearbyLocation) {
+        e.preventDefault();
+        setOpenModalId(activeNearbyLocation.id);
+        playClickTone();
+      }
+    };
 
-  // ============================================================
-  // TOAST
-  // ============================================================
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeNearbyLocation, openModalId, showVehicleGarage]);
+
+  // Toast notification
   const showToast = useCallback((title: string, msg = '') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, title, msg }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
   }, []);
 
-  // ============================================================
-  // XP WRAPPER (hooks into store.addXP + shows toast + triggers orb)
-  // ============================================================
+  // Earn XP helper
   const earnXP = useCallback((amount: number, reason: string) => {
     store.addXP(amount);
     showToast(`+${amount} Amel XP ✨`, reason);
@@ -102,29 +165,12 @@ export default function HomePage() {
     store.checkBadges();
   }, [store, showToast]);
 
-  // ============================================================
-  // JUMP TO STATION
-  // ============================================================
-  const jumpToStation = useCallback((id: number) => {
-    const target = STATIONS.find(s => s.id === id);
-    if (!target) return;
-    const track = document.getElementById('journey-scroll-track');
-    if (!track) return;
-    const maxScroll = track.offsetHeight - window.innerHeight;
-    window.scrollTo({ top: target.progress * maxScroll, behavior: 'smooth' });
-    playClickTone();
-  }, []);
-
-  // ============================================================
-  // FORM HANDLERS
-  // ============================================================
-
-  // Günlük
+  // Form Submissions
   const handleJournalSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const entry: JournalEntry = {
-      id: 'j_' + Date.now(),
+      id: crypto.randomUUID(),
       date: new Date().toISOString().split('T')[0],
       mood: Number(fd.get('mood') ?? 3),
       energy: Number(fd.get('energy') ?? 7),
@@ -134,16 +180,16 @@ export default function HomePage() {
       createdAt: new Date().toISOString(),
     };
     store.addJournal(entry);
-    earnXP(50, 'Günlük Seyir Defteri kaydedildi');
+    earnXP(25, 'Günün muhasebesi kaydedildi');
+    setOpenModalId(null);
     e.currentTarget.reset();
   };
 
-  // Kuran
   const handleQuranSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const note: QuranNote = {
-      id: 'q_' + Date.now(),
+      id: crypto.randomUUID(),
       date: new Date().toISOString().split('T')[0],
       sure: String(fd.get('sure') ?? ''),
       ayet: String(fd.get('ayet') ?? ''),
@@ -152,16 +198,16 @@ export default function HomePage() {
       createdAt: new Date().toISOString(),
     };
     store.addQuranNote(note);
-    earnXP(60, `${note.sure} Suresi notu kaydedildi`);
+    earnXP(35, 'Kuran tefekkürü kaydedildi');
+    setOpenModalId(null);
     e.currentTarget.reset();
   };
 
-  // Hadis
   const handleHadisSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const note: HadisNote = {
-      id: 'h_' + Date.now(),
+      id: crypto.randomUUID(),
       date: new Date().toISOString().split('T')[0],
       metin: String(fd.get('metin') ?? ''),
       kaynak: String(fd.get('kaynak') ?? 'Buhârî'),
@@ -170,16 +216,16 @@ export default function HomePage() {
       createdAt: new Date().toISOString(),
     };
     store.addHadisNote(note);
-    earnXP(60, `${note.konu} Hadisi kaydedildi`);
+    earnXP(30, 'Hadis dersi kaydedildi');
+    setOpenModalId(null);
     e.currentTarget.reset();
   };
 
-  // Eisenhower task
   const handleAddTask = (e: React.FormEvent<HTMLFormElement>, qKey: 'q1' | 'q2' | 'q3' | 'q4') => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const task: EisenhowerTask = {
-      id: 't_' + Date.now(),
+      id: crypto.randomUUID(),
       text: String(fd.get('text') ?? ''),
       done: false,
       createdAt: new Date().toISOString(),
@@ -196,13 +242,12 @@ export default function HomePage() {
     if (task && !task.done) earnXP(25, 'Görev tamamlandı');
   };
 
-  // Lesson
   const [severity, setSeverityState] = useState(3);
   const handleLessonSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const entry: LessonEntry = {
-      id: 'l_' + Date.now(),
+      id: crypto.randomUUID(),
       date: new Date().toISOString().split('T')[0],
       title: String(fd.get('title') ?? ''),
       wrong: String(fd.get('wrong') ?? ''),
@@ -211,16 +256,16 @@ export default function HomePage() {
       createdAt: new Date().toISOString(),
     };
     store.addLesson(entry);
-    earnXP(40, 'Hata tecrübeye dönüştürüldü');
+    earnXP(25, 'Hata ve ibret dersi kaydedildi');
+    setOpenModalId(null);
     e.currentTarget.reset();
   };
 
-  // Sukur
   const handleSukurSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const entry: SukurEntry = {
-      id: 's_' + Date.now(),
+      id: crypto.randomUUID(),
       date: new Date().toISOString().split('T')[0],
       text: String(fd.get('text') ?? ''),
       nimets: [String(fd.get('n1') ?? ''), String(fd.get('n2') ?? ''), String(fd.get('n3') ?? '')],
@@ -233,11 +278,11 @@ export default function HomePage() {
     } catch {
       // ignore
     }
-    earnXP(35, 'Şükür ve nimet kaydedildi ✨');
+    earnXP(20, 'Şükür ve hamd kaydedildi');
+    setOpenModalId(null);
     e.currentTarget.reset();
   };
 
-  // Tespih
   const [zikirType, setZikirType] = useState('Subhanallah');
   const tespihTarget = 33;
   const handleTespih = () => {
@@ -250,17 +295,14 @@ export default function HomePage() {
     }
   };
 
-  // ============================================================
-  // BACKUP
-  // ============================================================
   const exportData = () => {
     const data = store.exportAll();
     const str = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data, null, 2));
     const a = document.createElement('a');
     a.href = str;
-    a.download = `SAH_Yolculuk_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `SAH_Koy_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
-    showToast('Yedek İndirildi', 'JSON yedeğiniz cihazınıza kaydedildi.');
+    showToast('Yedek İndirildi', 'Verileriniz JSON olarak kaydedildi.');
   };
 
   const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -272,271 +314,348 @@ export default function HomePage() {
         const parsed = JSON.parse(evt.target?.result as string);
         store.importAll(parsed);
         showToast('Yedek Geri Yüklendi!', 'Tüm verileriniz güncellendi.');
-      } catch { alert('Geçersiz yedek dosyası!'); }
+      } catch { alert('Geçersiz dosya!'); }
     };
     reader.readAsText(file);
   };
 
-  // Current station metadata
-  const currentStation = STATIONS.find(s => s.id === activeStationId);
+  const isInputBlocked = openModalId !== null || showVehicleGarage;
 
-  // ============================================================
-  // RENDER
-  // ============================================================
   return (
-    <div className={classicMode ? 'classic-mode' : 'journey-mode'}>
+    <div className="relative min-h-screen bg-[#090d16] text-slate-100 selection:bg-indigo-500 selection:text-white overflow-hidden select-none">
 
-      {/* ============ NAVBAR ============ */}
-      <nav className="fixed top-0 left-0 right-0 h-[72px] bg-white/92 backdrop-blur-[14px] border-b border-slate-200 z-[1000] flex items-center px-6">
-        <div className="flex items-center gap-3 flex-1">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-indigo-500/25">S</div>
-          <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">SAH WORLD</span>
-
-          {/* Vehicle pill */}
-          <button onClick={() => setShowVehicleGarage(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-200 rounded-full text-indigo-700 text-xs font-bold hover:shadow-sm transition-all">
-            <span>{store.vehicle.icon}</span> {store.vehicle.name}
-          </button>
-
-          {/* Streak pill */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-amber-700 text-xs font-bold">
-            🔥 {store.streak.current} Gün
+      {/* ============ TOP GAME HUD (Minimal Bruno Simon Floating Islands) ============ */}
+      <header className="fixed top-4 left-4 right-4 min-h-[3rem] z-[1000] flex items-start md:items-center justify-between pointer-events-none">
+        
+        {/* Left Status Island */}
+        <div className="flex flex-wrap items-center gap-2 md:gap-3 pointer-events-auto max-w-[70%] md:max-w-none">
+          {/* Brand Emblem */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-pill border-white/10 shadow-lg flex-shrink-0">
+            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-cyan-400 flex items-center justify-center text-white font-black text-xs shadow-md">
+              S
+            </div>
+            <span className="text-xs font-black tracking-wider bg-gradient-to-r from-white via-indigo-100 to-cyan-300 bg-clip-text text-transparent">
+              SAH WORLD
+            </span>
           </div>
 
-          {/* XP pill */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full text-emerald-700 text-xs font-bold font-mono">
-            ✨ {store.xp} XP · {level.icon} {level.name}
+          {/* Vehicle Quick Switch Pill */}
+          <button
+            onClick={() => setShowVehicleGarage(true)}
+            title="Binek Değiştir"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-pill border-indigo-500/25 hover:border-indigo-400 text-indigo-200 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer"
+          >
+            <span className="text-sm">{store.vehicle.icon}</span>
+            <span className="text-[11px] font-medium">{store.vehicle.name}</span>
+          </button>
+
+          {/* Streak Indicator Pill */}
+          <div className="flex items-center gap-1 px-3 py-1.5 rounded-full glass-pill border-amber-500/25 text-amber-300 text-xs font-bold font-mono shadow-sm flex-shrink-0">
+            🔥 {store.streak.current}
+          </div>
+
+          {/* XP & Level Indicator Pill */}
+          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-pill border-emerald-500/25 text-emerald-300 text-xs font-bold font-mono shadow-sm">
+            <span>✨ {store.xp} XP</span>
+            <span className="text-slate-500 text-[10px]">·</span>
+            <span>{level.icon} {level.name}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button onClick={() => setClassicMode(m => !m)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${classicMode ? 'bg-slate-50 border-slate-200 text-slate-600' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
-            {classicMode ? '📋 Klasik Liste' : '🌐 3D Yolculuk'}
+        {/* Right Actions Island */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <button
+            onClick={() => setShowEvimHub(true)}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-indigo-600/90 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 hover:scale-105 active:scale-95 transition-all border border-indigo-400/40 cursor-pointer"
+          >
+            <span>🏠</span>
+            <span className="hidden sm:inline">Evim</span>
           </button>
-          <button onClick={exportData} className="px-3 py-2 text-xs font-semibold border border-slate-200 rounded-xl bg-white text-slate-600 hover:bg-slate-50 transition-all">
-            💾 Yedek
+
+          <button
+            onClick={() => setClassicMode(m => !m)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold glass-pill transition-all cursor-pointer ${
+              classicMode
+                ? 'bg-indigo-600/30 border-indigo-400/40 text-indigo-200'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <span>{classicMode ? '📋' : '🌐'}</span>
+            <span className="hidden sm:inline">{classicMode ? 'Liste' : '3D Köy'}</span>
           </button>
-          <label className="px-3 py-2 text-xs font-semibold border border-slate-200 rounded-xl bg-white text-slate-600 hover:bg-slate-50 transition-all cursor-pointer">
-            📂 İçe Aktar
+
+          <button
+            onClick={exportData}
+            title="Verileri Yedekle (JSON)"
+            className="w-8 h-8 rounded-full glass-pill flex items-center justify-center text-xs text-slate-300 hover:text-white transition-all cursor-pointer"
+          >
+            💾
+          </button>
+
+          <label
+            title="Yedekten Geri Yükle"
+            className="w-8 h-8 rounded-full glass-pill flex items-center justify-center text-xs text-slate-300 hover:text-white transition-all cursor-pointer"
+          >
+            📂
             <input type="file" accept=".json" className="hidden" onChange={importData} />
           </label>
         </div>
-      </nav>
+      </header>
 
-      {/* ============ 3D CANVAS (journey mode only) ============ */}
+      {/* ============ 3D VILLAGE CANVAS ============ */}
       {!classicMode && (
         <div className="fixed inset-0 z-[1]">
-          <JourneyCanvas
-            ref={canvasRef}
+          <VillageCanvas
             vehicleType={store.vehicle.type}
-            activeStationId={activeStationId}
+            activeBuildingId={activeNearbyLocation?.id ?? null}
             xp={store.xp}
-            orbTrigger={store.xpOrbTrigger}
-            currentProgress={scrollProgress}
+            isInputBlocked={isInputBlocked}
+            touchInput={touchInput}
+            onPlayerUpdate={handlePlayerUpdate}
           />
         </div>
       )}
 
-      {/* ============ VIRTUAL SCROLL SPINE ============ */}
-      {!classicMode && <div id="journey-scroll-track" style={{ height: '900vh' }} />}
-
-      {/* ============ HERO WELCOME CARD (progress=0) ============ */}
-      {!classicMode && scrollProgress < 0.04 && (
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 w-[600px] max-w-[calc(100vw-32px)] bg-white/95 backdrop-blur-xl border border-slate-200 rounded-3xl p-10 text-center shadow-2xl shadow-indigo-500/10">
-          <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-sm font-bold mb-4">🧭 HAYAT BİR YOLCULUKTUR</span>
-          <h1 className="text-5xl font-black tracking-tight mb-3">
-            Kendi Evrenini <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">İnşa Et</span>
-          </h1>
-          <p className="text-slate-500 mb-6">Aşağı kaydırarak yolculuğa başla. Her durakta bir hayat alanını keşfet ve <strong>Ahiret Deponu</strong> nurlandır.</p>
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-              <div className="text-xs text-slate-400 font-semibold mb-1">GÜNLÜK SERİ</div>
-              <div className="text-2xl font-black font-mono text-amber-500">🔥 {store.streak.current}</div>
-            </div>
-            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-              <div className="text-xs text-slate-400 font-semibold mb-1">AMEL XP</div>
-              <div className="text-2xl font-black font-mono text-indigo-600">{store.xp}</div>
-            </div>
-            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-              <div className="text-xs text-slate-400 font-semibold mb-1">MERTEBE</div>
-              <div className="text-xl font-black text-emerald-600">{level.icon} {level.name}</div>
-            </div>
+      {/* ============ DESKTOP DRIVING GUIDE HINT (Smooth opacity fade on movement) ============ */}
+      {!classicMode && !activeNearbyLocation && openModalId === null && !showEvimHub && (
+        <div
+          className="fixed bottom-6 left-6 z-[900] glass-pill rounded-full px-4 py-2 hidden md:flex items-center gap-2.5 text-[11px] text-slate-300 border border-white/10 shadow-xl pointer-events-none"
+          style={{
+            opacity: showControlsHint ? 1 : 0,
+            transition: 'opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        >
+          <div className="flex items-center gap-1 font-mono font-bold text-cyan-300">
+            {['W', 'A', 'S', 'D'].map(k => (
+              <span key={k} className="px-1.5 py-0.5 rounded bg-slate-800/90 border border-white/15">{k}</span>
+            ))}
           </div>
-          <button onClick={() => jumpToStation(1)} className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30 transition-all text-base">
-            🚗 Yolculuğa Başla (Kaydır)
+          <span className="text-slate-500">·</span>
+          <span className="font-mono font-semibold text-cyan-300">Ok Tuşları</span>
+          <span className="text-slate-400">ile sürüş</span>
+          <span className="text-slate-600 mx-1">|</span>
+          <span className="font-mono font-semibold text-amber-300/80">[E]</span>
+          <span className="text-slate-400">binalara gir</span>
+        </div>
+      )}
+
+      {/* ============ FLOATING PROXIMITY INTERACTION CHIP ============ */}
+      {!classicMode && activeNearbyLocation && openModalId === null && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[1500] animate-bounce">
+          <button
+            onClick={() => {
+              setOpenModalId(activeNearbyLocation.id);
+              playClickTone();
+            }}
+            className="flex items-center gap-3.5 px-6 py-3 rounded-full glass-panel border shadow-2xl transition-all hover:scale-105 active:scale-95 cursor-pointer backdrop-blur-2xl"
+            style={{
+              borderColor: activeNearbyLocation.color,
+              boxShadow: `0 0 30px ${activeNearbyLocation.color}40`,
+            }}
+          >
+            <span className="w-7 h-7 rounded-full bg-white/20 text-white font-mono font-black text-xs flex items-center justify-center border border-white/30 shadow-inner">
+              E
+            </span>
+            <span className="text-xl">{activeNearbyLocation.icon}</span>
+            <div className="text-left">
+              <div className="text-xs font-black text-white">{activeNearbyLocation.label}</div>
+              <div className="text-[10px] text-slate-300">Girmek için [E]&apos;ye veya buraya tıkla</div>
+            </div>
           </button>
         </div>
       )}
 
-      {/* ============ STATION DOCKED PANELS ============ */}
-      {!classicMode && STATIONS.filter(s => s.id >= 1 && s.id <= 7).map(st => (
-        <div
-          key={st.id}
-          className={`fixed top-[88px] right-7 w-[580px] max-w-[calc(100vw-48px)] max-h-[calc(100vh-110px)] bg-white/93 backdrop-blur-xl border border-slate-200/85 rounded-3xl shadow-2xl z-50 overflow-y-auto transition-all duration-500 ${activeStationId === st.id ? 'opacity-100 translate-x-0 scale-100 pointer-events-auto' : 'opacity-0 translate-x-16 scale-95 pointer-events-none'}`}
-        >
-          <div className="p-7">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: st.color + '20', color: st.color }}>
-                  {st.id}. DURAK
-                </span>
-                <span className="text-slate-400 text-sm">{st.label}</span>
-              </div>
-              <button onClick={() => setActiveStationId(null)} className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all text-sm">✕</button>
-            </div>
-
-            {/* Station-specific panel content */}
-            {st.id === 1 && <GunlukPanelContent onSubmit={handleJournalSubmit} entries={store.journal.slice(0, 3)} />}
-            {st.id === 2 && <KuranPanelContent onSubmit={handleQuranSubmit} entries={store.quranNotes.slice(0, 3)} />}
-            {st.id === 3 && <HadisPanelContent onSubmit={handleHadisSubmit} entries={store.hadisNotes.slice(0, 3)} />}
-            {st.id === 4 && <MatrisPanelContent eisenhower={store.eisenhower} onAddTask={handleAddTask} onToggle={handleToggleTask} />}
-            {st.id === 5 && <HatalarPanelContent onSubmit={handleLessonSubmit} severity={severity} onSeverityChange={setSeverityState} entries={store.lessons.slice(0, 3)} />}
-            {st.id === 6 && <SukurPanelContent onSubmit={handleSukurSubmit} entries={store.sukurList.slice(0, 3)} />}
-            {st.id === 7 && <MescidimPanelContent tespihCount={store.currentTespih} totalZikir={store.totalZikir} onTespih={handleTespih} zikirType={zikirType} onZikirChange={setZikirType} onReset={store.resetTespih} dailyAyet={DAILY_AYETS[todayIdx]} dailyHadis={DAILY_HADISLER[todayIdx]} />}
-          </div>
-        </div>
-      ))}
-
-      {/* ============ AHIRET DEPOSU FINAL OVERLAY (progress≥97%) ============ */}
-      {!classicMode && scrollProgress >= 0.97 && (
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-60 w-[760px] max-w-[calc(100vw-32px)] max-h-[85vh] overflow-y-auto bg-white/96 backdrop-blur-2xl border-2 border-yellow-300 rounded-3xl p-10 shadow-2xl shadow-yellow-500/20 text-center">
-          <span className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-full text-yellow-700 font-bold text-sm mb-4">👑 EBEDİ HAZİNE & MUKAFAT</span>
-          <h2 className="text-4xl font-black text-yellow-600 mb-3">Ahiret Deposu</h2>
-          <p className="text-slate-500 text-lg max-w-lg mx-auto mb-8">Yolculuk boyunca attığın her samimi adım bu ebedi hazinede birikti.</p>
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
-              <div className="text-xs text-slate-400 font-bold mb-1">TOPLAM AMEL PUANI</div>
-              <div className="text-3xl font-black font-mono text-indigo-600">{store.xp}</div>
-              <div className="text-xs text-slate-400 mt-1">XP — Ebedi depoda kilitli</div>
-            </div>
-            <div className="bg-yellow-50 rounded-2xl p-5 border border-yellow-200">
-              <div className="text-xs text-yellow-600 font-bold mb-1">MANEVİ MERTEBE</div>
-              <div className="text-2xl font-black text-yellow-600">{level.icon} {level.name}</div>
-              <div className="text-xs text-yellow-500 mt-1">{nextLevel ? `${nextLevel.xp - store.xp} XP → ${nextLevel.name}` : 'Zirve!'}</div>
-            </div>
-            <div className="bg-emerald-50 rounded-2xl p-5 border border-emerald-200">
-              <div className="text-xs text-emerald-600 font-bold mb-1">TOPLAM ZİKİR</div>
-              <div className="text-3xl font-black font-mono text-emerald-600">{store.totalZikir}</div>
-              <div className="text-xs text-emerald-500 mt-1">Kayıtlı tespih</div>
-            </div>
-          </div>
-
-          {/* Badges */}
-          <div className="text-left mb-6">
-            <h4 className="text-sm font-bold text-slate-600 mb-3">🏅 Manevi Nişanlar & Rozetler</h4>
-            <div className="grid grid-cols-4 gap-3">
-              {['first_step','week_warrior','sukur_master','zikir_master','kuran_dostu','eisen_master','hadis_alimi','ders_ustası'].map(id => {
-                const earned = store.badges.includes(id);
-                return (
-                  <div key={id} className={`p-3 rounded-xl border text-center text-xs transition-all ${earned ? 'bg-yellow-50 border-yellow-200 opacity-100' : 'bg-slate-50 border-slate-100 opacity-40 grayscale'}`}>
-                    <div className="text-2xl mb-1">{earned ? '🏆' : '🔒'}</div>
-                    <div className="font-bold text-slate-700">{id.replace(/_/g, ' ')}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex gap-3 justify-center">
-            <button onClick={() => jumpToStation(1)} className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all">
-              🔄 Yolculuğa Baştan Başla
-            </button>
-            <button onClick={() => setShowVehicleGarage(true)} className="px-6 py-3 border border-slate-200 bg-white text-slate-700 font-bold rounded-2xl hover:bg-slate-50 transition-all">
-              🚗 Aracını Değiştir
-            </button>
-          </div>
+      {/* ============ INTERACTIVE MINIMAP & COMPASS ============ */}
+      {!classicMode && (
+        <div className="fixed bottom-6 right-6 z-[900]">
+          <Minimap
+            playerX={playerState.x}
+            playerZ={playerState.z}
+            playerHeading={playerState.heading}
+            activeBuildingId={activeNearbyLocation?.id ?? null}
+            onSelectLocation={(loc) => {
+              setOpenModalId(loc.id);
+              playClickTone();
+            }}
+          />
         </div>
       )}
 
-      {/* ============ STATION HUD DOCK (Bottom) ============ */}
-      {!classicMode && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[900] bg-white/94 backdrop-blur-xl border border-slate-200 rounded-full px-2.5 py-1.5 flex items-center gap-1 shadow-xl shadow-black/8">
-          {STATIONS.map(st => (
-            <button
-              key={st.id}
-              onClick={() => jumpToStation(st.id)}
-              title={st.label}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
-                activeStationId === st.id
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30'
-                  : st.id === 8
-                    ? 'bg-yellow-50 border border-yellow-200 text-yellow-600 hover:bg-yellow-100'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-indigo-600'
-              }`}
-            >
-              {st.icon.startsWith('ti-') ? <i className={`ti ${st.icon}`} /> : null}
-              {st.name}
-            </button>
-          ))}
+      {/* ============ MOBILE TOUCH CONTROLS ============ */}
+      {!classicMode && !isInputBlocked && (
+        <MobileControls onInputChange={setTouchInput} />
+      )}
+
+      {/* ============ SECTION MODALS / DOCKED PANELS ============ */}
+      {openModalId !== null && (
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xl z-[20000] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="glass-panel rounded-3xl max-w-[720px] w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl relative border border-white/20">
+            {/* Modal Header */}
+            {(() => {
+              const loc = VILLAGE_LOCATIONS.find(l => l.id === openModalId);
+              if (!loc) return null;
+              return (
+                <div className="flex items-center justify-between mb-7 border-b border-white/10 pb-5">
+                  <div className="flex items-center gap-4">
+                    <span className="text-4xl">{loc.icon}</span>
+                    <div>
+                      <h2 className="text-2xl font-black text-white">{loc.label}</h2>
+                      <p className="text-sm text-slate-400 mt-0.5">{loc.description}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setOpenModalId(null)}
+                    className="w-10 h-10 rounded-xl bg-slate-800/80 border border-white/10 flex items-center justify-center text-slate-400 hover:bg-rose-500/20 hover:text-rose-400 hover:border-rose-500/30 transition-all text-base cursor-pointer flex-shrink-0"
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })()}
+
+            {/* Modal Contents */}
+            {openModalId === 1 && <GunlukPanelContent onSubmit={handleJournalSubmit} entries={store.journal.slice(0, 4)} />}
+            {openModalId === 2 && <KuranPanelContent onSubmit={handleQuranSubmit} entries={store.quranNotes.slice(0, 4)} />}
+            {openModalId === 3 && <HadisPanelContent onSubmit={handleHadisSubmit} entries={store.hadisNotes.slice(0, 4)} />}
+            {openModalId === 4 && <MatrisPanelContent eisenhower={store.eisenhower} onAddTask={handleAddTask} onToggle={handleToggleTask} />}
+            {openModalId === 5 && <HatalarPanelContent onSubmit={handleLessonSubmit} severity={severity} onSeverityChange={setSeverityState} entries={store.lessons.slice(0, 4)} />}
+            {openModalId === 6 && <SukurPanelContent onSubmit={handleSukurSubmit} entries={store.sukurList.slice(0, 4)} />}
+            {openModalId === 7 && <MescidimPanelContent tespihCount={store.currentTespih} totalZikir={store.totalZikir} onTespih={handleTespih} zikirType={zikirType} onZikirChange={setZikirType} onReset={store.resetTespih} dailyAyet={DAILY_AYETS[todayIdx]} dailyHadis={DAILY_HADISLER[todayIdx]} />}
+            {openModalId === 8 && (
+              <div className="text-center space-y-6">
+                <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-300 font-bold text-xs uppercase tracking-wider">
+                  👑 Ebedi Hazine & Mükâfat
+                </span>
+                <h3 className="text-3xl font-black text-amber-400">Ahiret Deposu</h3>
+                <p className="text-slate-300 text-sm max-w-md mx-auto">
+                  Köyde attığın her samimi adım ve kaydettiğin her amel bu ebedi hazinede birikir.
+                </p>
+
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="glass-card rounded-2xl p-4">
+                    <div className="text-[10px] text-slate-400 uppercase font-mono mb-1">AMEL PUANI</div>
+                    <div className="text-2xl font-black font-mono text-indigo-400">{store.xp}</div>
+                  </div>
+                  <div className="glass-card rounded-2xl p-4">
+                    <div className="text-[10px] text-amber-400 uppercase font-mono mb-1">MERTEBE</div>
+                    <div className="text-xl font-black text-amber-300">{level.icon} {level.name}</div>
+                  </div>
+                  <div className="glass-card rounded-2xl p-4">
+                    <div className="text-[10px] text-emerald-400 uppercase font-mono mb-1">TOPLAM ZİKİR</div>
+                    <div className="text-2xl font-black font-mono text-emerald-400">{store.totalZikir}</div>
+                  </div>
+                </div>
+
+                {/* Badges Grid */}
+                <div className="text-left">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Manevi Nişanlar</h4>
+                  <div className="grid grid-cols-4 gap-2">
+                    {['first_step','week_warrior','sukur_master','zikir_master','kuran_dostu','eisen_master','hadis_alimi','ders_ustası'].map(id => {
+                      const earned = store.badges.includes(id);
+                      return (
+                        <div
+                          key={id}
+                          className={`p-2.5 rounded-xl border text-center text-xs transition-all ${
+                            earned ? 'bg-amber-950/40 border-amber-500/40 opacity-100 shadow-sm' : 'bg-slate-900/40 border-white/5 opacity-30 grayscale'
+                          }`}
+                        >
+                          <div className="text-xl mb-0.5">{earned ? '🏆' : '🔒'}</div>
+                          <div className="font-bold text-slate-200 text-[10px] truncate">{id.replace(/_/g, ' ')}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* ============ VEHICLE GARAGE MODAL ============ */}
       {showVehicleGarage && (
-        <div className="fixed inset-0 bg-slate-900/75 backdrop-blur-xl z-[20000] flex items-center justify-center p-6">
-          <div className="bg-white rounded-3xl max-w-[820px] w-full border border-slate-200 shadow-2xl p-10 text-center">
-            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold mb-4">🚗 BİNEK SEÇİMİ</span>
-            <h2 className="text-3xl font-black mb-2">Hangi Araçla Yolculuk Edeceksin?</h2>
-            <p className="text-slate-500 mb-8">Hayat yolculuğunda sana eşlik edecek aracını seç.</p>
-            <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-2xl z-[20000] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="glass-panel rounded-3xl max-w-[820px] w-full p-9 text-center border border-white/20">
+            <span className="inline-flex items-center gap-2 px-4 py-1 bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 rounded-full text-xs font-bold uppercase mb-4">
+              🚗 Manevi Binek Seçimi
+            </span>
+            <h2 className="text-3xl font-black mb-2 text-white">Hangi Araçla Köyü Keşfedeceksin?</h2>
+            <p className="text-slate-400 mb-8 text-sm">Köy yollarında sana eşlik edecek biniti seç.</p>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
               {(['car','bike','horse','rocket'] as const).map(type => {
-                const defs = { car: { icon:'🚗', name:'Otomobil', desc:'Dengeli, kararlı' }, bike: { icon:'🚲', name:'Bisiklet', desc:'Hafif, enerjik' }, horse: { icon:'🐎', name:'Atlı', desc:'Sabırlı, istikrarlı' }, rocket: { icon:'🚀', name:'Roket', desc:'Azimli, süratli' } };
+                const defs = {
+                  car: { icon: '🚗', name: 'Otomobil', desc: 'Dengeli & konforlu' },
+                  bike: { icon: '🚲', name: 'Bisiklet', desc: 'Hafif & manevralı' },
+                  horse: { icon: '🐎', name: 'Atlı', desc: 'Kadim & asil' },
+                  rocket: { icon: '🚀', name: 'Roket', desc: 'Süratli & yüksek idealli' },
+                };
                 const d = defs[type];
+                const isSelected = pendingVehicle === type;
                 return (
                   <button
                     key={type}
                     onClick={() => setPendingVehicle(type)}
-                    className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all ${pendingVehicle === type ? 'border-indigo-500 bg-indigo-50 shadow-lg shadow-indigo-500/15' : 'border-slate-200 bg-slate-50 hover:border-indigo-200'}`}
+                    className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-2.5 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-indigo-400 bg-indigo-600/30 shadow-lg shadow-indigo-500/25 scale-105'
+                        : 'border-white/10 bg-slate-900/60 hover:border-indigo-400/40'
+                    }`}
                   >
-                    <div className="text-5xl">{d.icon}</div>
-                    <div className="font-bold text-slate-800">{d.name}</div>
-                    <div className="text-xs text-slate-500">{d.desc}</div>
+                    <div className="text-5xl my-1">{d.icon}</div>
+                    <div className="font-black text-white text-base">{d.name}</div>
+                    <div className="text-xs text-slate-400">{d.desc}</div>
                   </button>
                 );
               })}
             </div>
+
             <button
               onClick={() => {
-                const defs = { car: { type: 'car' as const, name:'Otomobil', icon:'🚗', flavorText:'', color:'#4f46e5' }, bike: { type: 'bike' as const, name:'Bisiklet', icon:'🚲', flavorText:'', color:'#059669' }, horse: { type: 'horse' as const, name:'Atlı', icon:'🐎', flavorText:'', color:'#b8860b' }, rocket: { type: 'rocket' as const, name:'Roket', icon:'🚀', flavorText:'', color:'#ef4444' } };
+                const defs = {
+                  car: { type: 'car' as const, name: 'Otomobil', icon: '🚗', flavorText: '', color: '#6366f1' },
+                  bike: { type: 'bike' as const, name: 'Bisiklet', icon: '🚲', flavorText: '', color: '#10b981' },
+                  horse: { type: 'horse' as const, name: 'Atlı', icon: '🐎', flavorText: '', color: '#d97706' },
+                  rocket: { type: 'rocket' as const, name: 'Roket', icon: '🚀', flavorText: '', color: '#ef4444' },
+                };
                 store.setVehicle(defs[pendingVehicle]);
                 setShowVehicleGarage(false);
                 playSuccessChime();
               }}
-              className="px-10 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30 transition-all text-base"
+              className="px-10 py-3.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white font-bold rounded-2xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 active:scale-95 transition-all text-base cursor-pointer"
             >
-              ✅ Bu Araçla Yola Çık
+              ✅ Bu Araçla Köyü Keşfet
             </button>
           </div>
         </div>
       )}
 
       {/* ============ TOAST NOTIFICATIONS ============ */}
-      <div className="fixed bottom-20 right-7 z-[10000] flex flex-col gap-2.5 pointer-events-none">
+      <div className="fixed bottom-20 left-7 z-[10000] flex flex-col gap-2.5 pointer-events-none">
         {toasts.map(t => (
-          <div key={t.id} className="bg-white border border-slate-200 border-l-4 border-l-indigo-500 rounded-xl px-4 py-3 shadow-xl flex items-start gap-3 min-w-[280px] max-w-sm animate-in slide-in-from-right-5 duration-300">
-            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-lg flex-shrink-0">✨</div>
+          <div
+            key={t.id}
+            className="glass-panel border-l-4 border-l-cyan-400 rounded-2xl px-4 py-3 shadow-2xl flex items-start gap-3 min-w-[280px] max-w-sm animate-in slide-in-from-left-5 duration-300"
+          >
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 flex items-center justify-center text-lg flex-shrink-0">
+              ✨
+            </div>
             <div>
-              <div className="text-sm font-bold text-slate-800">{t.title}</div>
-              {t.msg && <div className="text-xs text-slate-500 mt-0.5">{t.msg}</div>}
+              <div className="text-sm font-bold text-white">{t.title}</div>
+              {t.msg && <div className="text-xs text-slate-300 mt-0.5">{t.msg}</div>}
             </div>
           </div>
         ))}
       </div>
 
-      {/* ============ SCROLL HINT ============ */}
-      {!classicMode && scrollProgress < 0.02 && (
-        <div className="fixed bottom-[90px] left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 bg-white/85 backdrop-blur-sm px-4 py-2 rounded-full text-xs font-semibold text-slate-400 border border-slate-200 animate-bounce pointer-events-none">
-          ↓ Yol boyunca ilerlemek için aşağı kaydırın
-        </div>
-      )}
+      {/* ============ EVIM HUB OVERLAY ============ */}
+      {showEvimHub && <EvimHub onClose={() => setShowEvimHub(false)} />}
     </div>
   );
 }
 
 // ============================================================
-// ============================================================
-// INLINE PANEL CONTENT COMPONENTS
+// INLINE PANEL FORMS
 // ============================================================
 
 interface GunlukProps {
@@ -547,31 +666,52 @@ interface GunlukProps {
 function GunlukPanelContent({ onSubmit, entries }: GunlukProps) {
   const [mood, setMood] = useState(3);
   return (
-    <div>
-      <h3 className="text-xl font-black mb-1">Günlük Seyir Defteri</h3>
-      <p className="text-sm text-slate-500 mb-4">Bugünün hislerini ve enerjisini kaydet.</p>
-      <form onSubmit={onSubmit} className="space-y-4">
+    <div className="space-y-5">
+      <form onSubmit={onSubmit} className="space-y-5">
         <input type="hidden" name="mood" value={mood} />
         <div>
-          <label className="block text-xs font-bold text-slate-600 mb-2">Ruh Hali</label>
-          <div className="flex gap-2">
+          <label className="block text-sm font-semibold text-slate-300 mb-3">Günün Ruh Hali</label>
+          <div className="flex gap-3">
             {[[1,'😭','Kötü'],[2,'🙁','Düşük'],[3,'😐','Normal'],[4,'🙂','İyi'],[5,'🤩','Harika']].map(([v,e,l]) => (
-              <button type="button" key={v} onClick={() => setMood(Number(v))} className={`flex-1 py-2 rounded-xl border-2 text-center flex flex-col items-center gap-1 transition-all ${mood === Number(v) ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-200'}`}>
-                <span className="text-2xl">{e}</span><span className="text-[10px] font-bold text-slate-500">{l}</span>
+              <button
+                type="button"
+                key={v}
+                onClick={() => setMood(Number(v))}
+                className={`flex-1 py-3 rounded-xl border text-center flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                  mood === Number(v)
+                    ? 'border-indigo-400 bg-indigo-600/30 text-white shadow-md'
+                    : 'border-white/10 bg-slate-900/60 text-slate-400 hover:border-indigo-400/40'
+                }`}
+              >
+                <span className="text-2xl">{e}</span>
+                <span className="text-xs font-semibold">{l}</span>
               </button>
             ))}
           </div>
         </div>
-        <textarea name="content" required placeholder="Zihnini ve duygularını buraya dök..." className="w-full p-3 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 resize-none h-24" />
-        <button type="submit" className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all text-sm">💾 Kaydet (+50 XP)</button>
+
+        <textarea
+          name="content"
+          required
+          placeholder="Bugünün hisleri, tefekkürleri ve manevi notları..."
+          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-28 placeholder:text-slate-500"
+        />
+
+        <button
+          type="submit"
+          className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/30 transition-all text-sm cursor-pointer"
+        >
+          💾 Kaydet (+50 XP)
+        </button>
       </form>
+
       {entries.length > 0 && (
-        <div className="mt-5 space-y-2">
-          <h4 className="text-sm font-bold">Son Kayıtlar</h4>
+        <div className="mt-4 space-y-2">
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Son Seyir Notları</h4>
           {entries.map((e: JournalEntry) => (
-            <div key={e.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl border-l-4 border-l-indigo-500 text-sm">
-              <span className="font-bold">{e.date}</span> · Ruh Hali {e.mood}/5
-              <p className="text-slate-500 text-xs mt-1 line-clamp-2">{e.content}</p>
+            <div key={e.id} className="p-3 glass-card rounded-xl border-l-4 border-l-indigo-500 text-sm">
+              <span className="font-bold text-indigo-300">{e.date}</span> · Ruh Hali {e.mood}/5
+              <p className="text-slate-300 text-xs mt-1 line-clamp-2">{e.content}</p>
             </div>
           ))}
         </div>
@@ -587,26 +727,51 @@ interface KuranProps {
 
 function KuranPanelContent({ onSubmit, entries }: KuranProps) {
   return (
-    <div>
-      <h3 className="text-xl font-black mb-1" style={{color:'#b8860b'}}>Kuran-ı Kerim Günlüğü</h3>
-      <p className="text-sm text-slate-500 mb-4">Okuduğun ayetleri ve tefsir notlarını kaydet.</p>
-      <form onSubmit={onSubmit} className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <input name="sure" required placeholder="Sure adı" className="p-2.5 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/10" />
-          <input name="ayet" required placeholder="Ayet no" className="p-2.5 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/10" />
+    <div className="space-y-5">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            name="sure"
+            required
+            placeholder="Sure adı (Örn: Bakara)"
+            className="px-4 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500"
+          />
+          <input
+            name="ayet"
+            required
+            placeholder="Ayet no (Örn: 152)"
+            className="px-4 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500"
+          />
         </div>
-        <textarea name="tefsir" required placeholder="Tefsir ve açıklama..." className="w-full p-3 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-yellow-500 resize-none h-20" />
-        <textarea name="ders" placeholder="Öğrendiğim temel ders..." className="w-full p-3 bg-yellow-50 border-[1.5px] border-yellow-200 rounded-xl text-sm focus:outline-none focus:border-yellow-500 resize-none h-16" />
-        <button type="submit" className="w-full py-2.5 bg-gradient-to-r from-yellow-600 to-amber-500 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all text-sm">📖 Kaydet (+60 XP)</button>
+        <textarea
+          name="tefsir"
+          required
+          placeholder="Ayetin meali & tefsiri..."
+          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-24 placeholder:text-slate-500"
+        />
+        <textarea
+          name="ders"
+          placeholder="Hayatıma çıkarılan temel ders..."
+          className="w-full px-4 py-3 bg-amber-950/30 border border-amber-500/30 rounded-xl text-sm text-amber-200 resize-none h-20 placeholder:text-amber-400/50 focus:outline-none focus:border-amber-400"
+        />
+        <button
+          type="submit"
+          className="w-full py-3.5 bg-gradient-to-r from-amber-600 to-yellow-500 text-slate-950 font-bold rounded-xl shadow-lg hover:shadow-amber-500/30 transition-all text-sm cursor-pointer"
+        >
+          📖 Kaydet (+60 XP)
+        </button>
       </form>
-      {entries.length > 0 && <div className="mt-5 space-y-2">
-        {entries.map((n: QuranNote) => (
-          <div key={n.id} className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-sm border-l-4 border-l-yellow-500">
-            <strong>{n.sure} Suresi, {n.ayet}. Ayet</strong>
-            <p className="text-slate-500 text-xs mt-1 line-clamp-2">{n.tefsir}</p>
-          </div>
-        ))}
-      </div>}
+
+      {entries.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {entries.map((n: QuranNote) => (
+            <div key={n.id} className="p-3 glass-card rounded-xl text-sm border-l-4 border-l-amber-500">
+              <strong className="text-amber-300">{n.sure} Suresi, {n.ayet}. Ayet</strong>
+              <p className="text-slate-300 text-xs mt-1 line-clamp-2">{n.tefsir}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -618,28 +783,52 @@ interface HadisProps {
 
 function HadisPanelContent({ onSubmit, entries }: HadisProps) {
   return (
-    <div>
-      <h3 className="text-xl font-black mb-1 text-emerald-700">Hadis-i Şerif Günlüğü</h3>
-      <p className="text-sm text-slate-500 mb-4">Peygamber Efendimiz&apos;den hayatına dokunanları kaydet.</p>
-      <form onSubmit={onSubmit} className="space-y-3">
-        <textarea name="metin" required placeholder="Hadis metni..." className="w-full p-3 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 resize-none h-20" />
-        <div className="grid grid-cols-2 gap-3">
-          <select name="kaynak" className="p-2.5 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
-            {['Buhârî','Müslim','Tirmizî','Ebû Dâvûd','Riyazü\'s-Salihin'].map(k => <option key={k}>{k}</option>)}
+    <div className="space-y-5">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <textarea
+          name="metin"
+          required
+          placeholder="Hadis metni..."
+          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-24 placeholder:text-slate-500"
+        />
+        <div className="grid grid-cols-2 gap-4">
+          <select
+            name="kaynak"
+            className="px-4 py-3 glass-input rounded-xl text-sm text-slate-200 focus:outline-none"
+          >
+            {['Buhârî','Müslim','Tirmizî','Ebû Dâvûd','Riyazü\'s-Salihin'].map(k => <option key={k} value={k} className="bg-slate-900 text-white">{k}</option>)}
           </select>
-          <input name="konu" required placeholder="Konu" className="p-2.5 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500" />
+          <input
+            name="konu"
+            required
+            placeholder="Konu (Örn: İhlas)"
+            className="px-4 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500"
+          />
         </div>
-        <textarea name="uygulama" required placeholder="Hayatıma uygulaması..." className="w-full p-3 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 resize-none h-16" />
-        <button type="submit" className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-green-500 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all text-sm">🕌 Kaydet (+60 XP)</button>
+        <textarea
+          name="uygulama"
+          required
+          placeholder="Hayatıma uygulaması..."
+          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-20 placeholder:text-slate-500"
+        />
+        <button
+          type="submit"
+          className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold rounded-xl shadow-lg hover:shadow-emerald-500/30 transition-all text-sm cursor-pointer"
+        >
+          🕌 Kaydet (+60 XP)
+        </button>
       </form>
-      {entries.length > 0 && <div className="mt-5 space-y-2">
-        {entries.map((n: HadisNote) => (
-          <div key={n.id} className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm border-l-4 border-l-emerald-500">
-            <strong>{n.konu} ({n.kaynak})</strong>
-            <p className="text-slate-500 text-xs mt-1 italic line-clamp-2">&quot;{n.metin}&quot;</p>
-          </div>
-        ))}
-      </div>}
+
+      {entries.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {entries.map((n: HadisNote) => (
+            <div key={n.id} className="p-3 glass-card rounded-xl text-sm border-l-4 border-l-emerald-500">
+              <strong className="text-emerald-300">{n.konu} ({n.kaynak})</strong>
+              <p className="text-slate-300 text-xs mt-1 italic line-clamp-2">&quot;{n.metin}&quot;</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -652,28 +841,59 @@ interface MatrisProps {
 
 function MatrisPanelContent({ eisenhower, onAddTask, onToggle }: MatrisProps) {
   const quadrants: Array<{ key: 'q1' | 'q2' | 'q3' | 'q4'; label: string; color: string; cls: string }> = [
-    { key: 'q1', label: '🔴 ACİL + ÖNEMLİ', color: '#ef4444', cls: 'border-red-400' },
-    { key: 'q2', label: '🟡 ÖNEMLİ', color: '#f59e0b', cls: 'border-amber-400' },
-    { key: 'q3', label: '🔵 ACİL', color: '#3b82f6', cls: 'border-blue-400' },
-    { key: 'q4', label: '⚪ HİÇBİRİ', color: '#94a3b8', cls: 'border-slate-400' },
+    { key: 'q1', label: '🔴 ACİL + ÖNEMLİ', color: '#f87171', cls: 'border-red-500/60' },
+    { key: 'q2', label: '🟡 ÖNEMLİ', color: '#fbbf24', cls: 'border-amber-500/60' },
+    { key: 'q3', label: '🔵 ACİL', color: '#60a5fa', cls: 'border-blue-500/60' },
+    { key: 'q4', label: '⚪ DİĞER', color: '#94a3b8', cls: 'border-slate-500/60' },
   ];
   return (
-    <div>
-      <h3 className="text-xl font-black mb-1">Eisenhower Matrisi</h3>
-      <p className="text-sm text-slate-500 mb-4">Acil ve önemli işlerini doğru önceliklendir.</p>
-      <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-5">
         {quadrants.map(q => (
-          <div key={q.key} className={`bg-white border border-slate-200 rounded-xl p-3 border-t-4 ${q.cls}`}>
-            <div className="text-xs font-bold mb-2" style={{color: q.color}}>{q.label}</div>
-            <form onSubmit={e => onAddTask(e, q.key)} className="flex gap-1.5 mb-2">
-              <input name="text" required placeholder="Görev..." className="flex-1 p-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500" />
-              <button type="submit" className="px-2 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700">+</button>
+          <div key={q.key} className={`glass-card rounded-2xl p-5 border-t-2 ${q.cls}`}>
+            {/* Quadrant label — clear section header, not cramped tiny text */}
+            <div
+              className="text-[13px] font-semibold tracking-wide mb-4"
+              style={{ color: q.color }}
+            >
+              {q.label}
+            </div>
+
+            {/* Add task form — input and button have proper gap, button never cut off */}
+            <form onSubmit={e => onAddTask(e, q.key)} className="flex gap-2.5 mb-4">
+              <input
+                name="text"
+                required
+                placeholder="Görev ekle..."
+                className="flex-1 min-w-0 px-3.5 py-2.5 text-sm glass-input rounded-xl placeholder:text-slate-500"
+                style={{ height: '40px' }}
+              />
+              <button
+                type="submit"
+                className="w-10 h-10 flex-shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-lg font-bold flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-md"
+              >
+                +
+              </button>
             </form>
-            <div className="space-y-1 max-h-24 overflow-y-auto">
+
+            {/* Task list */}
+            <div className="space-y-2 max-h-32 overflow-y-auto">
               {eisenhower[q.key].map((t: EisenhowerTask) => (
-                <div key={t.id} onClick={() => onToggle(q.key, t.id)} className={`flex items-center gap-1.5 p-1.5 rounded-lg cursor-pointer text-xs border transition-all ${t.done ? 'bg-slate-50 border-slate-100 line-through opacity-50' : 'bg-white border-slate-200 hover:border-indigo-200'}`}>
-                  <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border flex-shrink-0 ${t.done ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>{t.done ? '✓' : ''}</div>
-                  {t.text}
+                <div
+                  key={t.id}
+                  onClick={() => onToggle(q.key, t.id)}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer text-xs border transition-all ${
+                    t.done
+                      ? 'bg-slate-900/40 border-white/5 line-through opacity-40 text-slate-500'
+                      : 'bg-slate-900/80 border-white/10 hover:border-indigo-400/40 text-slate-200'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-md flex items-center justify-center border flex-shrink-0 text-[10px] ${
+                    t.done ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-slate-500'
+                  }`}>
+                    {t.done ? '✓' : ''}
+                  </div>
+                  <span className="truncate">{t.text}</span>
                 </div>
               ))}
             </div>
@@ -693,29 +913,59 @@ interface HatalarProps {
 
 function HatalarPanelContent({ onSubmit, severity, onSeverityChange, entries }: HatalarProps) {
   return (
-    <div>
-      <h3 className="text-xl font-black mb-1 text-red-600">Hatalar ve Çıkarılan Dersler</h3>
-      <p className="text-sm text-slate-500 mb-4">Hatalarından ders çıkar, geleceğini sağlam inşa et.</p>
-      <form onSubmit={onSubmit} className="space-y-3">
-        <input name="title" required placeholder="Olay & konu (Örn: Erteleme alışkanlığı)" className="w-full p-2.5 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-red-500" />
+    <div className="space-y-5">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <input
+          name="title"
+          required
+          placeholder="Olay & konu (Örn: Erteleme alışkanlığı)"
+          className="w-full px-4 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500"
+        />
         <div>
-          <label className="text-xs font-bold text-slate-500 block mb-2">Şiddet Derecesi</label>
-          <div className="flex gap-2">{[1,2,3,4,5].map(v => (
-            <button type="button" key={v} onClick={() => onSeverityChange(v)} className={`text-2xl transition-all ${v <= severity ? 'text-red-500' : 'text-slate-200'}`}>★</button>
-          ))}</div>
-        </div>
-        <textarea name="wrong" required placeholder="Ne yanlış gitti?" className="w-full p-3 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-red-500 resize-none h-16" />
-        <textarea name="learned" required placeholder="Çıkarılan ders & aksiyon..." className="w-full p-3 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-red-500 resize-none h-16" />
-        <button type="submit" className="w-full py-2.5 bg-gradient-to-r from-red-500 to-rose-500 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all text-sm">🛡️ Kaydet (+40 XP)</button>
-      </form>
-      {entries.length > 0 && <div className="mt-5 space-y-2">
-        {entries.map((l: LessonEntry) => (
-          <div key={l.id} className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm border-l-4 border-l-red-500">
-            <strong>{l.title}</strong>
-            <p className="text-slate-500 text-xs mt-1 line-clamp-2">Ders: {l.learned}</p>
+          <label className="text-sm font-semibold text-slate-300 block mb-2.5">Şiddet Derecesi</label>
+          <div className="flex gap-3">
+            {[1,2,3,4,5].map(v => (
+              <button
+                type="button"
+                key={v}
+                onClick={() => onSeverityChange(v)}
+                className={`text-3xl transition-all cursor-pointer ${v <= severity ? 'text-rose-500' : 'text-slate-700'}`}
+              >
+                ★
+              </button>
+            ))}
           </div>
-        ))}
-      </div>}
+        </div>
+        <textarea
+          name="wrong"
+          required
+          placeholder="Ne yanlış gitti?"
+          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-20 placeholder:text-slate-500"
+        />
+        <textarea
+          name="learned"
+          required
+          placeholder="Çıkarılan ders & aksiyon planı..."
+          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-20 placeholder:text-slate-500"
+        />
+        <button
+          type="submit"
+          className="w-full py-3.5 bg-gradient-to-r from-rose-600 to-red-500 text-white font-bold rounded-xl shadow-lg hover:shadow-rose-500/30 transition-all text-sm cursor-pointer"
+        >
+          🛡️ Kaydet (+40 XP)
+        </button>
+      </form>
+
+      {entries.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {entries.map((l: LessonEntry) => (
+            <div key={l.id} className="p-3 glass-card rounded-xl text-sm border-l-4 border-l-rose-500">
+              <strong className="text-rose-300">{l.title}</strong>
+              <p className="text-slate-400 text-xs mt-1 line-clamp-2">Ders: {l.learned}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -727,23 +977,36 @@ interface SukurProps {
 
 function SukurPanelContent({ onSubmit, entries }: SukurProps) {
   return (
-    <div>
-      <h3 className="text-xl font-black mb-1 text-emerald-700">Şükür ve Nimet Köşesi</h3>
-      <p className="text-sm text-emerald-600 mb-4">&quot;Şükrederseniz elbette artırırım.&quot; (İbrahim 14:7)</p>
-      <form onSubmit={onSubmit} className="space-y-3">
-        <textarea name="text" required placeholder="Bugün neye şükredeceksin?" className="w-full p-3 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 resize-none h-20" />
-        <div className="grid grid-cols-3 gap-2">
-          <input name="n1" required placeholder="1. Nimet" className="p-2.5 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500" />
-          <input name="n2" required placeholder="2. Nimet" className="p-2.5 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500" />
-          <input name="n3" required placeholder="3. Nimet" className="p-2.5 bg-white border-[1.5px] border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500" />
+    <div className="space-y-5">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <textarea
+          name="text"
+          required
+          placeholder="Bugün neye samimiyetle şükredeceksin?"
+          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-24 placeholder:text-slate-500"
+        />
+        <div className="grid grid-cols-3 gap-4">
+          <input name="n1" required placeholder="1. Nimet" className="px-3.5 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500" />
+          <input name="n2" required placeholder="2. Nimet" className="px-3.5 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500" />
+          <input name="n3" required placeholder="3. Nimet" className="px-3.5 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500" />
         </div>
-        <button type="submit" className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-green-500 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all text-sm">✨ Kaydet (+35 XP)</button>
+        <button
+          type="submit"
+          className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold rounded-xl shadow-lg hover:shadow-emerald-500/30 transition-all text-sm cursor-pointer"
+        >
+          ✨ Kaydet (+35 XP)
+        </button>
       </form>
-      {entries.length > 0 && <div className="mt-5 space-y-2">
-        {entries.map((s: SukurEntry) => (
-          <div key={s.id} className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs border-l-4 border-l-emerald-500">&quot;{s.text.slice(0, 80)}...&quot;</div>
-        ))}
-      </div>}
+
+      {entries.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {entries.map((s: SukurEntry) => (
+            <div key={s.id} className="p-3 glass-card rounded-xl text-xs border-l-4 border-l-emerald-500 text-slate-300">
+              &quot;{s.text.slice(0, 90)}...&quot;
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -759,32 +1022,56 @@ interface MescidimProps {
   dailyHadis: string;
 }
 
-function MescidimPanelContent({ tespihCount, totalZikir, onTespih, zikirType, onZikirChange, onReset, dailyAyet, dailyHadis }: MescidimProps) {
+function MescidimPanelContent({
+  tespihCount,
+  totalZikir,
+  onTespih,
+  zikirType,
+  onZikirChange,
+  onReset,
+  dailyAyet,
+  dailyHadis,
+}: MescidimProps) {
   return (
     <div className="space-y-4">
-      <h3 className="text-xl font-black text-emerald-700">Dijital Mescid</h3>
-      <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 text-center">
-        <div className="text-xs font-bold text-emerald-600 mb-3">{zikirType}</div>
-        <button onClick={onTespih}
-          className="w-28 h-28 rounded-full border-4 border-emerald-500 bg-white text-emerald-600 flex flex-col items-center justify-center mx-auto shadow-lg shadow-emerald-500/15 hover:shadow-xl transition-all active:scale-90 cursor-pointer">
+      <div className="glass-card rounded-2xl p-5 text-center">
+        <div className="text-xs font-bold text-emerald-400 mb-3 tracking-wide">{zikirType}</div>
+        <button
+          onClick={onTespih}
+          className="w-28 h-28 rounded-full border-4 border-emerald-500 bg-slate-900 text-emerald-400 flex flex-col items-center justify-center mx-auto shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+        >
           <span className="text-4xl font-black font-mono leading-none">{tespihCount}</span>
-          <span className="text-xs text-slate-400 mt-1">Hedef: 33</span>
+          <span className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">Hedef: 33</span>
         </button>
+
         <div className="flex gap-2 justify-center mt-4">
-          <select value={zikirType} onChange={e => { onZikirChange(e.target.value); onReset(); }} className="p-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 font-semibold">
-            {['Subhanallah','Elhamdulillah','Allahu Ekber','La ilahe illallah','Astagfirullah'].map(z => <option key={z}>{z}</option>)}
+          <select
+            value={zikirType}
+            onChange={e => { onZikirChange(e.target.value); onReset(); }}
+            className="p-2 text-xs glass-input rounded-xl text-slate-200 font-semibold"
+          >
+            {['Subhanallah','Elhamdulillah','Allahu Ekber','La ilahe illallah','Astagfirullah'].map(z => (
+              <option key={z} value={z} className="bg-slate-900 text-white">{z}</option>
+            ))}
           </select>
-          <button onClick={onReset} className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100">↺ Sıfırla</button>
+          <button
+            onClick={onReset}
+            className="px-3 py-2 bg-slate-800/80 border border-white/10 rounded-xl text-xs font-bold text-slate-300 hover:bg-slate-700 cursor-pointer"
+          >
+            ↺ Sıfırla
+          </button>
         </div>
-        <p className="text-xs text-slate-400 mt-2">Toplam: {totalZikir} zikir</p>
+        <p className="text-xs text-slate-400 mt-2 font-mono">Toplam: {totalZikir} zikir</p>
       </div>
-      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-        <div className="text-xs font-bold text-yellow-600 mb-1">GÜNÜN AYETİ</div>
-        <p className="text-sm text-slate-700 italic">{dailyAyet.turkish}</p>
+
+      <div className="p-3 bg-amber-950/30 border border-amber-500/30 rounded-xl text-xs">
+        <div className="font-bold text-amber-400 mb-1">GÜNÜN AYETİ</div>
+        <p className="text-slate-200 italic">{dailyAyet.turkish}</p>
       </div>
-      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-        <div className="text-xs font-bold text-emerald-600 mb-1">GÜNÜN HADİSİ</div>
-        <p className="text-sm text-slate-700 italic">{dailyHadis}</p>
+
+      <div className="p-3 bg-emerald-950/30 border border-emerald-500/30 rounded-xl text-xs">
+        <div className="font-bold text-emerald-400 mb-1">GÜNÜN HADİSİ</div>
+        <p className="text-slate-200 italic">{dailyHadis}</p>
       </div>
     </div>
   );

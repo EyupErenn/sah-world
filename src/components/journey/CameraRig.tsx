@@ -6,8 +6,9 @@ import * as THREE from 'three';
 import { JOURNEY_CURVE } from '@/lib/curve';
 
 // ============================================================
-// CameraRig — Dynamic 3rd-person chase camera for the journey
+// CameraRig — Cinematic 3rd-Person Dynamic Chase Camera
 // ============================================================
+
 export interface CameraRigHandle {
   setProgress: (p: number) => void;
 }
@@ -16,25 +17,29 @@ interface CameraRigProps {
   vehicleGroupRef: React.RefObject<THREE.Group | null>;
 }
 
-// Framing: Camera sits slightly behind and above, looking forward down the track
-const CHASE_OFFSET   = new THREE.Vector3(0, 3.2, -7.2);   // Behind & elevated
-const LOOK_OFFSET    = new THREE.Vector3(0, 1.2,  4.0);   // Ahead along road
-const ORBIT_RADIUS   = 24;                                // Ahiret Deposu orbit radius
-const LERP_FACTOR    = 0.085;                             // Smooth chase interpolation
+// Vehicle faces local -Z.
+// Chase camera sits behind (+Z) and above (+Y), looking ahead (-Z).
+const CHASE_OFFSET   = new THREE.Vector3(0, 3.4, 7.6);
+const LOOK_OFFSET    = new THREE.Vector3(0, 1.2, -4.5);
+const ORBIT_RADIUS   = 22;
+const LERP_FACTOR    = 0.085;
 
-const tmpVehiclePos  = new THREE.Vector3();
-const tmpTargetCam   = new THREE.Vector3();
-const tmpLookAt      = new THREE.Vector3();
-const tmpRotatedOff  = new THREE.Vector3();
-const tmpRotatedLook = new THREE.Vector3();
+const _tmpVehiclePos  = new THREE.Vector3();
+const _tmpTargetCam   = new THREE.Vector3();
+const _tmpLookAt      = new THREE.Vector3();
+const _tmpRotatedOff  = new THREE.Vector3();
+const _tmpRotatedLook = new THREE.Vector3();
 
 const CameraRig = forwardRef<CameraRigHandle, CameraRigProps>(function CameraRig({ vehicleGroupRef }, ref) {
   const { camera } = useThree();
   const progressRef = useRef(0);
   const orbitTimeRef = useRef(0);
+  const isInitializedRef = useRef(false);
 
   useImperativeHandle(ref, () => ({
-    setProgress: (p: number) => { progressRef.current = p; },
+    setProgress: (p: number) => {
+      progressRef.current = Math.max(0, Math.min(1, p));
+    },
   }));
 
   useFrame((_, delta) => {
@@ -42,33 +47,37 @@ const CameraRig = forwardRef<CameraRigHandle, CameraRigProps>(function CameraRig
     const vehicle = vehicleGroupRef.current;
     if (!vehicle) return;
 
-    vehicle.getWorldPosition(tmpVehiclePos);
+    vehicle.getWorldPosition(_tmpVehiclePos);
 
-    if (p > 0.97) {
-      // === Ahiret Deposu Orbit Mode ===
-      orbitTimeRef.current += delta * 0.4;
+    if (p >= 0.97) {
+      // === Ahiret Deposu Grand Orbit Mode ===
+      orbitTimeRef.current += delta * 0.45;
       const endPos = JOURNEY_CURVE.getPointAt(1.0);
       const orbitX = endPos.x + Math.sin(orbitTimeRef.current) * ORBIT_RADIUS;
       const orbitZ = endPos.z + Math.cos(orbitTimeRef.current) * ORBIT_RADIUS;
-      const orbitY = endPos.y + 12;
+      const orbitY = endPos.y + 11;
 
       camera.position.lerp(new THREE.Vector3(orbitX, orbitY, orbitZ), LERP_FACTOR);
-      tmpLookAt.set(endPos.x, endPos.y + 3.5, endPos.z);
-      camera.lookAt(tmpLookAt);
+      _tmpLookAt.set(endPos.x, endPos.y + 3.2, endPos.z);
+      camera.lookAt(_tmpLookAt);
     } else {
       // === 3rd Person Follow Mode ===
       const quat = vehicle.quaternion;
 
-      // Rotate camera offset with vehicle rotation
-      tmpRotatedOff.copy(CHASE_OFFSET).applyQuaternion(quat);
-      tmpTargetCam.copy(tmpVehiclePos).add(tmpRotatedOff);
+      _tmpRotatedOff.copy(CHASE_OFFSET).applyQuaternion(quat);
+      _tmpTargetCam.copy(_tmpVehiclePos).add(_tmpRotatedOff);
 
-      camera.position.lerp(tmpTargetCam, LERP_FACTOR);
+      _tmpRotatedLook.copy(LOOK_OFFSET).applyQuaternion(quat);
+      _tmpLookAt.copy(_tmpVehiclePos).add(_tmpRotatedLook);
 
-      // Target look-ahead position
-      tmpRotatedLook.copy(LOOK_OFFSET).applyQuaternion(quat);
-      tmpLookAt.copy(tmpVehiclePos).add(tmpRotatedLook);
-      camera.lookAt(tmpLookAt);
+      if (!isInitializedRef.current) {
+        camera.position.copy(_tmpTargetCam);
+        camera.lookAt(_tmpLookAt);
+        isInitializedRef.current = true;
+      } else {
+        camera.position.lerp(_tmpTargetCam, LERP_FACTOR);
+        camera.lookAt(_tmpLookAt);
+      }
     }
   });
 

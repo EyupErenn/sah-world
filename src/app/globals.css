@@ -1,27 +1,24 @@
 @import "tailwindcss";
 
 /* ============================================================
-   SAH WORLD — Global CSS Tokens & Base Styles
+   SAH WORLD — Premium Bruno Simon Game-HUD Design System & Glass Tokens
    ============================================================ */
 :root {
-  --font-inter: 'Inter', system-ui, sans-serif;
+  --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Brand Colors */
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --primary-light: #eef2ff;
-  --secondary: #7c3aed;
-  --emerald: #059669;
-  --gold: #b8860b;
-  --danger: #ef4444;
-  --amber: #f59e0b;
+  /* Brand Cyber-Spiritual Palette */
+  --cyber-primary: #6366f1;
+  --cyber-violet: #8b5cf6;
+  --cyber-cyan: #38bdf8;
+  --cyber-emerald: #10b981;
+  --cyber-amber: #f59e0b;
+  --cyber-rose: #f43f5e;
 
-  /* Backgrounds */
-  --bg-page: #fafbfc;
-  --bg-white: #ffffff;
-  --bg-alt: #f4f6f9;
-  --border-color: #e2e8f0;
+  /* Deep Translucent Glass */
+  --glass-bg: rgba(10, 15, 29, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-glow: rgba(99, 102, 241, 0.22);
 }
 
 * {
@@ -34,29 +31,129 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #090d16;
+  color: #f8fafc;
 }
 
 body {
   font-family: var(--font-inter);
-  background-color: var(--bg-page);
-  color: #1e293b;
-  line-height: 1.7;
+  background-color: #090d16;
+  color: #f8fafc;
+  line-height: 1.6;
+  overflow-x: hidden;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: rgba(241, 245, 249, 0.5); }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+/* Custom Cyber Glow Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: rgba(9, 13, 22, 0.6); }
+::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.35); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.75); }
 
-/* Panel transitions */
-.station-panel-enter { opacity: 0; transform: translateX(50px) scale(0.95); }
-.station-panel-enter-active { opacity: 1; transform: translateX(0) scale(1); transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
-.station-panel-exit { opacity: 1; transform: translateX(0) scale(1); }
-.station-panel-exit-active { opacity: 0; transform: translateX(50px) scale(0.95); transition: all 0.3s ease; }
+/* Glassmorphic Cyber Utilities */
+.glass-panel {
+  background: rgba(10, 15, 29, 0.78);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
 
-/* Mono numbers */
+.glass-nav {
+  background: rgba(9, 13, 22, 0.68);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.glass-pill {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-pill:hover {
+  background: rgba(30, 41, 59, 0.75);
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+
+
+
+.glass-input {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  transition: all 0.2s ease;
+}
+.glass-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+  outline: none;
+}
+
+.glow-indigo {
+  box-shadow: 0 0 25px rgba(99, 102, 241, 0.45);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 25px rgba(56, 189, 248, 0.45);
+}
+
+.glow-amber {
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.45);
+}
+
+/* Soft shadow-separated cards (no hard grid lines) */
+.glass-card {
+  background: rgba(18, 24, 42, 0.52);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.22),
+    0 8px 24px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-radius: 20px;
+}
+
 .mono-num {
   font-family: var(--font-mono);
   font-feature-settings: "tnum";
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+
+/* Minimap player position pulse glow */
+@keyframes playerPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7), 0 0 8px rgba(99, 102, 241, 0.5); }
+  50%       { box-shadow: 0 0 0 5px rgba(99, 102, 241, 0), 0 0 16px rgba(99, 102, 241, 0.3); }
+}
+
+.player-blip {
+  animation: playerPulse 1.8s ease-in-out infinite;
+}
+
+/* Ambient aurora glow for profile hero */
+@keyframes auroraShift {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%       { opacity: 0.82; transform: scale(1.1); }
+}
+
+.aurora-pulse {
+  animation: auroraShift 3.5s ease-in-out infinite;
+}
+
+/* Hover lift for interactive elements */
+.hover-lift {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
 }
