@@ -1,4 +1,5 @@
 import { DESIGN_TOKENS, STATION_COLORS } from '@/lib/designTokens';
+import type { VillageTier } from '@/lib/growth';
 
 // ============================================================
 // SAH WORLD — Village World Layout, Terrain & Road Network
@@ -248,17 +249,28 @@ export function getTerrainHeight(x: number, z: number): number {
 }
 
 // Check if a point (x, z) is on paved road / plaza
-export function isRoadSurface(x: number, z: number): boolean {
+export function getActiveRoadPaths(villageTier: VillageTier = 5): RoadPath[] {
+  if (villageTier === 1) return ROAD_PATHS.slice(0, 1);
+  if (villageTier === 2) return ROAD_PATHS.filter(path => ['main-spine', 'west-market-road', 'east-learning-road'].includes(path.id));
+  return ROAD_PATHS;
+}
+
+function roadWidthForTier(path: RoadPath, villageTier: VillageTier) {
+  const multiplier = villageTier === 1 ? 0.68 : villageTier === 2 ? 0.82 : villageTier === 3 ? 0.94 : villageTier === 4 ? 1.08 : 1.2;
+  return path.width * multiplier;
+}
+
+export function isRoadSurface(x: number, z: number, villageTier: VillageTier = 5): boolean {
   if (Math.hypot(x, z) < 18) return true;
-  return ROAD_PATHS.some(path => path.points.some((point, index) => {
+  return getActiveRoadPaths(villageTier).some(path => path.points.some((point, index) => {
     const next = path.points[index + 1];
-    return next ? pointToSegmentDistance(x, z, point[0], point[1], next[0], next[1]) < path.width : false;
+    return next ? pointToSegmentDistance(x, z, point[0], point[1], next[0], next[1]) < roadWidthForTier(path, villageTier) : false;
   }));
 }
 
-export function getRoadDistance(x: number, z: number): number {
+export function getRoadDistance(x: number, z: number, villageTier: VillageTier = 5): number {
   let nearest = Number.POSITIVE_INFINITY;
-  for (const path of ROAD_PATHS) {
+  for (const path of getActiveRoadPaths(villageTier)) {
     for (let index = 0; index < path.points.length - 1; index += 1) {
       const start = path.points[index];
       const end = path.points[index + 1];

@@ -5,15 +5,16 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
   VILLAGE_LOCATIONS,
-  ROAD_PATHS,
   WORLD_BOUNDS,
   WORLD_SIZE,
   getRoadDistance,
+  getActiveRoadPaths,
   getStreamCenterZ,
   getTerrainHeight,
   isRoadSurface,
 } from '@/lib/villageData';
 import { WORLD_COLORS } from '@/lib/designTokens';
+import type { VillageTier } from '@/lib/growth';
 
 type TreeKind = 'pine' | 'deciduous' | 'cypress' | 'flowering';
 
@@ -30,7 +31,7 @@ function seeded(seed: number) {
   return value - Math.floor(value);
 }
 
-function createVillageTerrainGeometry() {
+function createVillageTerrainGeometry(villageTier: VillageTier) {
   const geometry = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, 112, 112);
   const positions = geometry.attributes.position;
   const colors: number[] = [];
@@ -46,12 +47,15 @@ function createVillageTerrainGeometry() {
     const z = -positions.getY(index);
     const height = getTerrainHeight(x, z);
     const slope = Math.abs(getTerrainHeight(x + 1.5, z) - height) + Math.abs(getTerrainHeight(x, z + 1.5) - height);
-    const roadDistance = getRoadDistance(x, z);
+    const roadDistance = getRoadDistance(x, z, villageTier);
     const color = new THREE.Color();
     positions.setZ(index, height);
 
     if (Math.hypot(x, z) < 17) color.copy(plaza);
-    else if (isRoadSurface(x, z)) color.copy(road);
+    else if (isRoadSurface(x, z, villageTier)) {
+      if (villageTier === 1) color.copy(soil).multiplyScalar(0.82);
+      else color.copy(road).lerp(soil, villageTier === 2 ? 0.22 : 0);
+    }
     else if (slope > 1.15 || height > 8) color.copy(rock).lerp(soil, 0.28);
     else if (roadDistance < 10 || Math.abs(z - getStreamCenterZ(x)) < 9) color.copy(soil).lerp(grassLow, 0.25);
     else {
@@ -129,7 +133,7 @@ function VillageRiver() {
   );
 }
 
-function InstancedVillageScenery() {
+function InstancedVillageScenery({ villageTier }: { villageTier: VillageTier }) {
   const trunkRef = useRef<THREE.InstancedMesh>(null);
   const pineRef = useRef<THREE.InstancedMesh>(null);
   const deciduousRef = useRef<THREE.InstancedMesh>(null);
@@ -179,7 +183,7 @@ function InstancedVillageScenery() {
         const z = gz + (seeded(seed + 1) - 0.5) * 8;
         const nearStation = VILLAGE_LOCATIONS.some(location => Math.hypot(x - location.x, z - location.z) < (location.id === 8 ? 24 : 17));
         const nearRiver = Math.abs(z - getStreamCenterZ(x)) < 12;
-        if (isRoadSurface(x, z) || nearStation || nearRiver || Math.hypot(x, z) < 25 || seeded(seed + 2) < 0.28) continue;
+        if (isRoadSurface(x, z, villageTier) || nearStation || nearRiver || Math.hypot(x, z) < 25 || seeded(seed + 2) < (villageTier === 1 ? 0.42 : 0.28)) continue;
 
         const point = { x, y: getTerrainHeight(x, z), z, scale: 0.75 + seeded(seed + 3) * 0.8, rotation: seeded(seed + 4) * Math.PI * 2 };
         const climate = seeded(seed + 5);
@@ -195,7 +199,8 @@ function InstancedVillageScenery() {
       }
     }
 
-    for (let index = 0; index < 26; index += 1) {
+    const floweringTreeCount = villageTier === 1 ? 0 : villageTier === 2 ? 8 : 26;
+    for (let index = 0; index < floweringTreeCount; index += 1) {
       const angle = (index / 26) * Math.PI * 2 + seeded(index + 900) * 0.4;
       const radius = 13 + (index % 4) * 4.2;
       const x = 24 + Math.cos(angle) * radius;
@@ -205,7 +210,8 @@ function InstancedVillageScenery() {
       allTrees.push(point);
     }
 
-    for (const path of ROAD_PATHS) {
+    const lanternSpacing = villageTier === 2 ? 44 : villageTier === 3 ? 30 : 20;
+    for (const path of villageTier === 1 ? [] : getActiveRoadPaths(villageTier)) {
       for (let segment = 0; segment < path.points.length - 1; segment += 1) {
         const start = path.points[segment];
         const end = path.points[segment + 1];
@@ -214,7 +220,7 @@ function InstancedVillageScenery() {
         const length = Math.hypot(dx, dz);
         const nx = -dz / length;
         const nz = dx / length;
-        for (let distance = 16; distance < length; distance += 26) {
+        for (let distance = 16; distance < length; distance += lanternSpacing) {
           const t = distance / length;
           const side = (segment + Math.round(distance / 13)) % 2 === 0 ? 1 : -1;
           const x = start[0] + dx * t + nx * (path.width + 2.2) * side;
@@ -224,7 +230,7 @@ function InstancedVillageScenery() {
       }
     }
     return { trees, allTrees, rocks, bushes, lanterns };
-  }, []);
+  }, [villageTier]);
 
   useEffect(() => {
     const refs = [trunkRef, pineRef, deciduousRef, cypressRef, floweringRef, treeShadowRef, rockRef, bushRef, detailShadowRef, lanternPostRef, lanternBulbRef];
@@ -288,8 +294,8 @@ function InstancedVillageScenery() {
   );
 }
 
-export default function VillageTerrain() {
-  const terrainGeometry = useMemo(() => createVillageTerrainGeometry(), []);
+export default function VillageTerrain({ villageTier }: { villageTier: VillageTier }) {
+  const terrainGeometry = useMemo(() => createVillageTerrainGeometry(villageTier), [villageTier]);
   return (
     <group>
       <mesh geometry={terrainGeometry} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -297,22 +303,26 @@ export default function VillageTerrain() {
       </mesh>
       <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <ringGeometry args={[8, 17, 48]} />
-        <meshStandardMaterial color={WORLD_COLORS.plaza} roughness={0.68} metalness={0.12} />
+        <meshStandardMaterial color={villageTier === 1 ? WORLD_COLORS.soil : WORLD_COLORS.plaza} roughness={0.68} metalness={villageTier === 1 ? 0 : 0.12} />
       </mesh>
-      <mesh position={[0, 0.07, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[7.35, 7.8, 48]} />
-        <meshStandardMaterial color="#6366f1" emissive="#4f46e5" emissiveIntensity={1.55} />
-      </mesh>
-      <mesh position={[0, 0.18, 0]} castShadow>
-        <cylinderGeometry args={[2.4, 2.8, 0.35, 12]} />
-        <meshStandardMaterial color="#334155" roughness={0.7} />
-      </mesh>
-      <mesh position={[0, 1.45, 0]} castShadow>
-        <octahedronGeometry args={[1.15, 0]} />
-        <meshStandardMaterial color="#818cf8" emissive="#4f46e5" emissiveIntensity={2.2} metalness={0.6} roughness={0.2} />
-      </mesh>
+      {villageTier >= 2 && (
+        <group>
+          <mesh position={[0, 0.07, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[7.35, 7.8, 48]} />
+            <meshStandardMaterial color="#6366f1" emissive="#4f46e5" emissiveIntensity={1.2 + villageTier * 0.12} />
+          </mesh>
+          <mesh position={[0, 0.18, 0]} castShadow>
+            <cylinderGeometry args={[2.4, 2.8, 0.35, 12]} />
+            <meshStandardMaterial color="#334155" roughness={0.7} />
+          </mesh>
+          <mesh position={[0, 1.45, 0]} castShadow>
+            <octahedronGeometry args={[1.15, 0]} />
+            <meshStandardMaterial color="#818cf8" emissive="#4f46e5" emissiveIntensity={1.6 + villageTier * 0.2} metalness={0.6} roughness={0.2} />
+          </mesh>
+        </group>
+      )}
       <VillageRiver />
-      <InstancedVillageScenery />
+      <InstancedVillageScenery villageTier={villageTier} />
     </group>
   );
 }

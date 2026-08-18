@@ -1,12 +1,14 @@
 'use client';
 
-import { ROAD_PATHS, VILLAGE_LOCATIONS, WORLD_BOUNDS, getStreamCenterZ, type VillageLocation } from '@/lib/villageData';
+import { VILLAGE_LOCATIONS, WORLD_BOUNDS, getActiveRoadPaths, getStreamCenterZ, type VillageLocation } from '@/lib/villageData';
+import type { VillageTier } from '@/lib/growth';
 
 interface MinimapProps {
   playerX: number;
   playerZ: number;
   playerHeading: number;
   activeBuildingId: number | null;
+  villageTier: VillageTier;
   onSelectLocation?: (loc: VillageLocation) => void;
 }
 
@@ -15,6 +17,7 @@ export default function Minimap({
   playerZ,
   playerHeading,
   activeBuildingId,
+  villageTier,
   onSelectLocation,
 }: MinimapProps) {
   const mapSize = 176;
@@ -56,7 +59,7 @@ export default function Minimap({
             strokeLinecap="round"
             opacity="0.55"
           />
-          {ROAD_PATHS.map(path => (
+          {getActiveRoadPaths(villageTier).map(path => (
             <polyline
               key={path.id}
               points={path.points.map(([x, z]) => {
@@ -64,7 +67,7 @@ export default function Minimap({
                 return `${point.px},${point.py}`;
               }).join(' ')}
               fill="none"
-              stroke={path.width > 6 ? '#cbd5e1' : '#94a3b8'}
+              stroke={villageTier === 1 ? '#92400e' : path.width > 6 ? '#cbd5e1' : '#94a3b8'}
               strokeWidth={path.width > 6 ? 3.4 : 2.1}
               strokeLinecap="round"
               strokeLinejoin="round"

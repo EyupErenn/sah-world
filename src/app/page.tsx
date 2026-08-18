@@ -10,6 +10,8 @@ import { playSuccessChime, playClickTone, playTespihTone, playMilestoneTone } fr
 import Minimap from '@/components/village/Minimap';
 import MobileControls from '@/components/village/MobileControls';
 import StationListView, { type StationStatus } from '@/components/village/StationListView';
+import GrowthDebugPanel from '@/components/village/GrowthDebugPanel';
+import { deriveStationTiers, getVillageTier, type StationTier, type VillageTier } from '@/lib/growth';
 import LoginScreen from '@/components/auth/LoginScreen';
 import EvimHub from '@/components/hub/EvimHub';
 import type { JournalEntry, QuranNote, HadisNote, EisenhowerTask, LessonEntry, SukurEntry } from '@/types';
@@ -66,13 +68,16 @@ function VillageWorld() {
   const [showEvimHub, setShowEvimHub] = useState(false);
   const [pendingVehicle, setPendingVehicle] = useState(store.vehicle.type);
   const [classicMode, setClassicMode] = useState(false);
+  const [villageTierOverride, setVillageTierOverride] = useState<VillageTier | null>(null);
+  const [stationTierOverrides, setStationTierOverrides] = useState<Partial<Record<number, StationTier>>>({});
+  const [debugTeleport, setDebugTeleport] = useState<{ x: number; z: number; sequence: number } | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [touchInput, setTouchInput] = useState<{ steer: number; throttle: number }>({ steer: 0, throttle: 0 });
   const [showControlsHint, setShowControlsHint] = useState(true);
 
   // Daily content & level
   const todayIdx = new Date().getDate() % DAILY_AYETS.length;
-  const { level, nextLevel } = getLevelForXP(store.xp);
+  const { level, nextLevel, index: levelIndex } = getLevelForXP(store.xp);
 
   const formatLastEntry = (dates: Array<string | undefined>) => {
     const latest = dates.filter((date): date is string => Boolean(date)).sort().at(-1);
@@ -83,6 +88,22 @@ function VillageWorld() {
 
   const completedTasks = Object.values(store.eisenhower).flat().filter(task => task.done).length;
   const totalTasks = Object.values(store.eisenhower).flat().length;
+  const trackedDeeds = store.journal.length + store.quranNotes.length + store.hadisNotes.length + totalTasks + store.lessons.length + store.sukurList.length + Math.floor(store.totalZikir / 33);
+  const derivedVillageTier = getVillageTier(levelIndex + 1);
+  const villageTier = villageTierOverride ?? derivedVillageTier;
+  const derivedStationTiers = deriveStationTiers({
+    1: store.journal.length,
+    2: store.quranNotes.length,
+    3: store.hadisNotes.length,
+    4: totalTasks,
+    5: store.lessons.length,
+    6: store.sukurList.length,
+    7: Math.floor(store.totalZikir / 33),
+    8: trackedDeeds,
+  });
+  const stationTiers = Object.fromEntries(
+    Object.entries(derivedStationTiers).map(([stationId, tier]) => [Number(stationId), stationTierOverrides[Number(stationId)] ?? tier])
+  ) as Record<number, StationTier>;
   const stationStatuses: Record<number, StationStatus> = {
     1: { summary: `${store.journal.length} kayıt`, detail: formatLastEntry(store.journal.map(entry => entry.createdAt ?? entry.date)) },
     2: { summary: `${store.quranNotes.length} not`, detail: formatLastEntry(store.quranNotes.map(entry => entry.createdAt ?? entry.date)) },
@@ -429,6 +450,9 @@ function VillageWorld() {
             vehicleType={store.vehicle.type}
             activeBuildingId={activeNearbyLocation?.id ?? null}
             xp={store.xp}
+            villageTier={villageTier}
+            stationTiers={stationTiers}
+            debugTeleport={debugTeleport}
             isInputBlocked={isInputBlocked}
             touchInput={touchInput}
             onPlayerUpdate={handlePlayerUpdate}
@@ -505,6 +529,7 @@ function VillageWorld() {
             playerZ={playerState.z}
             playerHeading={playerState.heading}
             activeBuildingId={activeNearbyLocation?.id ?? null}
+            villageTier={villageTier}
             onSelectLocation={(loc) => {
               setOpenModalId(loc.id);
               playClickTone();
@@ -516,6 +541,27 @@ function VillageWorld() {
       {/* ============ MOBILE TOUCH CONTROLS ============ */}
       {!classicMode && !isInputBlocked && (
         <MobileControls onInputChange={setTouchInput} />
+      )}
+
+      {process.env.NODE_ENV === 'development' && (
+        <GrowthDebugPanel
+          villageTier={villageTier}
+          villageTierOverride={villageTierOverride}
+          stationTierOverrides={stationTierOverrides}
+          onVillageTierChange={setVillageTierOverride}
+          onStationTierChange={(stationId, tier) => {
+            setStationTierOverrides(current => {
+              const next = { ...current };
+              if (tier === null) delete next[stationId];
+              else next[stationId] = tier;
+              return next;
+            });
+          }}
+          onPreviewStation={(stationId) => {
+            const location = VILLAGE_LOCATIONS.find(candidate => candidate.id === stationId);
+            if (location) setDebugTeleport({ x: location.x, z: location.z + 16, sequence: Date.now() });
+          }}
+        />
       )}
 
       {/* ============ SECTION MODALS / DOCKED PANELS ============ */}

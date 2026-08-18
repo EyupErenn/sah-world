@@ -7,11 +7,13 @@ import { EffectComposer, Bloom, HueSaturation, Vignette } from '@react-three/pos
 import * as THREE from 'three';
 import type { VehicleType } from '@/types';
 import { WORLD_COLORS } from '@/lib/designTokens';
+import type { StationTierMap, VillageTier } from '@/lib/growth';
 
 import VillageTerrain from './VillageTerrain';
 import VillageBuildings from './VillageBuildings';
 import FreeVehicle from './FreeVehicle';
 import VillageCamera from './VillageCamera';
+import VillageGrowth from './VillageGrowth';
 
 function JourneySky() {
   return (
@@ -49,6 +51,9 @@ interface VillageCanvasProps {
   vehicleType: VehicleType;
   activeBuildingId: number | null;
   xp: number;
+  villageTier: VillageTier;
+  stationTiers: StationTierMap;
+  debugTeleport?: { x: number; z: number; sequence: number } | null;
   isInputBlocked: boolean;
   touchInput?: { steer: number; throttle: number };
   onPlayerUpdate: (x: number, y: number, z: number, heading: number, speed: number) => void;
@@ -58,6 +63,9 @@ export default function VillageCanvas({
   vehicleType,
   activeBuildingId,
   xp,
+  villageTier,
+  stationTiers,
+  debugTeleport,
   isInputBlocked,
   touchInput,
   onPlayerUpdate,
@@ -103,7 +111,7 @@ export default function VillageCanvas({
       {/* Primary Warm Sunlight */}
       <directionalLight
         position={[92, 138, 76]}
-        intensity={2.2}
+        intensity={villageTier >= 4 ? 2.05 : 2.2}
         color={WORLD_COLORS.sun}
         castShadow
         shadow-mapSize-width={2048}
@@ -125,7 +133,7 @@ export default function VillageCanvas({
       <directionalLight position={[-96, 54, -110]} intensity={0.5} color="#818cf8" />
 
       {/* Soft Ambient Balance */}
-      <ambientLight intensity={0.18} color="#eef2ff" />
+      <ambientLight intensity={0.16 + villageTier * 0.012} color="#eef2ff" />
 
       {/* Atmospheric Sky, Subtle Stars & Cinematic Depth Fog */}
       <JourneySky />
@@ -137,15 +145,18 @@ export default function VillageCanvas({
         <VillageCamera vehicleState={vehicleState} />
 
         {/* 3D Village World Terrain & Scenery */}
-        <VillageTerrain />
-        <VillageBuildings activeBuildingId={activeBuildingId} xp={xp} />
+        <VillageTerrain villageTier={villageTier} />
+        <VillageGrowth villageTier={villageTier} />
+        <VillageBuildings activeBuildingId={activeBuildingId} xp={xp} villageTier={villageTier} stationTiers={stationTiers} />
 
         {/* Player-Controlled Physics Vehicle */}
         <FreeVehicle
           vehicleType={vehicleType}
+          villageTier={villageTier}
           isInputBlocked={isInputBlocked}
           touchInput={touchInput}
           onUpdateState={handleVehicleUpdate}
+          debugTeleport={debugTeleport}
         />
       </Suspense>
 

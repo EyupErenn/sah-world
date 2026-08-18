@@ -6,12 +6,15 @@ import { RoundedBox, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import type { VehicleType } from '@/types';
 import { getTerrainHeight, isRoadSurface, WORLD_BOUNDS } from '@/lib/villageData';
+import type { VillageTier } from '@/lib/growth';
 
 interface FreeVehicleProps {
   vehicleType: VehicleType;
   isInputBlocked: boolean;
+  villageTier: VillageTier;
   touchInput?: { steer: number; throttle: number };
   onUpdateState: (x: number, y: number, z: number, heading: number, speed: number) => void;
+  debugTeleport?: { x: number; z: number; sequence: number } | null;
   vehicleRef?: React.RefObject<THREE.Group | null>;
 }
 
@@ -608,8 +611,10 @@ function RocketModel({
 export default function FreeVehicle({
   vehicleType,
   isInputBlocked,
+  villageTier,
   touchInput,
   onUpdateState,
+  debugTeleport,
   vehicleRef,
 }: FreeVehicleProps) {
   const rootGroupRef = useRef<THREE.Group>(null);
@@ -637,6 +642,13 @@ export default function FreeVehicle({
   const displayFrameCount = useRef(0);
 
   const keysRef = useRef<{ [k: string]: boolean }>({});
+
+  useEffect(() => {
+    if (!debugTeleport || process.env.NODE_ENV !== 'development') return;
+    posRef.current = { x: debugTeleport.x, z: debugTeleport.z };
+    headingRef.current = 0;
+    speedRef.current = 0;
+  }, [debugTeleport]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -687,7 +699,7 @@ export default function FreeVehicle({
     steerInputRef.current = steerInput;
 
     // 2. Surface Physics
-    const onRoad = isRoadSurface(posRef.current.x, posRef.current.z);
+    const onRoad = isRoadSurface(posRef.current.x, posRef.current.z, villageTier);
     const maxSpeed = onRoad ? 21.0 : 14.0;
     const maxReverse = -6.5;
     const accelRate = onRoad ? 24.0 : 16.0;
