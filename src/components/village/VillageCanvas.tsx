@@ -15,7 +15,7 @@ import VillageCamera from './VillageCamera';
 
 function JourneySky() {
   return (
-    <mesh scale={420} renderOrder={-1000}>
+    <mesh scale={560} renderOrder={-1000}>
       <sphereGeometry args={[1, 32, 20]} />
       <meshBasicMaterial side={THREE.BackSide} depthWrite={false} fog={false}>
         <GradientTexture
@@ -92,7 +92,7 @@ export default function VillageCanvas({
         // the penumbra soft without triggering a deprecation warning per frame.
         gl.shadowMap.type = THREE.PCFShadowMap;
       }}
-      camera={{ fov: 46, near: 0.1, far: 500, position: [0, 6, 12] }}
+      camera={{ fov: 46, near: 0.1, far: 700, position: [0, 6, 12] }}
       dpr={dpr}
       style={{ width: '100%', height: '100%' }}
     >
@@ -102,18 +102,18 @@ export default function VillageCanvas({
       {/* ============ RICH WARM/COOL CHIAROSCURO LIGHTING (Bruno Simon Craft) ============ */}
       {/* Primary Warm Sunlight */}
       <directionalLight
-        position={[48, 78, 32]}
+        position={[92, 138, 76]}
         intensity={2.2}
         color={WORLD_COLORS.sun}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera-near={1}
-        shadow-camera-far={190}
-        shadow-camera-left={-76}
-        shadow-camera-right={76}
-        shadow-camera-top={76}
-        shadow-camera-bottom={-76}
+        shadow-camera-far={360}
+        shadow-camera-left={-168}
+        shadow-camera-right={168}
+        shadow-camera-top={168}
+        shadow-camera-bottom={-168}
         shadow-bias={-0.0003}
         shadow-radius={2.5}
       />
@@ -122,15 +122,15 @@ export default function VillageCanvas({
       <hemisphereLight args={[WORLD_COLORS.coolFill, WORLD_COLORS.earthFill, 0.72]} />
 
       {/* Cool Violet Rim / Contrast Light */}
-      <directionalLight position={[-40, 28, -40]} intensity={0.5} color="#818cf8" />
+      <directionalLight position={[-96, 54, -110]} intensity={0.5} color="#818cf8" />
 
       {/* Soft Ambient Balance */}
       <ambientLight intensity={0.18} color="#eef2ff" />
 
       {/* Atmospheric Sky, Subtle Stars & Cinematic Depth Fog */}
       <JourneySky />
-      <Stars radius={240} depth={50} count={950} factor={2.6} saturation={0.4} fade speed={0.2} />
-      <fogExp2 attach="fog" args={[WORLD_COLORS.fog, 0.0075]} />
+      <Stars radius={340} depth={80} count={1100} factor={2.6} saturation={0.4} fade speed={0.2} />
+      <fogExp2 attach="fog" args={[WORLD_COLORS.fog, 0.0046]} />
 
       <Suspense fallback={null}>
         {/* Dynamic 3rd Person Follow Camera */}

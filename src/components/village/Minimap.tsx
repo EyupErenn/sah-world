@@ -1,6 +1,6 @@
 'use client';
 
-import { VILLAGE_LOCATIONS, WORLD_BOUNDS, type VillageLocation } from '@/lib/villageData';
+import { ROAD_PATHS, VILLAGE_LOCATIONS, WORLD_BOUNDS, getStreamCenterZ, type VillageLocation } from '@/lib/villageData';
 
 interface MinimapProps {
   playerX: number;
@@ -17,13 +17,13 @@ export default function Minimap({
   activeBuildingId,
   onSelectLocation,
 }: MinimapProps) {
-  const mapSize = 160; // px size
-  const worldRadius = WORLD_BOUNDS; // 75 units
+  const mapSize = 176;
+  const worldRadius = WORLD_BOUNDS;
 
   // Convert world coordinates (x, z) to minimap (px, py)
   const toMapCoords = (wx: number, wz: number) => {
-    const normX = wx / worldRadius; // -1 to 1
-    const normZ = wz / worldRadius; // -1 to 1
+    const normX = Math.max(-1, Math.min(1, wx / worldRadius));
+    const normZ = Math.max(-1, Math.min(1, wz / worldRadius));
     const px = (normX + 1) * 0.5 * (mapSize - 24) + 12;
     const py = (normZ + 1) * 0.5 * (mapSize - 24) + 12;
     return { px, py };
@@ -35,12 +35,43 @@ export default function Minimap({
   return (
     <div className="relative group flex flex-col items-center">
       {/* Outer Radar Glass Container */}
-      <div className="w-[160px] h-[160px] rounded-full glass-panel p-2 shadow-2xl relative overflow-hidden flex items-center justify-center select-none backdrop-blur-2xl ring-1 ring-white/5 hover:ring-indigo-300/20 transition-all">
+      <div className="w-44 h-44 rounded-full glass-panel p-2 shadow-2xl relative overflow-hidden flex items-center justify-center select-none backdrop-blur-2xl ring-1 ring-white/5 hover:ring-indigo-300/20 transition-all">
         
         {/* Subtle Dark Radar Grid & Rings */}
         <div className="absolute inset-0 rounded-full bg-slate-950/75" />
         <div className="absolute w-28 h-28 rounded-full border border-indigo-500/10 pointer-events-none" />
         <div className="absolute w-16 h-16 rounded-full border border-indigo-500/10 pointer-events-none" />
+
+        {/* Shared road/river network — uses the same world coordinates as driving physics. */}
+        <svg className="absolute inset-0 h-full w-full pointer-events-none" viewBox={`0 0 ${mapSize} ${mapSize}`} aria-hidden>
+          <polyline
+            points={Array.from({ length: 33 }, (_, index) => {
+              const x = -WORLD_BOUNDS + (index / 32) * WORLD_BOUNDS * 2;
+              const point = toMapCoords(x, getStreamCenterZ(x));
+              return `${point.px},${point.py}`;
+            }).join(' ')}
+            fill="none"
+            stroke="#38bdf8"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            opacity="0.55"
+          />
+          {ROAD_PATHS.map(path => (
+            <polyline
+              key={path.id}
+              points={path.points.map(([x, z]) => {
+                const point = toMapCoords(x, z);
+                return `${point.px},${point.py}`;
+              }).join(' ')}
+              fill="none"
+              stroke={path.width > 6 ? '#cbd5e1' : '#94a3b8'}
+              strokeWidth={path.width > 6 ? 3.4 : 2.1}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.48"
+            />
+          ))}
+        </svg>
         
         {/* Compass Cardinal Points */}
         <span className="absolute top-1.5 left-1/2 -translate-x-1/2 text-[9px] font-black font-mono text-amber-400/90 pointer-events-none">N</span>

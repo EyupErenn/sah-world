@@ -711,6 +711,19 @@ function AhiretPalace({ isActive, xp }: { isActive: boolean; xp: number }) {
     <group>
       <BuildingGroundShadow radius={8.5} />
 
+      {/* Long-range guiding beacon: visible through the horizon haze. */}
+      <mesh position={[0, 20, 0]} renderOrder={3}>
+        <cylinderGeometry args={[0.55, 2.8, 34, 16, 1, true]} />
+        <meshBasicMaterial
+          color="#fde68a"
+          transparent
+          opacity={0.1 + Math.min(xp / 12000, 0.12)}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+
       {/* Grand Tiered Celestial Foundation */}
       <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[8.8, 9.8, 1.0, 16]} />
@@ -761,7 +774,7 @@ function AhiretPalace({ isActive, xp }: { isActive: boolean; xp: number }) {
       </group>
 
       <Sparkles count={45} scale={[13, 11, 13]} color="#fde047" size={3.8} speed={0.5} />
-      <pointLight ref={beaconRef} position={[0, 8.5, 0]} color="#f59e0b" intensity={2.8 * xpGlow} distance={38 + Math.min(xp / 100, 42)} />
+      <pointLight ref={beaconRef} position={[0, 11.5, 0]} color="#f59e0b" intensity={3.4 * xpGlow} distance={74 + Math.min(xp / 70, 72)} />
     </group>
   );
 }

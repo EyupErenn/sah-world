@@ -9,6 +9,7 @@ import { VILLAGE_LOCATIONS, INTERACTION_RADIUS, type VillageLocation } from '@/l
 import { playSuccessChime, playClickTone, playTespihTone, playMilestoneTone } from '@/lib/audio';
 import Minimap from '@/components/village/Minimap';
 import MobileControls from '@/components/village/MobileControls';
+import StationListView, { type StationStatus } from '@/components/village/StationListView';
 import LoginScreen from '@/components/auth/LoginScreen';
 import EvimHub from '@/components/hub/EvimHub';
 import type { JournalEntry, QuranNote, HadisNote, EisenhowerTask, LessonEntry, SukurEntry } from '@/types';
@@ -72,6 +73,26 @@ function VillageWorld() {
   // Daily content & level
   const todayIdx = new Date().getDate() % DAILY_AYETS.length;
   const { level, nextLevel } = getLevelForXP(store.xp);
+
+  const formatLastEntry = (dates: Array<string | undefined>) => {
+    const latest = dates.filter((date): date is string => Boolean(date)).sort().at(-1);
+    if (!latest) return 'İlk kaydını oluştur';
+
+    return `Son kayıt: ${new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(new Date(latest))}`;
+  };
+
+  const completedTasks = Object.values(store.eisenhower).flat().filter(task => task.done).length;
+  const totalTasks = Object.values(store.eisenhower).flat().length;
+  const stationStatuses: Record<number, StationStatus> = {
+    1: { summary: `${store.journal.length} kayıt`, detail: formatLastEntry(store.journal.map(entry => entry.createdAt ?? entry.date)) },
+    2: { summary: `${store.quranNotes.length} not`, detail: formatLastEntry(store.quranNotes.map(entry => entry.createdAt ?? entry.date)) },
+    3: { summary: `${store.hadisNotes.length} not`, detail: formatLastEntry(store.hadisNotes.map(entry => entry.createdAt ?? entry.date)) },
+    4: { summary: `${completedTasks}/${totalTasks} tamamlandı`, detail: totalTasks ? `${totalTasks - completedTasks} aktif görev` : 'İlk görevini planla' },
+    5: { summary: `${store.lessons.length} ders`, detail: formatLastEntry(store.lessons.map(entry => entry.createdAt ?? entry.date)) },
+    6: { summary: `${store.sukurList.length} şükür`, detail: formatLastEntry(store.sukurList.map(entry => entry.createdAt ?? entry.date)) },
+    7: { summary: `${store.totalZikir} zikir`, detail: store.currentTespih ? `Tespihe ${store.currentTespih}/33 devam et` : 'Manevi molanı başlat' },
+    8: { summary: `${store.xp} XP`, detail: `${level.icon} ${level.name} mertebesi` },
+  };
 
   // First visit vehicle prompt
   useEffect(() => {
@@ -319,7 +340,7 @@ function VillageWorld() {
     reader.readAsText(file);
   };
 
-  const isInputBlocked = openModalId !== null || showVehicleGarage;
+  const isInputBlocked = openModalId !== null || showVehicleGarage || showEvimHub || classicMode;
 
   return (
     <div className="relative min-h-screen bg-[#090d16] text-slate-100 selection:bg-indigo-500 selection:text-white overflow-hidden select-none">
@@ -413,6 +434,18 @@ function VillageWorld() {
             onPlayerUpdate={handlePlayerUpdate}
           />
         </div>
+      )}
+
+      {/* ============ ACCESSIBLE / QUICK-ACCESS STATION LIST ============ */}
+      {classicMode && (
+        <StationListView
+          statuses={stationStatuses}
+          onReturnToWorld={() => setClassicMode(false)}
+          onSelectLocation={(location) => {
+            setOpenModalId(location.id);
+            playClickTone();
+          }}
+        />
       )}
 
       {/* ============ DESKTOP DRIVING GUIDE HINT (Smooth opacity fade on movement) ============ */}

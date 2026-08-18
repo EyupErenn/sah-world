@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Sparkles } from '@react-three/drei';
+import { RoundedBox, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import type { VehicleType } from '@/types';
 import { getTerrainHeight, isRoadSurface, WORLD_BOUNDS } from '@/lib/villageData';
@@ -93,7 +93,7 @@ function CarModel({
   });
 
   return (
-    <group position={[0, 0.4, 0]}>
+    <group position={[0, 0.44, 0]}>
       {/* Dark Aerodynamic Chassis Underbody & Diffuser */}
       <mesh position={[0, 0.12, 0]} castShadow receiveShadow>
         <boxGeometry args={[1.92, 0.22, 3.8]} />
@@ -101,20 +101,22 @@ function CarModel({
       </mesh>
 
       {/* Main Painted Body Shell */}
-      <mesh position={[0, 0.32, -0.1]} castShadow receiveShadow>
-        <boxGeometry args={[1.86, 0.36, 3.4]} />
+      <RoundedBox args={[1.92, 0.44, 3.5]} radius={0.16} smoothness={4} position={[0, 0.34, -0.04]} castShadow receiveShadow>
         <meshStandardMaterial color={color} metalness={0.7} roughness={0.25} />
-      </mesh>
+      </RoundedBox>
 
       {/* Sloping Front Hood & Nose */}
-      <mesh position={[0, 0.26, -1.62]} rotation={[-0.14, 0, 0]} castShadow>
-        <boxGeometry args={[1.76, 0.26, 0.85]} />
+      <RoundedBox args={[1.78, 0.3, 1.0]} radius={0.12} smoothness={4} position={[0, 0.39, -1.62]} rotation={[-0.1, 0, 0]} castShadow>
         <meshStandardMaterial color={color} metalness={0.7} roughness={0.25} />
-      </mesh>
+      </RoundedBox>
+
+      {/* Separate rear deck gives the coupe a readable hood/cabin/trunk silhouette. */}
+      <RoundedBox args={[1.82, 0.3, 0.82]} radius={0.1} smoothness={4} position={[0, 0.46, 1.48]} rotation={[0.06, 0, 0]} castShadow>
+        <meshStandardMaterial color={color} metalness={0.72} roughness={0.24} />
+      </RoundedBox>
 
       {/* Cockpit Greenhouse (Curved Cabin Glass) */}
-      <mesh position={[0, 0.64, 0.18]} castShadow>
-        <boxGeometry args={[1.48, 0.44, 1.85]} />
+      <RoundedBox args={[1.48, 0.58, 1.84]} radius={0.2} smoothness={5} position={[0, 0.75, 0.08]} castShadow>
         <meshPhysicalMaterial
           color="#090d16"
           metalness={0.8}
@@ -122,6 +124,16 @@ function CarModel({
           transmission={0.45}
           thickness={0.5}
         />
+      </RoundedBox>
+
+      {/* Distinct windshield and rear glass planes break up the cabin mass. */}
+      <mesh position={[0, 0.77, -0.86]} rotation={[-0.26, 0, 0]}>
+        <boxGeometry args={[1.34, 0.42, 0.035]} />
+        <meshPhysicalMaterial color="#0ea5e9" transmission={0.5} roughness={0.08} metalness={0.45} />
+      </mesh>
+      <mesh position={[0, 0.76, 1.0]} rotation={[0.28, 0, 0]}>
+        <boxGeometry args={[1.3, 0.38, 0.035]} />
+        <meshPhysicalMaterial color="#082f49" transmission={0.38} roughness={0.1} metalness={0.5} />
       </mesh>
 
       {/* Roof Cap */}
@@ -172,17 +184,32 @@ function CarModel({
         </group>
       ))}
 
-      {/* Rear Full-Width Taillight Blade */}
-      <mesh position={[0, 0.34, 1.88]}>
-        <boxGeometry args={[1.72, 0.08, 0.06]} />
-        <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={4.0} />
+      {/* Warm working headlights illuminate the road ahead. */}
+      <pointLight position={[-0.65, 0.3, -2.12]} color="#fff7d6" intensity={1.8} distance={9} decay={2} />
+      <pointLight position={[0.65, 0.3, -2.12]} color="#fff7d6" intensity={1.8} distance={9} decay={2} />
+
+      {/* Front grille and lower bumper. */}
+      <mesh position={[0, 0.16, -2.08]}>
+        <boxGeometry args={[1.1, 0.16, 0.07]} />
+        <meshStandardMaterial color="#020617" metalness={0.75} roughness={0.45} />
+      </mesh>
+
+      {/* Rear-only lamp clusters and bumper — no red glow on the front. */}
+      {[-0.64, 0.64].map(x => (
+        <RoundedBox key={x} args={[0.46, 0.13, 0.065]} radius={0.035} smoothness={3} position={[x, 0.42, 1.92]}>
+          <meshStandardMaterial color="#fb7185" emissive="#ef4444" emissiveIntensity={3.6} />
+        </RoundedBox>
+      ))}
+      <mesh position={[0, 0.12, 1.94]}>
+        <boxGeometry args={[1.62, 0.14, 0.08]} />
+        <meshStandardMaterial color="#0f172a" metalness={0.7} roughness={0.42} />
       </mesh>
 
       {/* 4 Wheels with Individual Suspension & Rims */}
       {/* Front Left */}
       <group ref={wheelFLMesh} position={[-1.02, 0.04, -1.1]}>
         <mesh castShadow>
-          <cylinderGeometry args={[0.36, 0.36, 0.28, 16]} />
+          <cylinderGeometry args={[0.42, 0.42, 0.32, 14]} />
           <meshStandardMaterial color="#1e293b" roughness={0.8} />
           {/* Wheel Rim Cap */}
           <mesh position={[0, -0.14, 0]}>
@@ -195,7 +222,7 @@ function CarModel({
       {/* Front Right */}
       <group ref={wheelFRMesh} position={[1.02, 0.04, -1.1]}>
         <mesh castShadow>
-          <cylinderGeometry args={[0.36, 0.36, 0.28, 16]} />
+          <cylinderGeometry args={[0.42, 0.42, 0.32, 14]} />
           <meshStandardMaterial color="#1e293b" roughness={0.8} />
           <mesh position={[0, 0.14, 0]}>
             <cylinderGeometry args={[0.22, 0.22, 0.04, 8]} />
@@ -207,7 +234,7 @@ function CarModel({
       {/* Rear Left */}
       <group ref={wheelRLMesh} position={[-1.02, 0.04, 1.1]}>
         <mesh castShadow>
-          <cylinderGeometry args={[0.38, 0.38, 0.3, 16]} />
+          <cylinderGeometry args={[0.44, 0.44, 0.34, 14]} />
           <meshStandardMaterial color="#1e293b" roughness={0.8} />
           <mesh position={[0, -0.15, 0]}>
             <cylinderGeometry args={[0.24, 0.24, 0.04, 8]} />
@@ -219,7 +246,7 @@ function CarModel({
       {/* Rear Right */}
       <group ref={wheelRRMesh} position={[1.02, 0.04, 1.1]}>
         <mesh castShadow>
-          <cylinderGeometry args={[0.38, 0.38, 0.3, 16]} />
+          <cylinderGeometry args={[0.44, 0.44, 0.34, 14]} />
           <meshStandardMaterial color="#1e293b" roughness={0.8} />
           <mesh position={[0, 0.15, 0]}>
             <cylinderGeometry args={[0.24, 0.24, 0.04, 8]} />
@@ -779,7 +806,7 @@ export default function FreeVehicle({
         rotation={[-Math.PI / 2, 0, 0]}
         renderOrder={1}
       >
-        <planeGeometry args={[2.8, 4.4]} />
+        <planeGeometry args={[3.1, 5]} />
         {shadowTexture ? (
           <meshBasicMaterial
             map={shadowTexture}
