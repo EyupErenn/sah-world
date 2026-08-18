@@ -1,16 +1,49 @@
 'use client';
 
 import { useState, Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { Sky, Stars, AdaptiveDpr, PerformanceMonitor } from '@react-three/drei';
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
+import { Canvas, useThree } from '@react-three/fiber';
+import { Stars, AdaptiveDpr, PerformanceMonitor, GradientTexture } from '@react-three/drei';
+import { EffectComposer, Bloom, HueSaturation, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import type { VehicleType } from '@/types';
+import { WORLD_COLORS } from '@/lib/designTokens';
 
 import VillageTerrain from './VillageTerrain';
 import VillageBuildings from './VillageBuildings';
 import FreeVehicle from './FreeVehicle';
 import VillageCamera from './VillageCamera';
+
+function JourneySky() {
+  return (
+    <mesh scale={420} renderOrder={-1000}>
+      <sphereGeometry args={[1, 32, 20]} />
+      <meshBasicMaterial side={THREE.BackSide} depthWrite={false} fog={false}>
+        <GradientTexture
+          stops={[0, 0.42, 1]}
+          colors={[WORLD_COLORS.skyHorizon, '#9da8dc', WORLD_COLORS.skyZenith]}
+          size={1024}
+        />
+      </meshBasicMaterial>
+    </mesh>
+  );
+}
+
+function CinematicEffects() {
+  const width = useThree(state => state.size.width);
+
+  // Mobile GPUs are especially likely to recycle the WebGL context during an
+  // orientation/viewport change. The lighting, fog and emissive materials stay
+  // intact; the expensive composer is reserved for stable larger viewports.
+  if (width < 640) return null;
+
+  return (
+    <EffectComposer multisampling={0}>
+      <HueSaturation saturation={0.09} />
+      <Bloom luminanceThreshold={0.72} luminanceSmoothing={0.28} intensity={0.48} mipmapBlur />
+      <Vignette eskil={false} offset={0.22} darkness={0.34} />
+    </EffectComposer>
+  );
+}
 
 interface VillageCanvasProps {
   vehicleType: VehicleType;
@@ -45,16 +78,18 @@ export default function VillageCanvas({
 
   return (
     <Canvas
-      shadows
+      shadows="percentage"
       gl={{
         antialias: true,
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.32,
+        toneMappingExposure: 1.24,
         outputColorSpace: THREE.SRGBColorSpace,
         powerPreference: 'high-performance',
       }}
       onCreated={({ gl }) => {
-        // Explicitly use PCFShadowMap (PCFSoftShadowMap deprecated in r185)
+        gl.shadowMap.enabled = true;
+        // r185 folds the old PCFSoft mode into PCF; light shadow-radius keeps
+        // the penumbra soft without triggering a deprecation warning per frame.
         gl.shadowMap.type = THREE.PCFShadowMap;
       }}
       camera={{ fov: 46, near: 0.1, far: 500, position: [0, 6, 12] }}
@@ -69,33 +104,33 @@ export default function VillageCanvas({
       <directionalLight
         position={[48, 78, 32]}
         intensity={2.2}
-        color="#fff7ed"
+        color={WORLD_COLORS.sun}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera-near={1}
-        shadow-camera-far={280}
-        shadow-camera-left={-80}
-        shadow-camera-right={80}
-        shadow-camera-top={80}
-        shadow-camera-bottom={-80}
+        shadow-camera-far={190}
+        shadow-camera-left={-76}
+        shadow-camera-right={76}
+        shadow-camera-top={76}
+        shadow-camera-bottom={-76}
         shadow-bias={-0.0003}
         shadow-radius={2.5}
       />
 
       {/* Cool Sky / Rich Earth Hemisphere Fill */}
-      <hemisphereLight args={['#bae6fd', '#064e3b', 0.75]} />
+      <hemisphereLight args={[WORLD_COLORS.coolFill, WORLD_COLORS.earthFill, 0.72]} />
 
       {/* Cool Violet Rim / Contrast Light */}
-      <directionalLight position={[-40, 28, -40]} intensity={0.55} color="#818cf8" />
+      <directionalLight position={[-40, 28, -40]} intensity={0.5} color="#818cf8" />
 
       {/* Soft Ambient Balance */}
-      <ambientLight intensity={0.25} color="#f8fafc" />
+      <ambientLight intensity={0.18} color="#eef2ff" />
 
       {/* Atmospheric Sky, Subtle Stars & Cinematic Depth Fog */}
-      <Sky sunPosition={[48, 78, 32]} rayleigh={0.3} turbidity={3.8} mieCoefficient={0.004} mieDirectionalG={0.84} />
+      <JourneySky />
       <Stars radius={240} depth={50} count={950} factor={2.6} saturation={0.4} fade speed={0.2} />
-      <fog attach="fog" args={['#090d16', 55, 300]} />
+      <fogExp2 attach="fog" args={[WORLD_COLORS.fog, 0.0075]} />
 
       <Suspense fallback={null}>
         {/* Dynamic 3rd Person Follow Camera */}
@@ -115,10 +150,7 @@ export default function VillageCanvas({
       </Suspense>
 
       {/* ============ POST-PROCESSING WITH TUNED BLOOM & VIGNETTE ============ */}
-      <EffectComposer multisampling={0}>
-        <Bloom luminanceThreshold={0.62} luminanceSmoothing={0.22} intensity={0.58} mipmapBlur />
-        <Vignette eskil={false} offset={0.25} darkness={0.42} />
-      </EffectComposer>
+      <CinematicEffects />
     </Canvas>
   );
 }

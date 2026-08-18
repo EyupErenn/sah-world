@@ -156,7 +156,7 @@ export function useSupabaseSync() {
   const journeyStore = useJourneyStore();
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isValidUUID(user.id)) return;
 
     async function loadAllData() {
       setIsProfileLoading(true);

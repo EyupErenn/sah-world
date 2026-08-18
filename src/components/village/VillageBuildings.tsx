@@ -694,11 +694,16 @@ function MosqueStructure({ isActive }: { isActive: boolean }) {
 // ============================================================
 function AhiretPalace({ isActive, xp }: { isActive: boolean; xp: number }) {
   const crystalCrown = useRef<THREE.Group>(null);
+  const beaconRef = useRef<THREE.PointLight>(null);
+  const xpGlow = 1 + Math.min(xp / 4000, 1.75);
 
   useFrame(({ clock }) => {
     if (crystalCrown.current) {
       crystalCrown.current.rotation.y += 0.02;
       crystalCrown.current.position.y = 8.0 + Math.sin(clock.getElapsedTime() * 1.8) * 0.38;
+    }
+    if (beaconRef.current) {
+      beaconRef.current.intensity = (isActive ? 5.2 : 2.6) * xpGlow + Math.sin(clock.getElapsedTime() * 1.4) * 0.5;
     }
   });
 
@@ -756,7 +761,7 @@ function AhiretPalace({ isActive, xp }: { isActive: boolean; xp: number }) {
       </group>
 
       <Sparkles count={45} scale={[13, 11, 13]} color="#fde047" size={3.8} speed={0.5} />
-      <pointLight position={[0, 6.5, 0]} color="#f59e0b" intensity={isActive ? 5.5 : 2.8} distance={20} />
+      <pointLight ref={beaconRef} position={[0, 8.5, 0]} color="#f59e0b" intensity={2.8 * xpGlow} distance={38 + Math.min(xp / 100, 42)} />
     </group>
   );
 }

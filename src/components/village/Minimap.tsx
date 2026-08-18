@@ -35,7 +35,7 @@ export default function Minimap({
   return (
     <div className="relative group flex flex-col items-center">
       {/* Outer Radar Glass Container */}
-      <div className="w-[160px] h-[160px] rounded-full glass-panel p-2 shadow-2xl relative overflow-hidden flex items-center justify-center select-none backdrop-blur-2xl border border-white/10 hover:border-white/20 transition-all">
+      <div className="w-[160px] h-[160px] rounded-full glass-panel p-2 shadow-2xl relative overflow-hidden flex items-center justify-center select-none backdrop-blur-2xl ring-1 ring-white/5 hover:ring-indigo-300/20 transition-all">
         
         {/* Subtle Dark Radar Grid & Rings */}
         <div className="absolute inset-0 rounded-full bg-slate-950/75" />
@@ -98,13 +98,13 @@ export default function Minimap({
           {/* Radar Direction Cone */}
           <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[10px] border-b-cyan-300 mx-auto -mt-1 drop-shadow-[0_0_8px_#38bdf8]" />
           {/* Core Player Dot — pulsing glow */}
-          <div className="player-blip w-2.5 h-2.5 rounded-full bg-indigo-400 mx-auto -mt-0.5 ring-2 ring-white/90" />
+          <div className="player-blip w-2.5 h-2.5 rounded-full bg-indigo-400 mx-auto -mt-1 ring-2 ring-white/90" />
         </div>
       </div>
 
       {/* Sleek Floating Coordinates Badge */}
       <div className="mt-2 text-center">
-        <span className="text-[10px] font-mono font-medium text-slate-400 bg-slate-950/70 px-2.5 py-0.5 rounded-full border border-white/5 backdrop-blur-md">
+        <span className="text-[10px] font-mono font-medium text-slate-400 bg-slate-950/70 px-3 py-1 rounded-full shadow-lg backdrop-blur-md">
           {Math.round(playerX)}, {Math.round(playerZ)}
         </span>
       </div>

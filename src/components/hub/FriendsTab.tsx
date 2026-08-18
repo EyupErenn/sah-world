@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
+import { isValidUUID } from '@/store/useJourneyStore';
 
 type PublicProfile = {
   id: string;
@@ -30,7 +31,11 @@ export default function FriendsTab() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchFriends = async () => {
-    if (!user) return;
+    if (!user || !isValidUUID(user.id)) {
+      setFriends([]);
+      setIsLoading(false);
+      return;
+    }
     try {
       // Supabase'den pending/accepted arkadaşlıkları getir
       // RPC yazmıştık veya doğrudan friendships tablosuna join yapabiliriz.
@@ -75,7 +80,7 @@ export default function FriendsTab() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim() || !user) return;
+    if (!searchQuery.trim() || !user || !isValidUUID(user.id)) return;
     
     setIsSearching(true);
     try {
@@ -121,8 +126,8 @@ export default function FriendsTab() {
     <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500 fade-in">
       
       {/* ── Arama Bölümü ── */}
-      <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
-        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+      <div className="sah-card p-6">
+        <h3 className="sah-section-title mb-4 flex items-center gap-2">
           <span>🔍</span> Yeni Yol Arkadaşı Bul
         </h3>
         
@@ -132,27 +137,27 @@ export default function FriendsTab() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Kullanıcı adı (Görünen Ad)..."
-            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+            className="glass-input flex-1 px-4 py-3"
           />
           <button 
             type="submit"
             disabled={isSearching || !searchQuery.trim()}
-            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/10 text-white font-bold rounded-xl transition-colors cursor-pointer"
+            className="sah-button-primary px-6 py-3 disabled:opacity-40"
           >
             {isSearching ? '...' : 'Ara'}
           </button>
         </form>
 
         {searchResults.length > 0 && (
-          <div className="space-y-2 mt-4 bg-black/20 p-4 rounded-2xl border border-white/5">
+          <div className="space-y-2 mt-4 bg-black/20 p-4 rounded-2xl shadow-inner">
             <h4 className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-3">Arama Sonuçları</h4>
             {searchResults.map(p => (
-              <div key={p.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+              <div key={p.id} className="sah-card flex items-center justify-between p-3">
                 <div className="flex items-center gap-3">
                   <img 
                     src={p.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.display_name}`}
                     alt="Avatar"
-                    className="w-10 h-10 rounded-full bg-black/50 border border-white/10"
+                    className="w-10 h-10 rounded-full bg-black/50 ring-1 ring-white/10"
                   />
                   <div>
                     <div className="font-bold text-white">{p.display_name}</div>
@@ -161,7 +166,7 @@ export default function FriendsTab() {
                 </div>
                 <button
                   onClick={() => handleSendRequest(p.id)}
-                  className="px-3 py-1.5 bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
+                  className="sah-button-secondary px-3 py-2 text-xs"
                 >
                   İstek Gönder
                 </button>
@@ -175,24 +180,24 @@ export default function FriendsTab() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         
         {/* Arkadaşların */}
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
+        <div className="sah-card p-6">
           <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
             <span>🤝</span> Arkadaşların ({accepted.length})
           </h3>
           
           {isLoading ? (
-            <div className="text-slate-500 text-sm animate-pulse">Yükleniyor...</div>
+            <div className="sah-empty-state min-h-40 text-sm animate-pulse"><span className="text-2xl">⏳</span><span>Yükleniyor...</span></div>
           ) : accepted.length === 0 ? (
-            <div className="text-slate-500 text-sm">Henüz kimseyi eklemedin.</div>
+            <div className="sah-empty-state min-h-40 text-sm"><span className="text-3xl">🧭</span><strong className="text-slate-300">Yolculuk henüz sakin</strong><span>Yeni bir yol arkadaşı arayarak köyünü paylaş.</span></div>
           ) : (
             <div className="space-y-3">
               {accepted.map(f => (
-                <div key={f.fid} className="flex items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5">
+                <div key={f.fid} className="sah-card flex items-center justify-between p-3 bg-black/20">
                   <div className="flex items-center gap-3">
                     <img 
                       src={f.profile.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${f.profile.display_name}`}
                       alt="Avatar"
-                      className="w-10 h-10 rounded-full bg-black/50 border border-white/10"
+                      className="w-10 h-10 rounded-full bg-black/50 ring-1 ring-white/10"
                     />
                     <div>
                       <div className="font-bold text-white">{f.profile.display_name}</div>
@@ -202,7 +207,7 @@ export default function FriendsTab() {
                       </div>
                     </div>
                   </div>
-                  <button onClick={() => handleRejectOrCancel(f.fid)} className="text-slate-500 hover:text-rose-400 text-xs px-2 py-1 rounded transition-colors" title="Arkadaşlıktan Çıkar">
+                  <button onClick={() => handleRejectOrCancel(f.fid)} className="sah-icon-button !w-8 !h-8 text-slate-500 hover:text-rose-300 text-xs" title="Arkadaşlıktan Çıkar">
                     ✕
                   </button>
                 </div>
@@ -214,24 +219,24 @@ export default function FriendsTab() {
         {/* İstekler */}
         <div className="space-y-6">
           {/* Gelen İstekler */}
-          <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
+          <div className="sah-card p-6">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
               <span>📥</span> Gelen İstekler ({received.length})
             </h3>
             
             {received.length === 0 ? (
-              <div className="text-slate-500 text-sm">Bekleyen istek yok.</div>
+              <div className="sah-empty-state min-h-40 text-sm"><span className="text-3xl">📭</span><strong className="text-slate-300">Bekleyen istek yok</strong><span>Yeni istekler geldiğinde burada görünecek.</span></div>
             ) : (
               <div className="space-y-3">
                 {received.map(f => (
-                  <div key={f.fid} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5 gap-3">
+                  <div key={f.fid} className="sah-card flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-black/20 gap-3">
                     <div className="flex items-center gap-3">
                       <img src={f.profile.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${f.profile.display_name}`} alt="Avatar" className="w-8 h-8 rounded-full" />
                       <div className="font-bold text-white text-sm">{f.profile.display_name}</div>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => handleAccept(f.fid)} className="px-3 py-1 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg text-xs font-bold transition-colors">Kabul Et</button>
-                      <button onClick={() => handleRejectOrCancel(f.fid)} className="px-3 py-1 bg-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white rounded-lg text-xs font-bold transition-colors">Reddet</button>
+                      <button onClick={() => handleAccept(f.fid)} className="sah-button-primary px-3 py-2 text-xs">Kabul Et</button>
+                      <button onClick={() => handleRejectOrCancel(f.fid)} className="sah-button-danger px-3 py-2 text-xs">Reddet</button>
                     </div>
                   </div>
                 ))}
@@ -241,13 +246,13 @@ export default function FriendsTab() {
 
           {/* Giden İstekler */}
           {sent.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
+            <div className="sah-card p-6">
               <h3 className="text-sm font-bold text-slate-400 mb-4 flex items-center gap-2">
                 <span>📤</span> Giden İstekler ({sent.length})
               </h3>
               <div className="space-y-2">
                 {sent.map(f => (
-                  <div key={f.fid} className="flex items-center justify-between p-2 bg-black/20 rounded-lg border border-white/5">
+                  <div key={f.fid} className="sah-card flex items-center justify-between p-2 bg-black/20">
                     <div className="text-sm text-slate-300">{f.profile.display_name}</div>
                     <button onClick={() => handleRejectOrCancel(f.fid)} className="text-xs text-rose-400 hover:underline">İptal Et</button>
                   </div>

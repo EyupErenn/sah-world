@@ -51,20 +51,20 @@ export default function SettingsTab() {
     <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500 fade-in pb-12">
       
       {/* ── Profil Ayarları ── */}
-      <section className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8">
+      <section className="sah-card p-6 md:p-8">
         <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
           <span>⚙️</span> Profil Ayarları
         </h3>
 
         <div className="flex flex-col md:flex-row gap-8 items-start">
           {/* Avatar Değiştir */}
-          <div className="flex flex-col items-center gap-3 bg-black/20 p-4 rounded-2xl border border-white/5">
-            <div className="w-24 h-24 rounded-full border-2 border-indigo-500/50 bg-black/40 overflow-hidden">
+          <div className="sah-card flex flex-col items-center gap-3 p-4">
+            <div className="w-24 h-24 rounded-full ring-2 ring-indigo-500/40 bg-black/40 overflow-hidden">
               <img src={currentAvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
             </div>
             <button 
               onClick={handleNewAvatar}
-              className="text-xs font-semibold px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"
+              className="sah-button-secondary text-xs px-3 py-2"
             >
               🎲 Yeni Avatar
             </button>
@@ -79,12 +79,12 @@ export default function SettingsTab() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={30}
-                className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                className="glass-input flex-1 px-4 py-3 text-white"
               />
               <button
                 onClick={handleSaveName}
                 disabled={isSavingName || name.trim() === profile.display_name}
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/5 disabled:text-slate-500 text-white font-bold rounded-xl transition-colors"
+                className="sah-button-primary px-6 py-3 disabled:opacity-40"
               >
                 {isSavingName ? '...' : 'Kaydet'}
               </button>
@@ -95,7 +95,7 @@ export default function SettingsTab() {
       </section>
 
       {/* ── Araç Seçimi (Garage) ── */}
-      <section className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8">
+      <section className="sah-card p-6 md:p-8">
         <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
           <span>🚗</span> Manevi Binek Seçimi
         </h3>
@@ -117,10 +117,10 @@ export default function SettingsTab() {
                 onClick={() => {
                   store.setVehicle(d); // Bu call artık Supabase'e de yazar (optimistic UI)
                 }}
-                className={`p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${
+                className={`sah-card p-4 flex flex-col items-center gap-2 transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-indigo-400 bg-indigo-600/20 shadow-lg shadow-indigo-500/25 scale-[1.02]'
-                    : 'border-white/5 bg-black/20 hover:border-indigo-400/30 hover:bg-white/5'
+                    ? 'ring-2 ring-indigo-400/60 bg-indigo-600/20 shadow-lg shadow-indigo-500/25 -translate-y-0.5'
+                    : 'bg-black/20 hover:bg-white/5 hover:-translate-y-0.5'
                 }`}
               >
                 <div className="text-4xl my-1">{d.icon}</div>
@@ -133,14 +133,14 @@ export default function SettingsTab() {
       </section>
 
       {/* ── Oturum ── */}
-      <section className="bg-rose-500/5 border border-rose-500/10 rounded-3xl p-6 md:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <section className="sah-card bg-rose-500/5 p-6 md:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <h3 className="text-lg font-bold text-rose-400 mb-1">Hesaptan Çıkış Yap</h3>
           <p className="text-xs text-rose-400/70">Köyden ayrılır ama verilerin güvende kalır.</p>
         </div>
         <button
           onClick={handleSignOut}
-          className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-rose-500/20 active:scale-95 w-full sm:w-auto whitespace-nowrap"
+          className="sah-button-danger px-6 py-3 w-full sm:w-auto whitespace-nowrap"
         >
           Çıkış Yap
         </button>
