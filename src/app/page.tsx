@@ -419,7 +419,7 @@ function VillageWorld() {
       {/* ============ DESKTOP DRIVING GUIDE HINT (Smooth opacity fade on movement) ============ */}
       {!classicMode && !activeNearbyLocation && openModalId === null && !showEvimHub && (
         <div
-          className="fixed bottom-6 left-6 z-[900] glass-pill rounded-full px-4 py-2 hidden md:flex items-center gap-2.5 text-[11px] text-slate-300 border border-white/10 shadow-xl pointer-events-none"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[900] glass-pill rounded-full px-4 py-2 hidden md:flex items-center gap-2.5 text-[11px] text-slate-300 border border-white/10 shadow-xl pointer-events-none whitespace-nowrap"
           style={{
             opacity: showControlsHint ? 1 : 0,
             transition: 'opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1)',

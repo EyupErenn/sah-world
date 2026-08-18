@@ -78,15 +78,15 @@ export default function EvimHub({ onClose }: Props) {
 
       {/* ── Sağ İçerik Alanı ── */}
       <div className="flex-1 h-full overflow-hidden flex flex-col relative">
-        <header className="h-16 border-b border-white/5 flex items-center justify-between gap-4 px-8 bg-black/15 backdrop-blur-md">
-          <h1 className="text-lg font-black text-white tracking-wider flex items-center gap-2 min-w-0">
+        <header className="min-h-16 border-b border-white/5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 sm:px-8 py-3 bg-black/15 backdrop-blur-md">
+          <h1 className="min-w-0 text-lg font-black text-white tracking-wider flex items-center gap-2">
             <span className="flex-shrink-0">{tabs.find(t => t.id === activeTab)?.icon}</span>
             <span className="truncate">{tabs.find(t => t.id === activeTab)?.label}</span>
           </h1>
           
           <button
             onClick={onClose}
-            className="flex-shrink-0 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all text-xs font-bold border border-white/10 flex items-center gap-1.5 cursor-pointer"
+            className="justify-self-end shrink-0 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all text-xs font-bold border border-white/10 flex items-center gap-1.5 cursor-pointer"
           >
             <span className="hidden sm:inline">Kapat</span>
             <span>✕</span>

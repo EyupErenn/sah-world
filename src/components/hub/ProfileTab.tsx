@@ -77,11 +77,11 @@ export default function ProfileTab() {
           </div>
 
           {/* XP Progress Bar */}
-          <div className="w-full flex flex-col gap-2 pt-1">
-            <div className="flex items-center justify-between text-xs text-slate-300 font-mono font-semibold">
-              <span>{currentLevelXP} XP</span>
-              <span className="text-cyan-300 font-bold px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20">{Math.round(progressPercent)}%</span>
-              <span>{nextLevelXP} XP</span>
+          <div className="w-full space-y-2 pt-1">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-xs text-slate-300 font-mono font-semibold leading-none">
+              <span className="justify-self-start whitespace-nowrap">{currentLevelXP} XP</span>
+              <span className="justify-self-center text-cyan-300 font-bold px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/20 whitespace-nowrap">{Math.round(progressPercent)}%</span>
+              <span className="justify-self-end whitespace-nowrap">{nextLevelXP} XP</span>
             </div>
             <div className="w-full h-3 bg-slate-900/90 rounded-full overflow-hidden border border-white/10 p-0.5 relative shadow-inner">
               <div 
@@ -89,7 +89,7 @@ export default function ProfileTab() {
                 style={{ width: `${Math.max(2, progressPercent)}%` }}
               />
             </div>
-            <div className="flex justify-between items-center text-[11px] text-slate-400 font-mono">
+            <div className="flex flex-wrap justify-between items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 font-mono">
               <span>Seviye İlerlemesi</span>
               <span>Toplam Amel: <strong className="text-white font-bold">{profile.xp} XP</strong></span>
             </div>
@@ -112,15 +112,15 @@ export default function ProfileTab() {
               <p className="text-[10px] text-slate-500 mt-0.5">Köydeki binalardan günlük, zikir veya tefekkür ekleyin.</p>
             </div>
           ) : (
-            <div className="flex justify-between items-end h-32 gap-2.5 px-2">
+            <div className="flex items-stretch h-36 gap-2.5 px-2 pt-5">
               {activity.map((day, i) => {
                 const maxCount = Math.max(...activity.map(a => a.count), 1);
                 const height = day.count === 0 ? 8 : Math.max(16, (day.count / maxCount) * 100);
                 const isEmpty = day.count === 0;
 
                 return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
-                    <div className="w-full relative flex items-end justify-center h-full">
+                  <div key={i} className="flex-1 min-w-0 h-full flex flex-col items-center gap-2 group">
+                    <div className="w-full flex-1 min-h-0 relative flex items-end justify-center">
                       <div 
                         className={`w-full rounded-t-lg transition-all duration-500 ${
                           isEmpty
