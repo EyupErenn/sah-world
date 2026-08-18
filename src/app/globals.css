@@ -1,44 +1,59 @@
 @import "tailwindcss";
 
-/* ============================================================
-   SAH WORLD — Premium Bruno Simon Game-HUD Design System & Glass Tokens
-   ============================================================ */
+/* SAH WORLD — centralized interface design tokens */
 :root {
   --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Brand Cyber-Spiritual Palette */
-  --cyber-primary: #6366f1;
-  --cyber-violet: #8b5cf6;
+  --brand-primary: #4f46e5;
+  --brand-violet: #7c3aed;
+  --brand-soft: #818cf8;
   --cyber-cyan: #38bdf8;
   --cyber-emerald: #10b981;
   --cyber-amber: #f59e0b;
-  --cyber-rose: #f43f5e;
+  --cyber-rose: #e11d48;
 
-  /* Deep Translucent Glass */
-  --glass-bg: rgba(10, 15, 29, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-glow: rgba(99, 102, 241, 0.22);
+  --ink-primary: #f8fafc;
+  --ink-muted: #94a3b8;
+  --canvas: #090d16;
+  --surface: #0f172a;
+  --surface-raised: #18213a;
+  --glass-bg: rgba(10, 15, 29, 0.76);
+  --glass-raised: rgba(24, 33, 58, 0.68);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.18);
+  --shadow-raised: 0 16px 48px rgba(0, 0, 0, 0.34);
+  --shadow-glow: 0 12px 36px rgba(79, 70, 229, 0.28);
 }
 
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #090d16;
-  color: #f8fafc;
+  background-color: var(--canvas);
+  color: var(--ink-primary);
 }
 
 body {
   font-family: var(--font-inter);
-  background-color: #090d16;
-  color: #f8fafc;
+  background-color: var(--canvas);
+  color: var(--ink-primary);
   line-height: 1.6;
   overflow-x: hidden;
 }
@@ -49,13 +64,14 @@ body {
 ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.35); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.75); }
 
-/* Glassmorphic Cyber Utilities */
+/* Shared surfaces */
 .glass-panel {
-  background: rgba(10, 15, 29, 0.78);
+  background: var(--glass-bg);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-raised), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 .glass-nav {
@@ -67,16 +83,16 @@ body {
 }
 
 .glass-pill {
-  background: rgba(15, 23, 42, 0.65);
+  background: rgba(15, 23, 42, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  box-shadow: var(--shadow-card), inset 0 1px rgba(255, 255, 255, 0.06);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .glass-pill:hover {
   background: rgba(30, 41, 59, 0.75);
-  border-color: rgba(255, 255, 255, 0.16);
+  border-color: rgba(129, 140, 248, 0.2);
   transform: translateY(-1px);
 }
 
@@ -84,14 +100,16 @@ body {
 
 
 .glass-input {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), var(--shadow-card);
+  color: var(--ink-primary);
   transition: all 0.2s ease;
 }
 .glass-input:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+  border-color: var(--brand-soft);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.22), var(--shadow-card);
   outline: none;
 }
 
@@ -109,15 +127,103 @@ body {
 
 /* Soft shadow-separated cards (no hard grid lines) */
 .glass-card {
-  background: rgba(18, 24, 42, 0.52);
+  background: var(--glass-raised);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.22),
-    0 8px 24px rgba(0, 0, 0, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.045);
+  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+}
+
+.sah-modal-shell {
+  background: linear-gradient(145deg, rgba(17, 24, 45, .94), rgba(9, 13, 28, .92));
+  border: 1px solid rgba(255, 255, 255, .055);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-raised), 0 0 80px rgba(79, 70, 229, .13);
+  backdrop-filter: blur(28px);
+}
+
+.sah-card {
+  background: linear-gradient(145deg, rgba(30, 41, 70, .62), rgba(15, 23, 42, .58));
+  border: 1px solid rgba(255, 255, 255, .045);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card), inset 0 1px rgba(255,255,255,.055);
+}
+
+.sah-button-primary,
+.sah-button-secondary,
+.sah-button-danger,
+.sah-icon-button {
+  border: 0;
+  cursor: pointer;
+  font-weight: 700;
+  transition: transform .22s cubic-bezier(.16,1,.3,1), box-shadow .22s ease, background .22s ease;
+}
+
+.sah-button-primary {
+  color: white;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-violet));
+  box-shadow: var(--shadow-glow);
+}
+.sah-button-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(79,70,229,.4); }
+
+.sah-button-secondary {
+  color: #e0e7ff;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,.07);
+  box-shadow: var(--shadow-card), inset 0 1px rgba(255,255,255,.06);
+}
+.sah-button-secondary:hover { transform: translateY(-2px); background: rgba(129,140,248,.16); }
+
+.sah-button-danger {
+  color: #fecdd3;
+  border-radius: var(--radius-sm);
+  background: rgba(225,29,72,.14);
+  box-shadow: var(--shadow-card);
+}
+.sah-button-danger:hover { transform: translateY(-2px); background: rgba(225,29,72,.22); }
+
+.sah-icon-button {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #e0e7ff;
+  background: rgba(15,23,42,.72);
+  box-shadow: var(--shadow-card), inset 0 1px rgba(255,255,255,.06);
+}
+.sah-icon-button:hover { transform: translateY(-2px); background: rgba(79,70,229,.28); }
+
+.sah-empty-state {
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--ink-muted);
+  border-radius: var(--radius-md);
+  background: radial-gradient(circle at top, rgba(79,70,229,.12), rgba(15,23,42,.28) 68%);
+  box-shadow: inset 0 1px rgba(255,255,255,.045);
+}
+
+.sah-section-title { font-size: 1.125rem; line-height: 1.4; font-weight: 700; color: var(--ink-primary); }
+.sah-body { font-size: .875rem; line-height: 1.65; font-weight: 450; color: #cbd5e1; }
+
+.xp-progress-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 3px solid rgba(129, 140, 248, .45);
+  outline-offset: 2px;
 }
 
 .mono-num {

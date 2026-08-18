@@ -9,6 +9,9 @@ import { VILLAGE_LOCATIONS, INTERACTION_RADIUS, type VillageLocation } from '@/l
 import { playSuccessChime, playClickTone, playTespihTone, playMilestoneTone } from '@/lib/audio';
 import Minimap from '@/components/village/Minimap';
 import MobileControls from '@/components/village/MobileControls';
+import StationListView, { type StationStatus } from '@/components/village/StationListView';
+import GrowthDebugPanel from '@/components/village/GrowthDebugPanel';
+import { deriveStationTiers, getVillageTier, type StationTier, type VillageTier } from '@/lib/growth';
 import LoginScreen from '@/components/auth/LoginScreen';
 import EvimHub from '@/components/hub/EvimHub';
 import type { JournalEntry, QuranNote, HadisNote, EisenhowerTask, LessonEntry, SukurEntry } from '@/types';
@@ -65,13 +68,52 @@ function VillageWorld() {
   const [showEvimHub, setShowEvimHub] = useState(false);
   const [pendingVehicle, setPendingVehicle] = useState(store.vehicle.type);
   const [classicMode, setClassicMode] = useState(false);
+  const [villageTierOverride, setVillageTierOverride] = useState<VillageTier | null>(null);
+  const [stationTierOverrides, setStationTierOverrides] = useState<Partial<Record<number, StationTier>>>({});
+  const [debugTeleport, setDebugTeleport] = useState<{ x: number; z: number; sequence: number } | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [touchInput, setTouchInput] = useState<{ steer: number; throttle: number }>({ steer: 0, throttle: 0 });
   const [showControlsHint, setShowControlsHint] = useState(true);
 
   // Daily content & level
   const todayIdx = new Date().getDate() % DAILY_AYETS.length;
-  const { level, nextLevel } = getLevelForXP(store.xp);
+  const { level, nextLevel, index: levelIndex } = getLevelForXP(store.xp);
+
+  const formatLastEntry = (dates: Array<string | undefined>) => {
+    const latest = dates.filter((date): date is string => Boolean(date)).sort().at(-1);
+    if (!latest) return 'İlk kaydını oluştur';
+
+    return `Son kayıt: ${new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(new Date(latest))}`;
+  };
+
+  const completedTasks = Object.values(store.eisenhower).flat().filter(task => task.done).length;
+  const totalTasks = Object.values(store.eisenhower).flat().length;
+  const trackedDeeds = store.journal.length + store.quranNotes.length + store.hadisNotes.length + totalTasks + store.lessons.length + store.sukurList.length + Math.floor(store.totalZikir / 33);
+  const derivedVillageTier = getVillageTier(levelIndex + 1);
+  const villageTier = villageTierOverride ?? derivedVillageTier;
+  const derivedStationTiers = deriveStationTiers({
+    1: store.journal.length,
+    2: store.quranNotes.length,
+    3: store.hadisNotes.length,
+    4: totalTasks,
+    5: store.lessons.length,
+    6: store.sukurList.length,
+    7: Math.floor(store.totalZikir / 33),
+    8: trackedDeeds,
+  });
+  const stationTiers = Object.fromEntries(
+    Object.entries(derivedStationTiers).map(([stationId, tier]) => [Number(stationId), stationTierOverrides[Number(stationId)] ?? tier])
+  ) as Record<number, StationTier>;
+  const stationStatuses: Record<number, StationStatus> = {
+    1: { summary: `${store.journal.length} kayıt`, detail: formatLastEntry(store.journal.map(entry => entry.createdAt ?? entry.date)) },
+    2: { summary: `${store.quranNotes.length} not`, detail: formatLastEntry(store.quranNotes.map(entry => entry.createdAt ?? entry.date)) },
+    3: { summary: `${store.hadisNotes.length} not`, detail: formatLastEntry(store.hadisNotes.map(entry => entry.createdAt ?? entry.date)) },
+    4: { summary: `${completedTasks}/${totalTasks} tamamlandı`, detail: totalTasks ? `${totalTasks - completedTasks} aktif görev` : 'İlk görevini planla' },
+    5: { summary: `${store.lessons.length} ders`, detail: formatLastEntry(store.lessons.map(entry => entry.createdAt ?? entry.date)) },
+    6: { summary: `${store.sukurList.length} şükür`, detail: formatLastEntry(store.sukurList.map(entry => entry.createdAt ?? entry.date)) },
+    7: { summary: `${store.totalZikir} zikir`, detail: store.currentTespih ? `Tespihe ${store.currentTespih}/33 devam et` : 'Manevi molanı başlat' },
+    8: { summary: `${store.xp} XP`, detail: `${level.icon} ${level.name} mertebesi` },
+  };
 
   // First visit vehicle prompt
   useEffect(() => {
@@ -319,7 +361,7 @@ function VillageWorld() {
     reader.readAsText(file);
   };
 
-  const isInputBlocked = openModalId !== null || showVehicleGarage;
+  const isInputBlocked = openModalId !== null || showVehicleGarage || showEvimHub || classicMode;
 
   return (
     <div className="relative min-h-screen bg-[#090d16] text-slate-100 selection:bg-indigo-500 selection:text-white overflow-hidden select-none">
@@ -330,7 +372,7 @@ function VillageWorld() {
         {/* Left Status Island */}
         <div className="flex flex-wrap items-center gap-2 md:gap-3 pointer-events-auto max-w-[70%] md:max-w-none">
           {/* Brand Emblem */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-pill border-white/10 shadow-lg flex-shrink-0">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-full glass-pill border-white/10 shadow-lg flex-shrink-0">
             <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-cyan-400 flex items-center justify-center text-white font-black text-xs shadow-md">
               S
             </div>
@@ -343,19 +385,19 @@ function VillageWorld() {
           <button
             onClick={() => setShowVehicleGarage(true)}
             title="Binek Değiştir"
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-pill border-indigo-500/25 hover:border-indigo-400 text-indigo-200 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer"
+            className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-full glass-pill border-indigo-500/25 hover:border-indigo-400 text-indigo-200 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer"
           >
             <span className="text-sm">{store.vehicle.icon}</span>
             <span className="text-[11px] font-medium">{store.vehicle.name}</span>
           </button>
 
           {/* Streak Indicator Pill */}
-          <div className="flex items-center gap-1 px-3 py-1.5 rounded-full glass-pill border-amber-500/25 text-amber-300 text-xs font-bold font-mono shadow-sm flex-shrink-0">
+          <div className="flex items-center gap-1 px-3 py-2 rounded-full glass-pill border-amber-500/25 text-amber-300 text-xs font-bold font-mono shadow-sm flex-shrink-0">
             🔥 {store.streak.current}
           </div>
 
           {/* XP & Level Indicator Pill */}
-          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-pill border-emerald-500/25 text-emerald-300 text-xs font-bold font-mono shadow-sm">
+          <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-full glass-pill border-emerald-500/25 text-emerald-300 text-xs font-bold font-mono shadow-sm">
             <span>✨ {store.xp} XP</span>
             <span className="text-slate-500 text-[10px]">·</span>
             <span>{level.icon} {level.name}</span>
@@ -366,35 +408,34 @@ function VillageWorld() {
         <div className="flex items-center gap-2 pointer-events-auto">
           <button
             onClick={() => setShowEvimHub(true)}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-indigo-600/90 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 hover:scale-105 active:scale-95 transition-all border border-indigo-400/40 cursor-pointer"
+            aria-label="Evim"
+            title="Evim"
+            className="sah-icon-button"
           >
-            <span>🏠</span>
-            <span className="hidden sm:inline">Evim</span>
+            <span aria-hidden>🏠</span>
           </button>
 
           <button
             onClick={() => setClassicMode(m => !m)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold glass-pill transition-all cursor-pointer ${
-              classicMode
-                ? 'bg-indigo-600/30 border-indigo-400/40 text-indigo-200'
-                : 'text-slate-300 hover:text-white'
-            }`}
+            aria-label={classicMode ? '3D köye geç' : 'Liste görünümüne geç'}
+            title={classicMode ? '3D köye geç' : 'Liste görünümüne geç'}
+            className={`sah-icon-button ${classicMode ? 'bg-indigo-600/30 text-indigo-100' : ''}`}
           >
-            <span>{classicMode ? '📋' : '🌐'}</span>
-            <span className="hidden sm:inline">{classicMode ? 'Liste' : '3D Köy'}</span>
+            <span aria-hidden>{classicMode ? '🌐' : '📋'}</span>
           </button>
 
           <button
             onClick={exportData}
             title="Verileri Yedekle (JSON)"
-            className="w-8 h-8 rounded-full glass-pill flex items-center justify-center text-xs text-slate-300 hover:text-white transition-all cursor-pointer"
+            aria-label="Verileri yedekle"
+            className="sah-icon-button !w-8 !h-8 text-xs"
           >
             💾
           </button>
 
           <label
             title="Yedekten Geri Yükle"
-            className="w-8 h-8 rounded-full glass-pill flex items-center justify-center text-xs text-slate-300 hover:text-white transition-all cursor-pointer"
+            className="sah-icon-button !w-8 !h-8 text-xs"
           >
             📂
             <input type="file" accept=".json" className="hidden" onChange={importData} />
@@ -409,6 +450,9 @@ function VillageWorld() {
             vehicleType={store.vehicle.type}
             activeBuildingId={activeNearbyLocation?.id ?? null}
             xp={store.xp}
+            villageTier={villageTier}
+            stationTiers={stationTiers}
+            debugTeleport={debugTeleport}
             isInputBlocked={isInputBlocked}
             touchInput={touchInput}
             onPlayerUpdate={handlePlayerUpdate}
@@ -416,10 +460,22 @@ function VillageWorld() {
         </div>
       )}
 
+      {/* ============ ACCESSIBLE / QUICK-ACCESS STATION LIST ============ */}
+      {classicMode && (
+        <StationListView
+          statuses={stationStatuses}
+          onReturnToWorld={() => setClassicMode(false)}
+          onSelectLocation={(location) => {
+            setOpenModalId(location.id);
+            playClickTone();
+          }}
+        />
+      )}
+
       {/* ============ DESKTOP DRIVING GUIDE HINT (Smooth opacity fade on movement) ============ */}
       {!classicMode && !activeNearbyLocation && openModalId === null && !showEvimHub && (
         <div
-          className="fixed bottom-6 left-6 z-[900] glass-pill rounded-full px-4 py-2 hidden md:flex items-center gap-2.5 text-[11px] text-slate-300 border border-white/10 shadow-xl pointer-events-none"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[900] glass-pill rounded-full px-4 py-2 hidden md:flex items-center gap-3 text-[11px] text-slate-300 shadow-xl pointer-events-none whitespace-nowrap"
           style={{
             opacity: showControlsHint ? 1 : 0,
             transition: 'opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -427,7 +483,7 @@ function VillageWorld() {
         >
           <div className="flex items-center gap-1 font-mono font-bold text-cyan-300">
             {['W', 'A', 'S', 'D'].map(k => (
-              <span key={k} className="px-1.5 py-0.5 rounded bg-slate-800/90 border border-white/15">{k}</span>
+              <span key={k} className="px-2 py-1 rounded-lg bg-slate-800/90 ring-1 ring-white/15">{k}</span>
             ))}
           </div>
           <span className="text-slate-500">·</span>
@@ -447,7 +503,7 @@ function VillageWorld() {
               setOpenModalId(activeNearbyLocation.id);
               playClickTone();
             }}
-            className="flex items-center gap-3.5 px-6 py-3 rounded-full glass-panel border shadow-2xl transition-all hover:scale-105 active:scale-95 cursor-pointer backdrop-blur-2xl"
+            className="flex items-center gap-4 px-6 py-3 rounded-full glass-panel border shadow-2xl transition-all hover:scale-105 active:scale-95 cursor-pointer backdrop-blur-2xl"
             style={{
               borderColor: activeNearbyLocation.color,
               boxShadow: `0 0 30px ${activeNearbyLocation.color}40`,
@@ -467,12 +523,13 @@ function VillageWorld() {
 
       {/* ============ INTERACTIVE MINIMAP & COMPASS ============ */}
       {!classicMode && (
-        <div className="fixed bottom-6 right-6 z-[900]">
+        <div className="fixed bottom-32 right-4 z-[900] origin-bottom-right scale-75 md:bottom-6 md:right-6 md:scale-100">
           <Minimap
             playerX={playerState.x}
             playerZ={playerState.z}
             playerHeading={playerState.heading}
             activeBuildingId={activeNearbyLocation?.id ?? null}
+            villageTier={villageTier}
             onSelectLocation={(loc) => {
               setOpenModalId(loc.id);
               playClickTone();
@@ -486,26 +543,48 @@ function VillageWorld() {
         <MobileControls onInputChange={setTouchInput} />
       )}
 
+      {process.env.NODE_ENV === 'development' && (
+        <GrowthDebugPanel
+          villageTier={villageTier}
+          villageTierOverride={villageTierOverride}
+          stationTierOverrides={stationTierOverrides}
+          onVillageTierChange={setVillageTierOverride}
+          onStationTierChange={(stationId, tier) => {
+            setStationTierOverrides(current => {
+              const next = { ...current };
+              if (tier === null) delete next[stationId];
+              else next[stationId] = tier;
+              return next;
+            });
+          }}
+          onPreviewStation={(stationId) => {
+            const location = VILLAGE_LOCATIONS.find(candidate => candidate.id === stationId);
+            if (location) setDebugTeleport({ x: location.x, z: location.z + 16, sequence: Date.now() });
+          }}
+        />
+      )}
+
       {/* ============ SECTION MODALS / DOCKED PANELS ============ */}
       {openModalId !== null && (
         <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xl z-[20000] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="glass-panel rounded-3xl max-w-[720px] w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl relative border border-white/20">
+          <div className="sah-modal-shell world-modal max-w-[720px] w-full max-h-[90vh] overflow-y-auto p-8 relative">
             {/* Modal Header */}
             {(() => {
               const loc = VILLAGE_LOCATIONS.find(l => l.id === openModalId);
               if (!loc) return null;
               return (
-                <div className="flex items-center justify-between mb-7 border-b border-white/10 pb-5">
+                <div className="flex items-center justify-between mb-8 pb-6 shadow-[0_12px_20px_-20px_rgba(255,255,255,0.35)]">
                   <div className="flex items-center gap-4">
                     <span className="text-4xl">{loc.icon}</span>
                     <div>
                       <h2 className="text-2xl font-black text-white">{loc.label}</h2>
-                      <p className="text-sm text-slate-400 mt-0.5">{loc.description}</p>
+                      <p className="text-sm text-slate-400 mt-1">{loc.description}</p>
                     </div>
                   </div>
                   <button
                     onClick={() => setOpenModalId(null)}
-                    className="w-10 h-10 rounded-xl bg-slate-800/80 border border-white/10 flex items-center justify-center text-slate-400 hover:bg-rose-500/20 hover:text-rose-400 hover:border-rose-500/30 transition-all text-base cursor-pointer flex-shrink-0"
+                    aria-label="Paneli kapat"
+                    className="sah-icon-button hover:!bg-rose-500/20 hover:!text-rose-300 flex-shrink-0"
                   >
                     ✕
                   </button>
@@ -523,7 +602,7 @@ function VillageWorld() {
             {openModalId === 7 && <MescidimPanelContent tespihCount={store.currentTespih} totalZikir={store.totalZikir} onTespih={handleTespih} zikirType={zikirType} onZikirChange={setZikirType} onReset={store.resetTespih} dailyAyet={DAILY_AYETS[todayIdx]} dailyHadis={DAILY_HADISLER[todayIdx]} />}
             {openModalId === 8 && (
               <div className="text-center space-y-6">
-                <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-300 font-bold text-xs uppercase tracking-wider">
+                <span className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-300 font-bold text-xs uppercase tracking-wider">
                   👑 Ebedi Hazine & Mükâfat
                 </span>
                 <h3 className="text-3xl font-black text-amber-400">Ahiret Deposu</h3>
@@ -555,11 +634,11 @@ function VillageWorld() {
                       return (
                         <div
                           key={id}
-                          className={`p-2.5 rounded-xl border text-center text-xs transition-all ${
+                          className={`p-3 rounded-lg border text-center text-xs transition-all ${
                             earned ? 'bg-amber-950/40 border-amber-500/40 opacity-100 shadow-sm' : 'bg-slate-900/40 border-white/5 opacity-30 grayscale'
                           }`}
                         >
-                          <div className="text-xl mb-0.5">{earned ? '🏆' : '🔒'}</div>
+                          <div className="text-xl mb-1">{earned ? '🏆' : '🔒'}</div>
                           <div className="font-bold text-slate-200 text-[10px] truncate">{id.replace(/_/g, ' ')}</div>
                         </div>
                       );
@@ -575,7 +654,7 @@ function VillageWorld() {
       {/* ============ VEHICLE GARAGE MODAL ============ */}
       {showVehicleGarage && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-2xl z-[20000] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="glass-panel rounded-3xl max-w-[820px] w-full p-9 text-center border border-white/20">
+          <div className="sah-modal-shell max-w-[820px] w-full p-8 text-center">
             <span className="inline-flex items-center gap-2 px-4 py-1 bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 rounded-full text-xs font-bold uppercase mb-4">
               🚗 Manevi Binek Seçimi
             </span>
@@ -596,10 +675,10 @@ function VillageWorld() {
                   <button
                     key={type}
                     onClick={() => setPendingVehicle(type)}
-                    className={`p-5 rounded-2xl border-2 flex flex-col items-center gap-2.5 transition-all cursor-pointer ${
+                    className={`sah-card p-6 flex flex-col items-center gap-3 transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-indigo-400 bg-indigo-600/30 shadow-lg shadow-indigo-500/25 scale-105'
-                        : 'border-white/10 bg-slate-900/60 hover:border-indigo-400/40'
+                        ? 'ring-2 ring-indigo-400/70 bg-indigo-600/30 shadow-lg shadow-indigo-500/25 -translate-y-1'
+                        : 'bg-slate-900/60 hover:bg-indigo-500/10 hover:-translate-y-1'
                     }`}
                   >
                     <div className="text-5xl my-1">{d.icon}</div>
@@ -622,7 +701,7 @@ function VillageWorld() {
                 setShowVehicleGarage(false);
                 playSuccessChime();
               }}
-              className="px-10 py-3.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 text-white font-bold rounded-2xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 active:scale-95 transition-all text-base cursor-pointer"
+              className="sah-button-primary px-12 py-4 text-base"
             >
               ✅ Bu Araçla Köyü Keşfet
             </button>
@@ -631,18 +710,18 @@ function VillageWorld() {
       )}
 
       {/* ============ TOAST NOTIFICATIONS ============ */}
-      <div className="fixed bottom-20 left-7 z-[10000] flex flex-col gap-2.5 pointer-events-none">
+      <div className="fixed bottom-20 left-7 z-[10000] flex flex-col gap-3 pointer-events-none">
         {toasts.map(t => (
           <div
             key={t.id}
-            className="glass-panel border-l-4 border-l-cyan-400 rounded-2xl px-4 py-3 shadow-2xl flex items-start gap-3 min-w-[280px] max-w-sm animate-in slide-in-from-left-5 duration-300"
+            className="sah-card px-4 py-3 shadow-2xl flex items-start gap-3 min-w-[280px] max-w-sm animate-in slide-in-from-left-5 duration-300"
           >
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 flex items-center justify-center text-lg flex-shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-lg flex-shrink-0">
               ✨
             </div>
             <div>
               <div className="text-sm font-bold text-white">{t.title}</div>
-              {t.msg && <div className="text-xs text-slate-300 mt-0.5">{t.msg}</div>}
+              {t.msg && <div className="text-xs text-slate-300 mt-1">{t.msg}</div>}
             </div>
           </div>
         ))}
@@ -666,8 +745,8 @@ interface GunlukProps {
 function GunlukPanelContent({ onSubmit, entries }: GunlukProps) {
   const [mood, setMood] = useState(3);
   return (
-    <div className="space-y-5">
-      <form onSubmit={onSubmit} className="space-y-5">
+    <div className="space-y-6">
+      <form onSubmit={onSubmit} className="space-y-6">
         <input type="hidden" name="mood" value={mood} />
         <div>
           <label className="block text-sm font-semibold text-slate-300 mb-3">Günün Ruh Hali</label>
@@ -677,7 +756,7 @@ function GunlukPanelContent({ onSubmit, entries }: GunlukProps) {
                 type="button"
                 key={v}
                 onClick={() => setMood(Number(v))}
-                className={`flex-1 py-3 rounded-xl border text-center flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                className={`flex-1 py-3 rounded-lg border text-center flex flex-col items-center gap-2 transition-all cursor-pointer ${
                   mood === Number(v)
                     ? 'border-indigo-400 bg-indigo-600/30 text-white shadow-md'
                     : 'border-white/10 bg-slate-900/60 text-slate-400 hover:border-indigo-400/40'
@@ -694,12 +773,12 @@ function GunlukPanelContent({ onSubmit, entries }: GunlukProps) {
           name="content"
           required
           placeholder="Bugünün hisleri, tefekkürleri ve manevi notları..."
-          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-28 placeholder:text-slate-500"
+          className="w-full px-4 py-3 glass-input rounded-lg text-sm resize-none h-28 placeholder:text-slate-500"
         />
 
         <button
           type="submit"
-          className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/30 transition-all text-sm cursor-pointer"
+          className="sah-button-primary w-full py-4 text-sm"
         >
           💾 Kaydet (+50 XP)
         </button>
@@ -709,7 +788,7 @@ function GunlukPanelContent({ onSubmit, entries }: GunlukProps) {
         <div className="mt-4 space-y-2">
           <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Son Seyir Notları</h4>
           {entries.map((e: JournalEntry) => (
-            <div key={e.id} className="p-3 glass-card rounded-xl border-l-4 border-l-indigo-500 text-sm">
+            <div key={e.id} className="sah-card p-3 text-sm">
               <span className="font-bold text-indigo-300">{e.date}</span> · Ruh Hali {e.mood}/5
               <p className="text-slate-300 text-xs mt-1 line-clamp-2">{e.content}</p>
             </div>
@@ -727,36 +806,36 @@ interface KuranProps {
 
 function KuranPanelContent({ onSubmit, entries }: KuranProps) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <input
             name="sure"
             required
             placeholder="Sure adı (Örn: Bakara)"
-            className="px-4 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500"
+            className="px-4 py-3 glass-input rounded-lg text-sm placeholder:text-slate-500"
           />
           <input
             name="ayet"
             required
             placeholder="Ayet no (Örn: 152)"
-            className="px-4 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500"
+            className="px-4 py-3 glass-input rounded-lg text-sm placeholder:text-slate-500"
           />
         </div>
         <textarea
           name="tefsir"
           required
           placeholder="Ayetin meali & tefsiri..."
-          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-24 placeholder:text-slate-500"
+          className="w-full px-4 py-3 glass-input rounded-lg text-sm resize-none h-24 placeholder:text-slate-500"
         />
         <textarea
           name="ders"
           placeholder="Hayatıma çıkarılan temel ders..."
-          className="w-full px-4 py-3 bg-amber-950/30 border border-amber-500/30 rounded-xl text-sm text-amber-200 resize-none h-20 placeholder:text-amber-400/50 focus:outline-none focus:border-amber-400"
+          className="w-full px-4 py-3 bg-amber-950/30 border border-amber-500/30 rounded-lg text-sm text-amber-200 resize-none h-20 placeholder:text-amber-400/50 focus:outline-none focus:border-amber-400"
         />
         <button
           type="submit"
-          className="w-full py-3.5 bg-gradient-to-r from-amber-600 to-yellow-500 text-slate-950 font-bold rounded-xl shadow-lg hover:shadow-amber-500/30 transition-all text-sm cursor-pointer"
+          className="sah-button-primary w-full py-4 text-sm"
         >
           📖 Kaydet (+60 XP)
         </button>
@@ -765,7 +844,7 @@ function KuranPanelContent({ onSubmit, entries }: KuranProps) {
       {entries.length > 0 && (
         <div className="mt-4 space-y-2">
           {entries.map((n: QuranNote) => (
-            <div key={n.id} className="p-3 glass-card rounded-xl text-sm border-l-4 border-l-amber-500">
+            <div key={n.id} className="sah-card p-3 text-sm">
               <strong className="text-amber-300">{n.sure} Suresi, {n.ayet}. Ayet</strong>
               <p className="text-slate-300 text-xs mt-1 line-clamp-2">{n.tefsir}</p>
             </div>
@@ -783,18 +862,18 @@ interface HadisProps {
 
 function HadisPanelContent({ onSubmit, entries }: HadisProps) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <form onSubmit={onSubmit} className="space-y-4">
         <textarea
           name="metin"
           required
           placeholder="Hadis metni..."
-          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-24 placeholder:text-slate-500"
+          className="w-full px-4 py-3 glass-input rounded-lg text-sm resize-none h-24 placeholder:text-slate-500"
         />
         <div className="grid grid-cols-2 gap-4">
           <select
             name="kaynak"
-            className="px-4 py-3 glass-input rounded-xl text-sm text-slate-200 focus:outline-none"
+            className="px-4 py-3 glass-input rounded-lg text-sm text-slate-200 focus:outline-none"
           >
             {['Buhârî','Müslim','Tirmizî','Ebû Dâvûd','Riyazü\'s-Salihin'].map(k => <option key={k} value={k} className="bg-slate-900 text-white">{k}</option>)}
           </select>
@@ -802,18 +881,18 @@ function HadisPanelContent({ onSubmit, entries }: HadisProps) {
             name="konu"
             required
             placeholder="Konu (Örn: İhlas)"
-            className="px-4 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500"
+            className="px-4 py-3 glass-input rounded-lg text-sm placeholder:text-slate-500"
           />
         </div>
         <textarea
           name="uygulama"
           required
           placeholder="Hayatıma uygulaması..."
-          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-20 placeholder:text-slate-500"
+          className="w-full px-4 py-3 glass-input rounded-lg text-sm resize-none h-20 placeholder:text-slate-500"
         />
         <button
           type="submit"
-          className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold rounded-xl shadow-lg hover:shadow-emerald-500/30 transition-all text-sm cursor-pointer"
+          className="sah-button-primary w-full py-4 text-sm"
         >
           🕌 Kaydet (+60 XP)
         </button>
@@ -822,7 +901,7 @@ function HadisPanelContent({ onSubmit, entries }: HadisProps) {
       {entries.length > 0 && (
         <div className="mt-4 space-y-2">
           {entries.map((n: HadisNote) => (
-            <div key={n.id} className="p-3 glass-card rounded-xl text-sm border-l-4 border-l-emerald-500">
+            <div key={n.id} className="sah-card p-3 text-sm">
               <strong className="text-emerald-300">{n.konu} ({n.kaynak})</strong>
               <p className="text-slate-300 text-xs mt-1 italic line-clamp-2">&quot;{n.metin}&quot;</p>
             </div>
@@ -847,10 +926,10 @@ function MatrisPanelContent({ eisenhower, onAddTask, onToggle }: MatrisProps) {
     { key: 'q4', label: '⚪ DİĞER', color: '#94a3b8', cls: 'border-slate-500/60' },
   ];
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-5">
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-6">
         {quadrants.map(q => (
-          <div key={q.key} className={`glass-card rounded-2xl p-5 border-t-2 ${q.cls}`}>
+          <div key={q.key} className="sah-card p-6">
             {/* Quadrant label — clear section header, not cramped tiny text */}
             <div
               className="text-[13px] font-semibold tracking-wide mb-4"
@@ -860,17 +939,17 @@ function MatrisPanelContent({ eisenhower, onAddTask, onToggle }: MatrisProps) {
             </div>
 
             {/* Add task form — input and button have proper gap, button never cut off */}
-            <form onSubmit={e => onAddTask(e, q.key)} className="flex gap-2.5 mb-4">
+            <form onSubmit={e => onAddTask(e, q.key)} className="flex gap-3 mb-4">
               <input
                 name="text"
                 required
                 placeholder="Görev ekle..."
-                className="flex-1 min-w-0 px-3.5 py-2.5 text-sm glass-input rounded-xl placeholder:text-slate-500"
+                className="flex-1 min-w-0 px-4 py-3 text-sm glass-input rounded-lg placeholder:text-slate-500"
                 style={{ height: '40px' }}
               />
               <button
                 type="submit"
-                className="w-10 h-10 flex-shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-lg font-bold flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-md"
+                className="sah-button-primary w-10 h-10 flex-shrink-0 text-lg flex items-center justify-center"
               >
                 +
               </button>
@@ -882,13 +961,13 @@ function MatrisPanelContent({ eisenhower, onAddTask, onToggle }: MatrisProps) {
                 <div
                   key={t.id}
                   onClick={() => onToggle(q.key, t.id)}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer text-xs border transition-all ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer text-xs border transition-all ${
                     t.done
                       ? 'bg-slate-900/40 border-white/5 line-through opacity-40 text-slate-500'
                       : 'bg-slate-900/80 border-white/10 hover:border-indigo-400/40 text-slate-200'
                   }`}
                 >
-                  <div className={`w-4 h-4 rounded-md flex items-center justify-center border flex-shrink-0 text-[10px] ${
+                  <div className={`w-4 h-4 rounded-lg flex items-center justify-center border flex-shrink-0 text-[10px] ${
                     t.done ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-slate-500'
                   }`}>
                     {t.done ? '✓' : ''}
@@ -913,16 +992,16 @@ interface HatalarProps {
 
 function HatalarPanelContent({ onSubmit, severity, onSeverityChange, entries }: HatalarProps) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <form onSubmit={onSubmit} className="space-y-4">
         <input
           name="title"
           required
           placeholder="Olay & konu (Örn: Erteleme alışkanlığı)"
-          className="w-full px-4 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500"
+          className="w-full px-4 py-3 glass-input rounded-lg text-sm placeholder:text-slate-500"
         />
         <div>
-          <label className="text-sm font-semibold text-slate-300 block mb-2.5">Şiddet Derecesi</label>
+          <label className="text-sm font-semibold text-slate-300 block mb-3">Şiddet Derecesi</label>
           <div className="flex gap-3">
             {[1,2,3,4,5].map(v => (
               <button
@@ -940,17 +1019,17 @@ function HatalarPanelContent({ onSubmit, severity, onSeverityChange, entries }: 
           name="wrong"
           required
           placeholder="Ne yanlış gitti?"
-          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-20 placeholder:text-slate-500"
+          className="w-full px-4 py-3 glass-input rounded-lg text-sm resize-none h-20 placeholder:text-slate-500"
         />
         <textarea
           name="learned"
           required
           placeholder="Çıkarılan ders & aksiyon planı..."
-          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-20 placeholder:text-slate-500"
+          className="w-full px-4 py-3 glass-input rounded-lg text-sm resize-none h-20 placeholder:text-slate-500"
         />
         <button
           type="submit"
-          className="w-full py-3.5 bg-gradient-to-r from-rose-600 to-red-500 text-white font-bold rounded-xl shadow-lg hover:shadow-rose-500/30 transition-all text-sm cursor-pointer"
+          className="sah-button-primary w-full py-4 text-sm"
         >
           🛡️ Kaydet (+40 XP)
         </button>
@@ -959,7 +1038,7 @@ function HatalarPanelContent({ onSubmit, severity, onSeverityChange, entries }: 
       {entries.length > 0 && (
         <div className="mt-4 space-y-2">
           {entries.map((l: LessonEntry) => (
-            <div key={l.id} className="p-3 glass-card rounded-xl text-sm border-l-4 border-l-rose-500">
+            <div key={l.id} className="sah-card p-3 text-sm">
               <strong className="text-rose-300">{l.title}</strong>
               <p className="text-slate-400 text-xs mt-1 line-clamp-2">Ders: {l.learned}</p>
             </div>
@@ -977,22 +1056,22 @@ interface SukurProps {
 
 function SukurPanelContent({ onSubmit, entries }: SukurProps) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <form onSubmit={onSubmit} className="space-y-4">
         <textarea
           name="text"
           required
           placeholder="Bugün neye samimiyetle şükredeceksin?"
-          className="w-full px-4 py-3 glass-input rounded-xl text-sm resize-none h-24 placeholder:text-slate-500"
+          className="w-full px-4 py-3 glass-input rounded-lg text-sm resize-none h-24 placeholder:text-slate-500"
         />
         <div className="grid grid-cols-3 gap-4">
-          <input name="n1" required placeholder="1. Nimet" className="px-3.5 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500" />
-          <input name="n2" required placeholder="2. Nimet" className="px-3.5 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500" />
-          <input name="n3" required placeholder="3. Nimet" className="px-3.5 py-3 glass-input rounded-xl text-sm placeholder:text-slate-500" />
+          <input name="n1" required placeholder="1. Nimet" className="px-4 py-3 glass-input rounded-lg text-sm placeholder:text-slate-500" />
+          <input name="n2" required placeholder="2. Nimet" className="px-4 py-3 glass-input rounded-lg text-sm placeholder:text-slate-500" />
+          <input name="n3" required placeholder="3. Nimet" className="px-4 py-3 glass-input rounded-lg text-sm placeholder:text-slate-500" />
         </div>
         <button
           type="submit"
-          className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold rounded-xl shadow-lg hover:shadow-emerald-500/30 transition-all text-sm cursor-pointer"
+          className="sah-button-primary w-full py-4 text-sm"
         >
           ✨ Kaydet (+35 XP)
         </button>
@@ -1001,7 +1080,7 @@ function SukurPanelContent({ onSubmit, entries }: SukurProps) {
       {entries.length > 0 && (
         <div className="mt-4 space-y-2">
           {entries.map((s: SukurEntry) => (
-            <div key={s.id} className="p-3 glass-card rounded-xl text-xs border-l-4 border-l-emerald-500 text-slate-300">
+            <div key={s.id} className="sah-card p-3 text-xs text-slate-300">
               &quot;{s.text.slice(0, 90)}...&quot;
             </div>
           ))}
@@ -1034,7 +1113,7 @@ function MescidimPanelContent({
 }: MescidimProps) {
   return (
     <div className="space-y-4">
-      <div className="glass-card rounded-2xl p-5 text-center">
+      <div className="glass-card rounded-2xl p-6 text-center">
         <div className="text-xs font-bold text-emerald-400 mb-3 tracking-wide">{zikirType}</div>
         <button
           onClick={onTespih}
@@ -1048,7 +1127,7 @@ function MescidimPanelContent({
           <select
             value={zikirType}
             onChange={e => { onZikirChange(e.target.value); onReset(); }}
-            className="p-2 text-xs glass-input rounded-xl text-slate-200 font-semibold"
+            className="p-2 text-xs glass-input rounded-lg text-slate-200 font-semibold"
           >
             {['Subhanallah','Elhamdulillah','Allahu Ekber','La ilahe illallah','Astagfirullah'].map(z => (
               <option key={z} value={z} className="bg-slate-900 text-white">{z}</option>
@@ -1056,7 +1135,7 @@ function MescidimPanelContent({
           </select>
           <button
             onClick={onReset}
-            className="px-3 py-2 bg-slate-800/80 border border-white/10 rounded-xl text-xs font-bold text-slate-300 hover:bg-slate-700 cursor-pointer"
+            className="sah-button-secondary px-3 py-2 text-xs"
           >
             ↺ Sıfırla
           </button>
@@ -1064,12 +1143,12 @@ function MescidimPanelContent({
         <p className="text-xs text-slate-400 mt-2 font-mono">Toplam: {totalZikir} zikir</p>
       </div>
 
-      <div className="p-3 bg-amber-950/30 border border-amber-500/30 rounded-xl text-xs">
+      <div className="p-3 bg-amber-950/30 border border-amber-500/30 rounded-lg text-xs">
         <div className="font-bold text-amber-400 mb-1">GÜNÜN AYETİ</div>
         <p className="text-slate-200 italic">{dailyAyet.turkish}</p>
       </div>
 
-      <div className="p-3 bg-emerald-950/30 border border-emerald-500/30 rounded-xl text-xs">
+      <div className="p-3 bg-emerald-950/30 border border-emerald-500/30 rounded-lg text-xs">
         <div className="font-bold text-emerald-400 mb-1">GÜNÜN HADİSİ</div>
         <p className="text-slate-200 italic">{dailyHadis}</p>
       </div>

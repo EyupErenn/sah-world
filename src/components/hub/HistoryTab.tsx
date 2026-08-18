@@ -115,19 +115,20 @@ export default function HistoryTab() {
 
       {/* Liste */}
       {filteredItems.length === 0 ? (
-        <div className="text-center py-20 text-slate-500">
+        <div className="sah-empty-state">
           <div className="text-4xl mb-4">🏜️</div>
-          <p>Henüz burada bir kayıt yok.</p>
+          <p className="font-semibold text-slate-300">Henüz burada bir kayıt yok.</p>
+          <p className="text-xs">Köydeki bir durağı ziyaret edip ilk notunu bıraktığında burada görünecek.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {filteredItems.map(item => (
-            <div key={item.id} className="bg-white/5 border border-white/10 hover:bg-white/10 transition-colors rounded-2xl p-5 flex gap-5">
-              <div className="w-12 h-12 rounded-full bg-black/40 border border-white/5 flex flex-shrink-0 items-center justify-center text-2xl shadow-inner">
+            <div key={item.id} className="sah-card hover:bg-white/10 transition-colors p-6 flex gap-6">
+              <div className="w-12 h-12 rounded-full bg-black/40 ring-1 ring-white/5 flex flex-shrink-0 items-center justify-center text-2xl shadow-inner">
                 {item.icon}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 mb-1">
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 mb-2">
                   <h4 className="text-white font-bold truncate">{item.title}</h4>
                   <span className="text-xs text-slate-500 font-mono">{new Date(item.createdAt).toLocaleString('tr-TR')}</span>
                 </div>

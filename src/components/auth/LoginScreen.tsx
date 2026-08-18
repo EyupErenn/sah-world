@@ -125,7 +125,7 @@ export default function LoginScreen() {
   const isOtpFull = otp.join('').length === 6;
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#08091a] select-none">
+    <div className="relative min-h-screen flex items-start lg:items-center justify-center overflow-x-hidden overflow-y-auto py-8 bg-[#08091a] select-none">
 
       {/* ── Yıldız arkaplanı ─────────────────────────────── */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden>
@@ -180,12 +180,12 @@ export default function LoginScreen() {
       </div>
 
       {/* ── Ana Login Kartı ───────────────────────────────── */}
-      <div className="relative z-10 w-full max-w-md mx-auto px-6 py-8">
+      <div className="relative z-10 w-full max-w-md mx-auto px-6">
 
         {/* Logo + başlık */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <div
-            className="inline-flex items-center justify-center w-20 h-20 rounded-3xl mb-5 border border-white/15"
+            className="inline-flex items-center justify-center w-20 h-20 rounded-3xl mb-6 ring-1 ring-white/15"
             style={{
               background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #06b6d4 100%)',
               boxShadow: '0 0 64px rgba(99,102,241,0.45), 0 20px 48px rgba(0,0,0,0.45)',
@@ -195,7 +195,7 @@ export default function LoginScreen() {
           </div>
 
           <h1
-            className="text-4xl font-black tracking-widest mb-1.5"
+            className="text-4xl font-black tracking-widest mb-2"
             style={{
               background: 'linear-gradient(135deg, #ffffff 0%, #a5b4fc 50%, #67e8f9 100%)',
               WebkitBackgroundClip: 'text',
@@ -210,19 +210,11 @@ export default function LoginScreen() {
         </div>
 
         {/* Kart */}
-        <div
-          className="rounded-3xl p-8 border border-white/8"
-          style={{
-            background: 'rgba(13,14,32,0.82)',
-            backdropFilter: 'blur(28px)',
-            WebkitBackdropFilter: 'blur(28px)',
-            boxShadow: '0 32px 72px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)',
-          }}
-        >
+        <div className="sah-modal-shell p-8">
 
           {/* ════ ADIM 1: E-posta ════════════════════════════ */}
           {step === 'email' && (
-            <div className="space-y-5">
+            <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-bold text-white mb-1">Hoş Geldin, Yolcu</h2>
                 <p className="text-slate-400 text-sm">
@@ -248,15 +240,14 @@ export default function LoginScreen() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
-                  className="w-full px-4 py-3.5 rounded-xl border border-white/10 text-white text-base placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/40 transition-all"
-                  style={{ background: 'rgba(25,26,52,0.85)' }}
+                  className="glass-input w-full px-4 py-4 text-base placeholder:text-slate-600"
                 />
               </div>
 
               {/* Hata mesajı */}
               {authError && (
-                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
-                  <span className="mt-0.5 flex-shrink-0">⚠️</span>
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
+                  <span className="mt-1 flex-shrink-0">⚠️</span>
                   <span>{authError}</span>
                 </div>
               )}
@@ -266,15 +257,7 @@ export default function LoginScreen() {
                 id="send-otp-btn"
                 onClick={handleSendOtp}
                 disabled={isSending || !email.trim()}
-                className="w-full py-3.5 rounded-xl text-white font-bold text-sm transition-all active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                style={{
-                  background: isSending || !email.trim()
-                    ? 'rgba(79,70,229,0.35)'
-                    : 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                  boxShadow: isSending || !email.trim()
-                    ? 'none'
-                    : '0 8px 32px rgba(99,102,241,0.38)',
-                }}
+                className="sah-button-primary w-full py-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSending ? (
                   <span className="flex items-center justify-center gap-2">
@@ -312,7 +295,7 @@ export default function LoginScreen() {
                   useAuthStore.getState().setProfile(mockProfile);
                   useAuthStore.getState().setIsAuthLoading(false);
                 }}
-                className="w-full py-3 rounded-xl text-emerald-300 hover:text-white font-bold text-xs border border-emerald-500/30 hover:border-emerald-400 bg-emerald-950/40 hover:bg-emerald-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-950/50"
+                className="sah-button-secondary w-full py-3 text-emerald-200 font-bold text-xs flex items-center justify-center gap-2"
               >
                 <span>🚀</span>
                 <span>Misafir Olarak Köyü Keşfet (Hızlı Giriş)</span>
@@ -350,7 +333,7 @@ export default function LoginScreen() {
                   setOtp(['', '', '', '', '', '']);
                   setAuthError(null);
                 }}
-                className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 text-sm transition-colors cursor-pointer"
+                className="flex items-center gap-2 text-slate-500 hover:text-slate-300 text-sm transition-colors cursor-pointer"
               >
                 ← Geri
               </button>
@@ -372,7 +355,7 @@ export default function LoginScreen() {
               </div>
 
               {/* 6 ayrı OTP kutusu */}
-              <div className="flex gap-2.5 justify-center" onPaste={handleOtpPaste}>
+              <div className="flex gap-3 justify-center" onPaste={handleOtpPaste}>
                 {otp.map((digit, idx) => (
                   <input
                     key={idx}
@@ -384,7 +367,7 @@ export default function LoginScreen() {
                     value={digit}
                     onChange={(e) => handleOtpChange(idx, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                    className="w-11 h-14 text-center text-2xl font-black rounded-xl border-2 transition-all focus:outline-none"
+                    className="glass-input w-11 h-14 text-center text-2xl font-black transition-all"
                     style={{
                       background: 'rgba(25,26,52,0.9)',
                       borderColor: digit
@@ -399,8 +382,8 @@ export default function LoginScreen() {
 
               {/* Hata */}
               {authError && (
-                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
-                  <span className="mt-0.5">⚠️</span>
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
+                  <span className="mt-1">⚠️</span>
                   <span>{authError}</span>
                 </div>
               )}
@@ -410,15 +393,7 @@ export default function LoginScreen() {
                 id="verify-otp-btn"
                 onClick={handleVerifyOtp}
                 disabled={isVerifying || !isOtpFull}
-                className="w-full py-3.5 rounded-xl text-white font-bold text-sm transition-all active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                style={{
-                  background: isVerifying || !isOtpFull
-                    ? 'rgba(79,70,229,0.35)'
-                    : 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                  boxShadow: isVerifying || !isOtpFull
-                    ? 'none'
-                    : '0 8px 32px rgba(99,102,241,0.38)',
-                }}
+                className="sah-button-primary w-full py-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isVerifying ? (
                   <span className="flex items-center justify-center gap-2">
@@ -476,10 +451,8 @@ function DisabledButton({ icon, label }: { icon: React.ReactNode; label: string 
   return (
     <button
       disabled
-      className="w-full py-3 rounded-xl text-sm font-medium border flex items-center justify-center gap-2.5 cursor-not-allowed"
+      className="sah-button-secondary w-full py-3 text-sm font-medium flex items-center justify-center gap-3 cursor-not-allowed opacity-45"
       style={{
-        background: 'rgba(255,255,255,0.025)',
-        borderColor: 'rgba(255,255,255,0.07)',
         color: 'rgba(255,255,255,0.25)',
       }}
       title="Yakında eklenecek"
@@ -487,7 +460,7 @@ function DisabledButton({ icon, label }: { icon: React.ReactNode; label: string 
       {icon}
       <span>{label}</span>
       <span
-        className="ml-auto text-[10px] font-mono px-2 py-0.5 rounded-full"
+        className="ml-auto text-[10px] font-mono px-2 py-1 rounded-full"
         style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' }}
       >
         Yakında

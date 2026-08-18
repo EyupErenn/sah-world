@@ -132,7 +132,7 @@ export function ensureUUID(id?: string): string {
 
 async function getAuthenticatedUserId(): Promise<string | null> {
   const storeUser = useAuthStore.getState().user || useAuthStore.getState().session?.user;
-  if (storeUser?.id) return storeUser.id;
+  if (storeUser?.id && isValidUUID(storeUser.id)) return storeUser.id;
   try {
     const { data } = await supabase.auth.getSession();
     return data.session?.user?.id ?? null;

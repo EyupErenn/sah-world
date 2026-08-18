@@ -1,21 +1,59 @@
 'use client';
 
 import { useState, Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { Sky, Stars, AdaptiveDpr, PerformanceMonitor } from '@react-three/drei';
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
+import { Canvas, useThree } from '@react-three/fiber';
+import { Stars, AdaptiveDpr, PerformanceMonitor, GradientTexture } from '@react-three/drei';
+import { EffectComposer, Bloom, HueSaturation, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import type { VehicleType } from '@/types';
+import { WORLD_COLORS } from '@/lib/designTokens';
+import type { StationTierMap, VillageTier } from '@/lib/growth';
 
 import VillageTerrain from './VillageTerrain';
 import VillageBuildings from './VillageBuildings';
 import FreeVehicle from './FreeVehicle';
 import VillageCamera from './VillageCamera';
+import VillageGrowth from './VillageGrowth';
+
+function JourneySky() {
+  return (
+    <mesh scale={560} renderOrder={-1000}>
+      <sphereGeometry args={[1, 32, 20]} />
+      <meshBasicMaterial side={THREE.BackSide} depthWrite={false} fog={false}>
+        <GradientTexture
+          stops={[0, 0.42, 1]}
+          colors={[WORLD_COLORS.skyHorizon, '#9da8dc', WORLD_COLORS.skyZenith]}
+          size={1024}
+        />
+      </meshBasicMaterial>
+    </mesh>
+  );
+}
+
+function CinematicEffects() {
+  const width = useThree(state => state.size.width);
+
+  // Mobile GPUs are especially likely to recycle the WebGL context during an
+  // orientation/viewport change. The lighting, fog and emissive materials stay
+  // intact; the expensive composer is reserved for stable larger viewports.
+  if (width < 640) return null;
+
+  return (
+    <EffectComposer multisampling={0}>
+      <HueSaturation saturation={0.09} />
+      <Bloom luminanceThreshold={0.72} luminanceSmoothing={0.28} intensity={0.48} mipmapBlur />
+      <Vignette eskil={false} offset={0.22} darkness={0.34} />
+    </EffectComposer>
+  );
+}
 
 interface VillageCanvasProps {
   vehicleType: VehicleType;
   activeBuildingId: number | null;
   xp: number;
+  villageTier: VillageTier;
+  stationTiers: StationTierMap;
+  debugTeleport?: { x: number; z: number; sequence: number } | null;
   isInputBlocked: boolean;
   touchInput?: { steer: number; throttle: number };
   onPlayerUpdate: (x: number, y: number, z: number, heading: number, speed: number) => void;
@@ -25,6 +63,9 @@ export default function VillageCanvas({
   vehicleType,
   activeBuildingId,
   xp,
+  villageTier,
+  stationTiers,
+  debugTeleport,
   isInputBlocked,
   touchInput,
   onPlayerUpdate,
@@ -45,19 +86,21 @@ export default function VillageCanvas({
 
   return (
     <Canvas
-      shadows
+      shadows="percentage"
       gl={{
         antialias: true,
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.32,
+        toneMappingExposure: 1.24,
         outputColorSpace: THREE.SRGBColorSpace,
         powerPreference: 'high-performance',
       }}
       onCreated={({ gl }) => {
-        // Explicitly use PCFShadowMap (PCFSoftShadowMap deprecated in r185)
+        gl.shadowMap.enabled = true;
+        // r185 folds the old PCFSoft mode into PCF; light shadow-radius keeps
+        // the penumbra soft without triggering a deprecation warning per frame.
         gl.shadowMap.type = THREE.PCFShadowMap;
       }}
-      camera={{ fov: 46, near: 0.1, far: 500, position: [0, 6, 12] }}
+      camera={{ fov: 46, near: 0.1, far: 700, position: [0, 6, 12] }}
       dpr={dpr}
       style={{ width: '100%', height: '100%' }}
     >
@@ -67,58 +110,58 @@ export default function VillageCanvas({
       {/* ============ RICH WARM/COOL CHIAROSCURO LIGHTING (Bruno Simon Craft) ============ */}
       {/* Primary Warm Sunlight */}
       <directionalLight
-        position={[48, 78, 32]}
-        intensity={2.2}
-        color="#fff7ed"
+        position={[92, 138, 76]}
+        intensity={villageTier >= 4 ? 2.05 : 2.2}
+        color={WORLD_COLORS.sun}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera-near={1}
-        shadow-camera-far={280}
-        shadow-camera-left={-80}
-        shadow-camera-right={80}
-        shadow-camera-top={80}
-        shadow-camera-bottom={-80}
+        shadow-camera-far={360}
+        shadow-camera-left={-168}
+        shadow-camera-right={168}
+        shadow-camera-top={168}
+        shadow-camera-bottom={-168}
         shadow-bias={-0.0003}
         shadow-radius={2.5}
       />
 
       {/* Cool Sky / Rich Earth Hemisphere Fill */}
-      <hemisphereLight args={['#bae6fd', '#064e3b', 0.75]} />
+      <hemisphereLight args={[WORLD_COLORS.coolFill, WORLD_COLORS.earthFill, 0.72]} />
 
       {/* Cool Violet Rim / Contrast Light */}
-      <directionalLight position={[-40, 28, -40]} intensity={0.55} color="#818cf8" />
+      <directionalLight position={[-96, 54, -110]} intensity={0.5} color="#818cf8" />
 
       {/* Soft Ambient Balance */}
-      <ambientLight intensity={0.25} color="#f8fafc" />
+      <ambientLight intensity={0.16 + villageTier * 0.012} color="#eef2ff" />
 
       {/* Atmospheric Sky, Subtle Stars & Cinematic Depth Fog */}
-      <Sky sunPosition={[48, 78, 32]} rayleigh={0.3} turbidity={3.8} mieCoefficient={0.004} mieDirectionalG={0.84} />
-      <Stars radius={240} depth={50} count={950} factor={2.6} saturation={0.4} fade speed={0.2} />
-      <fog attach="fog" args={['#090d16', 55, 300]} />
+      <JourneySky />
+      <Stars radius={340} depth={80} count={1100} factor={2.6} saturation={0.4} fade speed={0.2} />
+      <fogExp2 attach="fog" args={[WORLD_COLORS.fog, 0.0046]} />
 
       <Suspense fallback={null}>
         {/* Dynamic 3rd Person Follow Camera */}
         <VillageCamera vehicleState={vehicleState} />
 
         {/* 3D Village World Terrain & Scenery */}
-        <VillageTerrain />
-        <VillageBuildings activeBuildingId={activeBuildingId} xp={xp} />
+        <VillageTerrain villageTier={villageTier} />
+        <VillageGrowth villageTier={villageTier} />
+        <VillageBuildings activeBuildingId={activeBuildingId} xp={xp} villageTier={villageTier} stationTiers={stationTiers} />
 
         {/* Player-Controlled Physics Vehicle */}
         <FreeVehicle
           vehicleType={vehicleType}
+          villageTier={villageTier}
           isInputBlocked={isInputBlocked}
           touchInput={touchInput}
           onUpdateState={handleVehicleUpdate}
+          debugTeleport={debugTeleport}
         />
       </Suspense>
 
       {/* ============ POST-PROCESSING WITH TUNED BLOOM & VIGNETTE ============ */}
-      <EffectComposer multisampling={0}>
-        <Bloom luminanceThreshold={0.62} luminanceSmoothing={0.22} intensity={0.58} mipmapBlur />
-        <Vignette eskil={false} offset={0.25} darkness={0.42} />
-      </EffectComposer>
+      <CinematicEffects />
     </Canvas>
   );
 }

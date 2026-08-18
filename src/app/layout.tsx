@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Tabler Icons */}
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
       </head>
-      <body className="antialiased bg-[#fafbfc] text-slate-900 overflow-x-hidden">
+      <body className="antialiased bg-[#090d16] text-slate-100 overflow-x-hidden">
         <AuthProvider>
           {children}
         </AuthProvider>
