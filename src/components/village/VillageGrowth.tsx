@@ -1,11 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useMemo, useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import type { VillageTier } from '@/lib/growth';
 import { getTerrainHeight } from '@/lib/villageData';
+import { SafeGltfInstances, SafeGltfModel, preloadGltfAssets, type AssetTransform } from './ModelAsset';
+
+const CROP_MODELS = [
+  '/models/nature/crops_wheatStageA.glb',
+  '/models/nature/crops_wheatStageB.glb',
+  '/models/nature/crops_cornStageB.glb',
+  '/models/nature/crops_cornStageD.glb',
+];
+
+preloadGltfAssets([...CROP_MODELS, '/models/nature/fence_simple.glb', '/models/nature/fence_gate.glb']);
 
 function GrowthLayer({ active, children }: { active: boolean; children: ReactNode }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -91,27 +101,19 @@ function VillagePopulation({ tier }: { tier: VillageTier }) {
 }
 
 function FarmFields({ tier }: { tier: VillageTier }) {
-  const cropRef = useRef<THREE.InstancedMesh>(null);
   const cropCount = tier < 3 ? 0 : tier === 3 ? 56 : tier === 4 ? 96 : 144;
-  const cropGeometry = useMemo(() => new THREE.ConeGeometry(0.16, 0.85, 5), []);
-  const cropMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: '#65a30d', roughness: 0.84 }), []);
-
-  useEffect(() => {
-    if (!cropRef.current || cropCount === 0) return;
-    const dummy = new THREE.Object3D();
+  const cropGroups = useMemo(() => {
+    const groups = CROP_MODELS.map(url => ({ url, transforms: [] as AssetTransform[] }));
+    if (cropCount === 0) return groups;
     const columns = tier === 3 ? 8 : tier === 4 ? 12 : 16;
     for (let index = 0; index < cropCount; index += 1) {
       const row = Math.floor(index / columns);
       const column = index % columns;
       const x = 48 + column * 1.25;
       const z = 94 + row * 1.65;
-      dummy.position.set(x, getTerrainHeight(x, z) + 0.42, z);
-      dummy.rotation.y = (index % 3) * 0.35;
-      dummy.scale.setScalar(0.82 + (index % 4) * 0.06);
-      dummy.updateMatrix();
-      cropRef.current.setMatrixAt(index, dummy.matrix);
+      groups[index % groups.length].transforms.push({ position: [x, getTerrainHeight(x, z), z], rotation: [0, (index % 3) * 0.35, 0], scale: 0.9 + (index % 4) * 0.08 });
     }
-    cropRef.current.instanceMatrix.needsUpdate = true;
+    return groups;
   }, [cropCount, tier]);
 
   if (tier < 3) return null;
@@ -122,22 +124,16 @@ function FarmFields({ tier }: { tier: VillageTier }) {
         <planeGeometry args={[tier === 3 ? 24 : tier === 4 ? 34 : 44, tier === 3 ? 15 : 22]} />
         <meshStandardMaterial color="#713f12" roughness={0.96} />
       </mesh>
-      <instancedMesh ref={cropRef} args={[cropGeometry, cropMaterial, cropCount]} castShadow />
+      {cropGroups.map(group => <SafeGltfInstances key={group.url} url={group.url} transforms={group.transforms} />)}
+      <SafeGltfModel url="/models/nature/fence_gate.glb" position={[45, getTerrainHeight(45, 101), 101]} rotation={[0, Math.PI / 2, 0]} scale={1.7} />
+      <SafeGltfInstances url="/models/nature/fence_simple.glb" transforms={Array.from({ length: tier === 3 ? 5 : 8 }, (_, index) => ({ position: [49 + index * 3.4, getTerrainHeight(49 + index * 3.4, 89), 89], rotation: [0, 0, 0], scale: 1.7 } as AssetTransform))} />
 
       <GrowthLayer active={tier >= 4}>
         <group position={[79, getTerrainHeight(79, 104), 104]}>
-          <mesh position={[0, 1.7, 0]} castShadow receiveShadow>
-            <boxGeometry args={[5.4, 3.4, 4.4]} />
-            <meshStandardMaterial color="#92400e" roughness={0.86} />
-          </mesh>
-          <mesh position={[0, 3.65, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
-            <coneGeometry args={[4.25, 1.9, 4]} />
-            <meshStandardMaterial color="#7f1d1d" roughness={0.78} />
-          </mesh>
-          <mesh position={[0, 1.25, 2.23]}>
-            <boxGeometry args={[1.8, 2.3, 0.08]} />
-            <meshStandardMaterial color="#451a03" />
-          </mesh>
+          <SafeGltfModel url="/models/buildings/floor.glb" position={[0, 0, 0]} scale={[2.8, 1, 2.4]} tint="#92400e" />
+          <SafeGltfModel url="/models/buildings/wall-doorway-wide-round.glb" position={[0, 1.6, 2.4]} rotation={[0, Math.PI, 0]} scale={[2.8, 1.3, 1]} tint="#92400e" />
+          <SafeGltfModel url="/models/buildings/wall.glb" position={[0, 1.6, -2.4]} scale={[2.8, 1.3, 1]} tint="#92400e" />
+          <SafeGltfModel url="/models/buildings/roof-flat-square.glb" position={[0, 3.7, 0]} scale={[3.1, 1.2, 2.7]} tint="#7f1d1d" />
         </group>
       </GrowthLayer>
     </group>

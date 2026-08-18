@@ -1,6 +1,6 @@
 # SAH World 3D Asset Manifest
 
-Downloaded on 2026-08-18 for later visual integration. This directory intentionally contains a curated subset of the upstream packs rather than complete archives. No model in this manifest is integrated into the scene yet.
+Downloaded on 2026-08-18 as a curated subset of the upstream packs rather than complete archives. SAH World's village scene now uses a performance-focused selection of these models for terrain decoration, station architecture, vehicles, and farm growth; unused variants remain available for future passes.
 
 ## License and sources
 
@@ -13,6 +13,8 @@ All models below were created and distributed by [Kenney](https://kenney.nl/) un
 | Car Kit | https://kenney.nl/assets/car-kit | Official ZIP downloaded successfully | 3.1 |
 
 The original license notice from each pack is preserved as `LICENSE.txt` in its collection directory.
+
+Supporting palette textures required by the GLB materials are preserved at `buildings/Textures/colormap.png` and `vehicles/Textures/colormap.png`. These textures come from the same respective CC0 Kenney packs.
 
 ## Nature models
 
@@ -119,7 +121,7 @@ Source for every file in this section: Kenney Car Kit 3.1, CC0 1.0.
 
 - The three requested Kenney asset pages were fetched with `curl`, and their official direct ZIP URLs were discovered in the returned HTML.
 - All three official ZIP downloads succeeded. There were no paywalls, corrupt downloads, or JS-only blockers, so Poly Pizza and OpenGameArt fallbacks were not needed.
-- The packs already included binary glTF (`.glb`) exports. No OBJ/FBX conversion was necessary.
+- The packs already included binary glTF (`.glb`) exports. No OBJ/FBX conversion was necessary. Building Kit and Car Kit models reference their pack-provided external `Textures/colormap.png` palette; those two required textures are included alongside the models.
 - Only the listed 86 GLB files were retained; alternate OBJ, FBX, DAE, STL, preview images, and duplicate format exports were intentionally omitted.
 
 ## Validation
