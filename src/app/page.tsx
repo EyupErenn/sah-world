@@ -499,7 +499,7 @@ function VillageWorld() {
 
       {/* ============ INTERACTIVE MINIMAP & COMPASS ============ */}
       {!classicMode && (
-        <div className="fixed bottom-6 right-6 z-[900]">
+        <div className="fixed bottom-32 right-4 z-[900] origin-bottom-right scale-75 md:bottom-6 md:right-6 md:scale-100">
           <Minimap
             playerX={playerState.x}
             playerZ={playerState.z}
