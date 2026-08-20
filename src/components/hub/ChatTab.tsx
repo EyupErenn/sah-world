@@ -32,9 +32,15 @@ export default function ChatTab() {
       return;
     }
     try {
-      const { data, error } = await supabase.rpc('get_friends_with_last_message');
+      const { data, error } = await supabase.rpc('get_friends_with_last_message', { requesting_user: user.id });
       if (error) throw error;
-      setFriends(data || []);
+      setFriends((data || []).map((friend) => ({
+        id: friend.friend_id,
+        display_name: friend.display_name,
+        avatar_url: friend.avatar_url,
+        last_message: friend.last_message,
+        last_message_time: friend.last_message_at,
+      })));
     } catch (err) {
       console.warn('Sohbet arkadaşları alınamadı:', err);
     }

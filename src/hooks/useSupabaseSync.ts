@@ -221,10 +221,10 @@ export function useSupabaseSync() {
         const journal: JournalEntry[] = (journalData || []).map((j) => ({
           id: j.id,
           date: j.date,
-          mood: j.mood,
-          energy: j.energy,
-          stress: j.stress,
-          sleep: j.sleep,
+          mood: j.mood ?? 3,
+          energy: j.energy ?? 7,
+          stress: j.stress ?? 3,
+          sleep: j.sleep ?? undefined,
           content: j.content,
           tags: j.tags,
           createdAt: j.created_at,
@@ -256,7 +256,7 @@ export function useSupabaseSync() {
           title: l.title,
           wrong: l.wrong,
           learned: l.learned,
-          severity: l.severity,
+          severity: l.severity ?? 3,
           createdAt: l.created_at,
         }));
 

@@ -86,10 +86,10 @@ export default function FriendsTab() {
     try {
       const { data, error } = await supabase.rpc('search_users_by_name', { 
         search_term: searchQuery.trim(), 
-        limit_count: 10 
+        requesting_user: user.id,
       });
       if (error) throw error;
-      setSearchResults((data || []).filter((p: any) => p.id !== user.id));
+      setSearchResults((data || []).filter((p) => p.id !== user.id));
     } catch (err) {
       console.warn('Arama hatası:', err);
     } finally {
