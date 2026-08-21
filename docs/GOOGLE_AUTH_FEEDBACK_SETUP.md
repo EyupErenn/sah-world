@@ -1,5 +1,7 @@
 # Google Auth + Geri Bildirim Yayınlama Rehberi
 
+> 21 Ağustos 2026 production denetimi: Supabase'in herkese açık auth ayarı `google: false`, `email: true` döndürdü. Google Client ID/Secret kaydedilip sağlayıcı açılana kadar Google girişi çalışmış kabul edilmemelidir. Ayrıca production URL anonim isteği Vercel SSO'ya yönlendiriyor; arkadaş erişimi için aşağıdaki Deployment Protection adımı zorunludur.
+
 Bu doküman kodla otomatik yapılan işleri, yalnızca Google/Supabase panellerinde yapılabilen güvenli ayarlardan ayırır. Google `Client Secret`, Supabase `service_role` anahtarı veya yönetici anahtarı bu repoya ya da `NEXT_PUBLIC_*` değişkenlerine yazılmaz.
 
 ## Uygulanan mimari
@@ -42,6 +44,8 @@ Google marka doğrulaması ayrı bir dış süreçtir ve birkaç iş günü sür
 4. E-posta OTP akışının mevcut template ve rate-limit ayarlarını değiştirmeyin.
 
 ## 3. Vercel ortam değişkenleri
+
+Önce **Project Settings → Deployment Protection** bölümünde Production için **Vercel Authentication** korumasını kapatın veya yalnızca Preview ortamına uygulayın. Bu işlem uygulama auth'unu kapatmaz; sadece ziyaretçilerin uygulamanın kendi SAH giriş ekranına ulaşmasını sağlar.
 
 Vercel → Project Settings → Environment Variables içinde Production, Preview ve Development için:
 

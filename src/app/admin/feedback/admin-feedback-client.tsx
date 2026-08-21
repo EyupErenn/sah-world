@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 import Link from 'next/link'
 import { updateFeedbackAction } from './actions'
@@ -29,6 +30,8 @@ export function AdminFeedbackClient({ items, stats, currentPage, filters }: { it
         <label><span>Durum</span><select name="status" defaultValue={filters.status || ''}><option value="">Tümü</option>{Object.entries(statusLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
         <label><span>Tür</span><select name="type" defaultValue={filters.type || ''}><option value="">Tümü</option>{Object.entries(typeLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
         <label><span>Puan</span><select name="rating" defaultValue={filters.rating || ''}><option value="">Tümü</option>{[5,4,3,2,1].map(value=><option key={value} value={value}>{value} yıldız</option>)}</select></label>
+        <label><span>Başlangıç</span><input type="date" name="from" defaultValue={filters.from || ''} /></label>
+        <label><span>Bitiş</span><input type="date" name="to" defaultValue={filters.to || ''} /></label>
         <label><span>Sıralama</span><select name="sort" defaultValue={filters.sort || 'newest'}><option value="newest">En yeni</option><option value="oldest">En eski</option></select></label>
         <label className="archive-filter"><input type="checkbox" name="archived" value="true" defaultChecked={filters.archived === 'true'} /><span>Arşivi göster</span></label>
         <button type="submit">Filtrele</button>
