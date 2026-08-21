@@ -10,6 +10,7 @@ const emptyOtp = () => ['', '', '', '', '', '']
 
 function friendlyAuthError(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : ''
+  if (message.includes('provider') && message.includes('enabled')) return 'Google ile giriş şu anda kullanılamıyor. E-posta koduyla devam edebilir veya daha sonra yeniden deneyebilirsiniz.'
   if (message.includes('rate') || message.includes('limit')) return 'Çok sık deneme yapıldı. Lütfen kısa bir süre sonra tekrar deneyin.'
   if (message.includes('expired')) return 'Kodun süresi dolmuş. Yeni bir kod isteyin.'
   if (message.includes('invalid')) return 'Kod doğrulanamadı. Rakamları kontrol edip yeniden deneyin.'
@@ -42,7 +43,10 @@ export default function LoginScreen() {
     setAuthError(null)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=/` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=/`,
+        queryParams: { prompt: 'select_account' },
+      },
     })
     if (error) {
       setAuthError(friendlyAuthError(error))
