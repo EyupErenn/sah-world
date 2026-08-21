@@ -3,19 +3,20 @@
 import { useState } from 'react';
 import { useJourneyStore } from '@/store/useJourneyStore';
 import { recordXpEvent } from '@/lib/xp';
+import { AppIcon } from '@/components/ui/AppIcon';
 import type { EisenhowerState } from '@/types';
 
 export type SectionKey = 'journal' | 'quran' | 'hadis' | 'matrix' | 'lessons' | 'sukur' | 'mescidim' | 'depot';
 
 const meta: Record<SectionKey, { title: string; eyebrow: string; description: string; icon: string }> = {
-  journal: { title: 'Günlük', eyebrow: 'KENDİNE DÖN', description: 'Duygularını yargılamadan fark et ve gününe küçük bir not bırak.', icon: '✎' },
-  quran: { title: 'Kuran Notlarım', eyebrow: 'TEFEKKÜR', description: 'Okuduğun ayetlerden sende kalan anlamı ve hayata taşıyacağın dersi kaydet.', icon: '◫' },
-  hadis: { title: 'Hadis Notlarım', eyebrow: 'ÖĞREN VE UYGULA', description: 'Kaynağıyla birlikte not al, günlük hayata dönük bir niyet belirle.', icon: '❞' },
-  matrix: { title: 'Öncelik Matrisi', eyebrow: 'SADELEŞTİR', description: 'Önemli olanı acil olandan ayır ve enerjini bilinçli kullan.', icon: '⊞' },
-  lessons: { title: 'Hatalar ve Dersler', eyebrow: 'ŞEFKATLİ MUHASEBE', description: 'Kendini suçlamadan olanı gör, öğrendiğin dersi geleceğe taşı.', icon: '↺' },
-  sukur: { title: 'Şükür Alanım', eyebrow: 'FARK ET', description: 'Bugünün içindeki küçük ve büyük nimetlere sakinlikle bak.', icon: '✦' },
-  mescidim: { title: 'Mescidim', eyebrow: 'MANEVİ MOLA', description: 'Kısa bir duruş, zikir sayacı ve günün tefekkür notları.', icon: '◌' },
-  depot: { title: 'Ahiret Deposu', eyebrow: 'YOLCULUK ÖZETİ', description: 'Uygulamadaki istikrarının ve oluşturduğun kayıtların sakin bir özeti.', icon: '◇' },
+  journal: { title: 'Günlük', eyebrow: 'KENDİNE DÖN', description: 'Duygularını yargılamadan fark et ve gününe küçük bir not bırak.', icon: 'notebook' },
+  quran: { title: 'Kur’an Notlarım', eyebrow: 'TEFEKKÜR', description: 'Okuduğun ayetlerden sende kalan anlamı ve hayata taşıyacağın dersi kaydet.', icon: 'book-2' },
+  hadis: { title: 'Hadis Notlarım', eyebrow: 'ÖĞREN VE UYGULA', description: 'Kaynağıyla birlikte not al, günlük hayata dönük bir niyet belirle.', icon: 'quote' },
+  matrix: { title: 'Öncelik Matrisi', eyebrow: 'SADELEŞTİR', description: 'Önemli olanı acil olandan ayır ve enerjini bilinçli kullan.', icon: 'layout-grid' },
+  lessons: { title: 'Hatalar ve Dersler', eyebrow: 'ŞEFKATLİ MUHASEBE', description: 'Kendini suçlamadan olanı gör, öğrendiğin dersi geleceğe taşı.', icon: 'history' },
+  sukur: { title: 'Şükür Alanım', eyebrow: 'FARK ET', description: 'Bugünün içindeki küçük ve büyük nimetlere sakinlikle bak.', icon: 'sparkles' },
+  mescidim: { title: 'Mescidim', eyebrow: 'MANEVİ MOLA', description: 'Kısa bir duruş, zikir sayacı ve günün tefekkür notları.', icon: 'building-mosque' },
+  depot: { title: 'Ahiret Deposu', eyebrow: 'YOLCULUK ÖZETİ', description: 'Uygulamadaki istikrarının ve oluşturduğun kayıtların sakin bir özeti.', icon: 'archive' },
 };
 
 export default function SectionView({ section }: { section: SectionKey }) {
@@ -40,7 +41,7 @@ export default function SectionView({ section }: { section: SectionKey }) {
     form.reset();
   };
 
-  return <div className="view-stack"><header className="page-heading section-heading"><div><span className="eyebrow">{info.eyebrow}</span><h1><i>{info.icon}</i> {info.title}</h1><p>{info.description}</p></div>{notice && <span className="success-toast">✓ {notice}</span>}</header>
+  return <div className="view-stack"><header className="page-heading section-heading"><div><span className="eyebrow">{info.eyebrow}</span><h1><i><AppIcon name={info.icon}/></i> {info.title}</h1><p>{info.description}</p></div>{notice && <span className="success-toast"><AppIcon name="check"/> {notice}</span>}</header>
     {section === 'matrix' ? <Matrix reward={reward} /> : section === 'mescidim' ? <Mescid reward={reward} /> : section === 'depot' ? <Depot /> : <EntrySection section={section} onSubmit={submit} />}
   </div>;
 }
@@ -60,7 +61,7 @@ function EntrySection({ section, onSubmit }: { section: Exclude<SectionKey, 'mat
     {section === 'lessons' && <><div className="two-fields"><Field label="Başlık" name="title" placeholder="Durumu kısa adlandır"/><Field label="Etkisi (1-5)" name="severity" type="number" placeholder="3"/></div><Field label="Ne oldu?" name="wrong" type="textarea" placeholder="Yargılamadan olayı tarif et..."/><Field label="Bundan ne öğrendim?" name="learned" type="textarea" placeholder="Bir sonraki sefer için küçük ve gerçekçi bir ders..."/></>}
     {section === 'sukur' && <><Field label="Bugünün şükür notu" name="text" type="textarea" placeholder="Bugün fark ettiğim..."/><div className="three-fields"><Field label="Nimet 1" name="n1" placeholder="Küçük de olabilir"/><Field label="Nimet 2" name="n2" placeholder="Bugünden"/><Field label="Nimet 3" name="n3" placeholder="Kalbine gelen"/></div></>}
     <button className="primary-button" type="submit">Kaydı tamamla</button></form>
-    <section className="surface-card recent-card"><div className="card-heading"><div><span className="eyebrow">ARŞİV</span><h2>Son kayıtlar</h2></div><span className="quiet-chip">{items.length} toplam</span></div>{items.length === 0 ? <div className="empty-state"><i>◌</i><strong>Henüz kayıt yok</strong><p>İlk notun burada güvenle görünecek.</p></div> : <div className="simple-records">{items.slice(0,8).map((item) => <article key={item.id}><strong>{new Intl.DateTimeFormat('tr-TR',{day:'numeric',month:'long'}).format(new Date(item.createdAt))}</strong><p>{'content' in item ? item.content : 'ders' in item ? item.ders : 'uygulama' in item ? item.uygulama : 'learned' in item ? item.learned : item.text}</p></article>)}</div>}</section></div>;
+    <section className="surface-card recent-card"><div className="card-heading"><div><span className="eyebrow">ARŞİV</span><h2>Son kayıtlar</h2></div><span className="quiet-chip">{items.length} toplam</span></div>{items.length === 0 ? <div className="empty-state"><i><AppIcon name="notes"/></i><strong>Henüz kayıt yok</strong><p>İlk notun burada güvenle görünecek.</p></div> : <div className="simple-records">{items.slice(0,8).map((item) => <article key={item.id}><strong>{new Intl.DateTimeFormat('tr-TR',{day:'numeric',month:'long'}).format(new Date(item.createdAt))}</strong><p>{'content' in item ? item.content : 'ders' in item ? item.ders : 'uygulama' in item ? item.uygulama : 'learned' in item ? item.learned : item.text}</p></article>)}</div>}</section></div>;
 }
 
 function Matrix({ reward }: { reward: (a:number,l:string,s:string,id:string)=>void }) {

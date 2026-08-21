@@ -16,10 +16,10 @@ export default function GrowthTree({ xp, trigger, lastAmount }: { xp: number; tr
   return (
     <section className="growth-card" aria-labelledby="growth-title">
       <div className="growth-copy">
-        <span className="eyebrow">GELİŞİM ALANIN</span>
-        <h2 id="growth-title">{level.name} <span>Seviye {index + 1}</span></h2>
-        <p>İstikrarlı küçük adımların, kendi gelişim alanını görünür biçimde büyütüyor.</p>
-        <div className="progress-heading"><strong>{xp.toLocaleString('tr-TR')} XP</strong><span>{nextLevel ? `${nextLevel.xp - xp} XP kaldı` : 'En yüksek seviye'}</span></div>
+        <span className="eyebrow">GELİŞİM SAHNEN</span>
+        <div className="level-heading"><h2 id="growth-title">{level.name}</h2><span>Seviye {index + 1} / 10</span></div>
+        <p>Her düzenli kayıt, bu sakin dünyanın yeni bir katmanını görünür kılar.</p>
+        <div className="progress-heading"><strong>{xp.toLocaleString('tr-TR')} XP</strong><span>{nextLevel ? `${Math.round(progress)}% · ${nextLevel.name} için ${nextLevel.xp - xp} XP` : 'Yolculuğun en geniş ufku'}</span></div>
         <div className="core-progress" role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100} aria-label="Sonraki seviyeye ilerleme">
           <span style={{ width: `${progress}%` }} />
         </div>
@@ -30,19 +30,26 @@ export default function GrowthTree({ xp, trigger, lastAmount }: { xp: number; tr
 
       <div className={`growth-illustration level-${index + 1}`} aria-label={`${level.name} gelişim illüstrasyonu`}>
         {trigger > 0 && lastAmount > 0 && <span key={trigger} className="xp-particle">+{lastAmount} XP</span>}
-        <svg viewBox="0 0 420 330" role="img" aria-hidden="true">
+        <span className="scene-level-chip">{level.name} · {Math.round(progress)}%</span>
+        <svg viewBox="0 0 420 330" role="img" aria-label={`${level.name} seviyesinde doğa ve ışık sahnesi`}>
           <defs>
-            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#e0e7ff"/><stop offset="1" stopColor="#f5f3ff"/></linearGradient>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stopColor={index >= 7 ? '#312e81' : '#dbeafe'}/><stop offset=".58" stopColor={index >= 7 ? '#7c3aed' : '#ede9fe'}/><stop offset="1" stopColor="#fff7ed"/></linearGradient>
             <linearGradient id="hill" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#a7f3d0"/><stop offset="1" stopColor="#6ee7b7"/></linearGradient>
             <radialGradient id="halo"><stop stopColor="#fef3c7" stopOpacity=".95"/><stop offset="1" stopColor="#fbbf24" stopOpacity="0"/></radialGradient>
+            <linearGradient id="water" x1="0" y1="0" x2="1" y2="0"><stop stopColor="#bae6fd"/><stop offset=".5" stopColor="#e0e7ff"/><stop offset="1" stopColor="#c4b5fd"/></linearGradient>
             <filter id="soft"><feGaussianBlur stdDeviation="8"/></filter>
           </defs>
           <rect width="420" height="330" rx="28" fill="url(#sky)"/>
           {index >= 7 && <circle cx="310" cy="72" r="54" fill="url(#halo)" className="tree-halo"/>}
-          {index >= 8 && <path d="M32 80 Q110 20 188 80 T344 80" fill="none" stroke="#8b5cf6" strokeWidth="2" opacity=".25"/>}
-          {index >= 6 && [70,118,304,350].map((x, i) => <circle key={x} cx={x} cy={50 + i * 13} r="3" fill="#fff" className="star"/>)}
+          {index >= 8 && <><path d="M32 80 Q110 20 188 80 T344 80" fill="none" stroke="#c4b5fd" strokeWidth="2" opacity=".42"/><path d="M70 118 Q190 52 360 112" fill="none" stroke="#f0abfc" strokeWidth="16" opacity=".09" filter="url(#soft)"/></>}
+          {index >= 6 && [48,70,118,286,304,350,378].map((x, i) => <circle key={x} cx={x} cy={38 + (i % 4) * 16} r={i % 3 === 0 ? 3 : 2} fill="#fff" className="star" style={{animationDelay:`${i * .2}s`}}/>)}
+          {index >= 3 && <g className="cloud" opacity={index >= 7 ? .3 : .65}><path d="M40 97c7-20 34-19 41 0 17-8 30 4 32 18H25c0-11 6-18 15-18Z" fill="#fff"/><path d="M313 127c5-16 27-17 34-1 15-7 27 4 28 16h-73c1-9 5-14 11-15Z" fill="#fff"/></g>}
+          {index >= 5 && <g className="birds" fill="none" stroke={index >= 7 ? '#ddd6fe' : '#6366f1'} strokeWidth="2" strokeLinecap="round"><path d="M89 72q7-7 14 0q7-7 14 0"/><path d="M271 91q5-5 10 0q5-5 10 0"/></g>}
           <path d="M0 230 Q85 175 170 226 T340 218 T450 210 V330 H0Z" fill="#c4b5fd" opacity=".55"/>
+          {index >= 5 && <path d="M16 230L72 151l54 79M294 224l54-88 61 88" fill={index >= 7 ? '#4338ca' : '#6366f1'} opacity=".24"/>}
           <path d="M0 260 Q96 218 178 256 T344 248 T450 242 V330 H0Z" fill="url(#hill)"/>
+          {index >= 4 && <path d="M0 286 Q104 266 198 286 T420 277V330H0Z" fill="#34d399" opacity=".55"/>}
+          {index >= 5 && <path d="M0 299 Q106 280 212 298 T420 292V330H0Z" fill="url(#water)" opacity=".82"/>}
           <ellipse cx="220" cy="292" rx={index < 2 ? 34 : 104} ry="16" fill="#065f46" opacity=".16" filter="url(#soft)"/>
 
           {index === 0 ? <>
@@ -58,12 +65,12 @@ export default function GrowthTree({ xp, trigger, lastAmount }: { xp: number; tr
               {index >= 4 && <circle cx="218" cy={92 - index} r={40 + index * 1.7} fill="#4ade80"/>}
             </g>
             {index >= 4 && <g opacity=".85"><path d="M88 277q8-30 16 0M116 277q10-38 19 0M315 277q8-28 17 0" stroke="#16a34a" strokeWidth="8" strokeLinecap="round"/></g>}
-            {index >= 5 && <g><path d="M18 246L64 174l46 72z" fill="#6366f1" opacity=".25"/><path d="M322 240l36-58 37 58z" fill="#7c3aed" opacity=".22"/></g>}
+            {index >= 4 && <g className="wildflowers">{[58,82,112,318,344,370].map((x, i)=><g key={x}><path d={`M${x} 286v-10`} stroke="#15803d" strokeWidth="2"/><circle cx={x} cy="274" r="3" fill={i%2?'#fbbf24':'#f0abfc'}/></g>)}</g>}
             {index >= 9 && <circle cx="216" cy="145" r="112" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="8 12" className="cosmic-ring"/>}
           </>}
           {index >= 5 && motes.map((m, i) => <circle key={i} cx={m.x} cy={m.y} r={2 + (i % 3)} fill={i % 2 ? '#fbbf24' : '#8b5cf6'} className="mote" style={{ animationDelay: m.delay }}/>) }
         </svg>
-        <span className="growth-caption">Bu görsel manevi değeri değil, uygulamadaki istikrarını temsil eder.</span>
+        <span className="growth-caption">Manevi değeri değil, yalnızca uygulamadaki istikrarını temsil eder.</span>
       </div>
     </section>
   );

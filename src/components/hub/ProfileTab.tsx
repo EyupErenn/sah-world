@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useAuthStore } from '@/store/useAuthStore';
 import { useJourneyStore } from '@/store/useJourneyStore';
@@ -165,7 +166,7 @@ export default function ProfileTab() {
 function StatCard({ label, value, icon, color }: { label: string; value: string; icon: string; color: string }) {
   return (
     <div className="sah-card p-4 flex flex-col items-center justify-center text-center hover:-translate-y-0.5 transition-all cursor-default">
-      <span className="text-2xl mb-2">{icon}</span>
+      <span className="text-2xl mb-2" style={{ color }}>{icon}</span>
       <span className="text-2xl md:text-3xl font-black text-white font-mono tracking-tight">{value}</span>
       <span className="text-[11px] font-semibold text-slate-400 mt-1">{label}</span>
     </div>

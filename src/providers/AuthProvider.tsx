@@ -1,7 +1,9 @@
 'use client';
 
 import { createContext, useContext, useEffect, useRef } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import type { Profile } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useJourneyStore } from '@/store/useJourneyStore';
 import { useSupabaseSync } from '@/hooks/useSupabaseSync';
@@ -13,10 +15,10 @@ const AuthContext = createContext<null>(null);
 export const useAuthContext = () => useContext(AuthContext);
 
 // ============================================================
-// AuthProvider with Fail-Safe Timeout
+// AuthProvider — server-verified identity + browser auth event bridge
 // ============================================================
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setSession, setUser, setIsAuthLoading, reset } = useAuthStore();
+export function AuthProvider({ children, initialUser, initialProfile }: { children: React.ReactNode; initialUser: User | null; initialProfile: Profile | null }) {
+  const { setSession, setUser, setProfile, setIsAuthLoading, reset } = useAuthStore();
   const initialized = useRef(false);
 
   // Veri senkronizasyonu (Supabase'den çekme + migrasyon)
@@ -25,24 +27,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
+    setUser(initialUser);
+    setProfile(initialProfile);
+    setIsAuthLoading(false);
 
-    // Fail-safe Timeout: 3 saniye içinde session kontrolü bitmezse loading'i zorla kapat
-    const safetyTimeout = setTimeout(() => {
-      console.warn('[SAH Auth] Session check timeout (3s fallback triggered). Setting isAuthLoading=false.');
-      setIsAuthLoading(false);
-    }, 3000);
-
-    // 1. İlk session kontrolü
+    // Cookie tabanlı ilk durum sunucuda doğrulanır; bu çağrı yalnızca browser
+    // session nesnesini eşler. Keyfi timeout, geçerli oturumu login ekranına düşürmez.
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         setSession(session);
         setUser(session?.user ?? null);
       })
       .catch((err) => {
-        console.error('[SAH Auth] getSession error:', err);
+        console.error('[SAH Auth] Browser session eşleme hatası', { name: err instanceof Error ? err.name : 'UnknownError' });
       })
       .finally(() => {
-        clearTimeout(safetyTimeout);
         setIsAuthLoading(false);
       });
 
@@ -64,10 +63,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => {
-      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [initialProfile, initialUser, reset, setIsAuthLoading, setProfile, setSession, setUser]);
 
   return (
     <AuthContext.Provider value={null}>

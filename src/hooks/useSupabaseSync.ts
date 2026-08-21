@@ -142,9 +142,9 @@ async function migrateLocalStorageToSupabase(userId: string) {
     }
 
     localStorage.setItem('sah-migration-done', 'completed');
-    console.info('[SAH Auth] localStorage → Supabase migrasyonu tamamlandı.');
   } catch (err) {
-    console.warn('[SAH Auth] Migrasyon hatası (graceful degradation):', err);
+    const name = err instanceof Error ? err.name : 'UnknownError';
+    console.warn('[SAH Auth] Yerel veri aktarımı tamamlanamadı', { name });
   }
 }
 
@@ -152,11 +152,14 @@ async function migrateLocalStorageToSupabase(userId: string) {
 // Main Hook: useSupabaseSync
 // ============================================================
 export function useSupabaseSync() {
-  const { user, setProfile, setIsProfileLoading } = useAuthStore();
-  const journeyStore = useJourneyStore();
+  const userId = useAuthStore((state) => state.user?.id);
+  const setProfile = useAuthStore((state) => state.setProfile);
+  const setIsProfileLoading = useAuthStore((state) => state.setIsProfileLoading);
+  const importAll = useJourneyStore((state) => state.importAll);
 
   useEffect(() => {
-    if (!user || !isValidUUID(user.id)) return;
+    if (!userId || !isValidUUID(userId)) return;
+    const authenticatedUserId = userId;
 
     async function loadAllData() {
       setIsProfileLoading(true);
@@ -165,38 +168,20 @@ export function useSupabaseSync() {
         const profileResult = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', user!.id)
+          .eq('id', authenticatedUserId)
           .maybeSingle();
         let profileData = profileResult.data;
         const profileError = profileResult.error;
 
         if (profileError) {
-          console.warn('[SAH Sync] Profil sorgu hatası:', profileError);
+          console.warn('[SAH Sync] Profil sorgusu tamamlanamadı', { code: profileError.code });
         }
 
         // Eğer profil yoksa otomatik oluştur
         if (!profileData) {
-          const fallbackProfile: Profile = {
-            id: user!.id,
-            display_name: user!.email ? user!.email.split('@')[0] : 'Yolcu',
-            avatar_url: null,
-            vehicle_type: 'car',
-            xp: 0,
-            streak_current: 1,
-            streak_last_date: new Date().toISOString().split('T')[0],
-            badges: [],
-            total_zikir: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-
-          const { data: createdProfile } = await supabase
-            .from('profiles')
-            .upsert(fallbackProfile)
-            .select('*')
-            .maybeSingle();
-
-          profileData = createdProfile || fallbackProfile;
+          const { data: createdProfile, error: recoveryError } = await supabase.rpc('ensure_my_profile');
+          if (recoveryError) throw recoveryError;
+          profileData = createdProfile;
         }
 
         const profile = profileData as Profile;
@@ -211,12 +196,12 @@ export function useSupabaseSync() {
           { data: sukurData },
           { data: eisenhowerData },
         ] = await Promise.all([
-          supabase.from('journal_entries').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }),
-          supabase.from('quran_notes').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }),
-          supabase.from('hadis_notes').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }),
-          supabase.from('lesson_entries').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }),
-          supabase.from('sukur_entries').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }),
-          supabase.from('eisenhower_tasks').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }),
+          supabase.from('journal_entries').select('*').eq('user_id', authenticatedUserId).order('created_at', { ascending: false }),
+          supabase.from('quran_notes').select('*').eq('user_id', authenticatedUserId).order('created_at', { ascending: false }),
+          supabase.from('hadis_notes').select('*').eq('user_id', authenticatedUserId).order('created_at', { ascending: false }),
+          supabase.from('lesson_entries').select('*').eq('user_id', authenticatedUserId).order('created_at', { ascending: false }),
+          supabase.from('sukur_entries').select('*').eq('user_id', authenticatedUserId).order('created_at', { ascending: false }),
+          supabase.from('eisenhower_tasks').select('*').eq('user_id', authenticatedUserId).order('created_at', { ascending: false }),
         ]);
 
         // Verileri dönüştür
@@ -280,7 +265,7 @@ export function useSupabaseSync() {
         });
 
         // 3. Zustand store'a DB verilerini yükle (importAll)
-        journeyStore.importAll({
+        importAll({
           xp: profile.xp ?? 0,
           badges: profile.badges ?? [],
           streak: { current: profile.streak_current ?? 1, lastDate: profile.streak_last_date ?? new Date().toISOString().split('T')[0] },
@@ -301,15 +286,16 @@ export function useSupabaseSync() {
         });
 
         // 4. Migrasyon kontrolü
-        await migrateLocalStorageToSupabase(user!.id);
+        await migrateLocalStorageToSupabase(authenticatedUserId);
 
       } catch (err) {
-        console.warn('[SAH Sync] Supabase veri çekme hatası (fallback to local):', err);
+        const name = err instanceof Error ? err.name : 'UnknownError';
+        console.warn('[SAH Sync] Veriler geçici olarak yerel kopyadan gösteriliyor', { name });
       } finally {
         setIsProfileLoading(false);
       }
     }
 
     loadAllData();
-  }, [user?.id]);
+  }, [importAll, setIsProfileLoading, setProfile, userId]);
 }

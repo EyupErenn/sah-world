@@ -30,7 +30,6 @@ const VillageCanvas = dynamic(() => import('@/components/village/VillageCanvas')
 interface Toast { id: number; title: string; msg: string; }
 
 export default function HomePage() {
-  const store = useJourneyStore();
   const { isAuthLoading, session } = useAuthStore();
 
   // ── Auth Gate ────────────────────────────────────────────
@@ -77,7 +76,7 @@ function VillageWorld() {
 
   // Daily content & level
   const todayIdx = new Date().getDate() % DAILY_AYETS.length;
-  const { level, nextLevel, index: levelIndex } = getLevelForXP(store.xp);
+  const { level, index: levelIndex } = getLevelForXP(store.xp);
 
   const formatLastEntry = (dates: Array<string | undefined>) => {
     const latest = dates.filter((date): date is string => Boolean(date)).sort().at(-1);
@@ -121,6 +120,8 @@ function VillageWorld() {
       setTimeout(() => setShowVehicleGarage(true), 600);
     }
     store.updateStreak();
+    // Legacy keşif rotası mount olduğunda bir kez çalışır; ana ürün bundle'ına dahil değildir.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Controls hint auto-fade refs

@@ -142,7 +142,8 @@ async function getAuthenticatedUserId(): Promise<string | null> {
 }
 
 function notifySyncError(err: unknown, ctx: string) {
-  console.error(`[Supabase Sync Error] ${ctx}:`, err);
+  const code = typeof err === 'object' && err && 'code' in err ? String(err.code) : 'unknown';
+  console.error('[SAH Sync] Yazma işlemi tamamlanamadı', { context: ctx, code });
 }
 
 // ============================================================
@@ -270,7 +271,6 @@ export const useJourneyStore = create<JourneyState>()(
               created_at: validEntry.createdAt
             }).then(({ error }) => {
               if (error) notifySyncError(error, 'addJournal');
-              else console.info('[Supabase Sync] Journal entry inserted:', validEntry.id);
             });
           }
         });
@@ -305,7 +305,6 @@ export const useJourneyStore = create<JourneyState>()(
               created_at: validNote.createdAt
             }).then(({ error }) => {
               if (error) notifySyncError(error, 'addQuranNote');
-              else console.info('[Supabase Sync] Quran note inserted:', validNote.id);
             });
           }
         });
@@ -340,7 +339,6 @@ export const useJourneyStore = create<JourneyState>()(
               created_at: validNote.createdAt
             }).then(({ error }) => {
               if (error) notifySyncError(error, 'addHadisNote');
-              else console.info('[Supabase Sync] Hadis note inserted:', validNote.id);
             });
           }
         });
@@ -375,7 +373,6 @@ export const useJourneyStore = create<JourneyState>()(
               created_at: validTask.createdAt
             }).then(({ error }) => {
               if (error) notifySyncError(error, 'addTask');
-              else console.info('[Supabase Sync] Eisenhower task inserted:', validTask.id);
             });
           }
         });
@@ -433,7 +430,6 @@ export const useJourneyStore = create<JourneyState>()(
               created_at: validEntry.createdAt
             }).then(({ error }) => {
               if (error) notifySyncError(error, 'addLesson');
-              else console.info('[Supabase Sync] Lesson inserted:', validEntry.id);
             });
           }
         });
@@ -468,7 +464,6 @@ export const useJourneyStore = create<JourneyState>()(
               created_at: validEntry.createdAt
             }).then(({ error }) => {
               if (error) notifySyncError(error, 'addSukur');
-              else console.info('[Supabase Sync] Sukur inserted:', validEntry.id);
             });
           }
         });

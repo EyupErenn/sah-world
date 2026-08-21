@@ -115,9 +115,10 @@ export interface Database {
       get_friends_with_last_message: { Args: { requesting_user: string }; Returns: Array<{ friend_id: string; display_name: string; avatar_url: string | null; xp: number; streak_current: number; friendship_id: string; last_message: string | null; last_message_at: string | null; unread_count: number }> };
       search_users_by_name: { Args: { search_term: string; requesting_user: string }; Returns: Array<{ id: string; display_name: string; avatar_url: string | null; xp: number; streak_current: number }> };
       is_app_admin: { Args: Record<string, never>; Returns: boolean };
+      ensure_my_profile: { Args: Record<string, never>; Returns: ProfileRow };
       submit_feedback: { Args: { feedback_type: FeedbackType; feedback_title: string; feedback_message: string; feedback_rating?: number | null; feedback_page_path?: string }; Returns: string };
       admin_feedback_stats: { Args: Record<string, never>; Returns: Array<{ total_count: number; received_count: number; reviewing_count: number; planned_count: number; completed_count: number; average_rating: number | null }> };
-      admin_list_feedback: { Args: { filter_status?: string | null; filter_type?: string | null; filter_rating?: number | null; search_text?: string | null; sort_order?: string; page_number?: number; page_size?: number; include_archived?: boolean }; Returns: AdminFeedbackRow[] };
+      admin_list_feedback: { Args: { filter_status?: string | null; filter_type?: string | null; filter_rating?: number | null; search_text?: string | null; sort_order?: string; page_number?: number; page_size?: number; include_archived?: boolean; filter_from?: string | null; filter_to?: string | null }; Returns: AdminFeedbackRow[] };
       admin_update_feedback: { Args: { target_id: string; next_status: FeedbackStatus; response_text?: string | null; archive_item?: boolean }; Returns: undefined };
     };
     Enums: Record<string, never>;

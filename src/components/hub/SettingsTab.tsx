@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -25,7 +26,7 @@ export default function SettingsTab() {
       patchProfile({ display_name: name.trim() });
       setNameMsg('✅ İsim güncellendi!');
       setTimeout(() => setNameMsg(''), 3000);
-    } catch (err) {
+    } catch {
       setNameMsg('❌ Bir hata oluştu.');
     } finally {
       setIsSavingName(false);
