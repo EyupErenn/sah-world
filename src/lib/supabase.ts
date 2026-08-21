@@ -7,6 +7,28 @@ import type { Database, ProfileRow, ChatMessageRow } from '@/types/database'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'anon-key-placeholder'
 
+type PublicAuthSettings = {
+  external?: { google?: boolean }
+}
+
+/**
+ * Google OAuth'a yönlendirmeden önce herkese açık Auth ayarını kontrol eder.
+ * Böylece sağlayıcı kapalıyken kullanıcı Supabase'in ham JSON hata sayfasına düşmez.
+ */
+export async function getGoogleAuthAvailability(): Promise<boolean | null> {
+  try {
+    const response = await fetch(`${supabaseUrl}/auth/v1/settings`, {
+      headers: { apikey: supabaseAnonKey },
+      cache: 'no-store',
+    })
+    if (!response.ok) return null
+    const settings = await response.json() as PublicAuthSettings
+    return settings.external?.google === true
+  } catch {
+    return null
+  }
+}
+
 const makeClient = () =>
   createSupabaseBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
 

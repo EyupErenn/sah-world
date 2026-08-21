@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { getGoogleAuthAvailability, supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/useAuthStore'
 
 type Step = 'email' | 'otp'
+type GoogleAvailability = 'checking' | 'enabled' | 'disabled' | 'unknown'
 const emptyOtp = () => ['', '', '', '', '', '']
 
 function friendlyAuthError(error: unknown) {
@@ -26,7 +27,18 @@ export default function LoginScreen() {
   const [isSending, setIsSending] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [googleAvailability, setGoogleAvailability] = useState<GoogleAvailability>('checking')
+  const [requiresLocalhost, setRequiresLocalhost] = useState(false)
   const otpRefs = useRef<Array<HTMLInputElement | null>>([])
+
+  useEffect(() => {
+    let active = true
+    void getGoogleAuthAvailability().then((isEnabled) => {
+      if (!active) return
+      setGoogleAvailability(isEnabled === true ? 'enabled' : isEnabled === false ? 'disabled' : 'unknown')
+    })
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     if (countdown <= 0) return
@@ -41,14 +53,37 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true)
     setAuthError(null)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/`,
-        queryParams: { prompt: 'select_account' },
-      },
-    })
-    if (error) {
+    setRequiresLocalhost(false)
+
+    const isInsecureDevelopmentHost = process.env.NODE_ENV === 'development'
+      && window.location.protocol !== 'https:'
+      && !['localhost', '127.0.0.1'].includes(window.location.hostname)
+
+    if (isInsecureDevelopmentHost) {
+      setRequiresLocalhost(true)
+      setAuthError('Google güvenlik doğrulaması yerel ağ adresinde çalışmaz. Aynı uygulamayı localhost üzerinden açıp yeniden deneyin.')
+      setIsGoogleLoading(false)
+      return
+    }
+
+    const providerEnabled = await getGoogleAuthAvailability()
+    if (providerEnabled === false) {
+      setGoogleAvailability('disabled')
+      setAuthError('Google girişi Supabase projesinde henüz etkin değil. Ayar tamamlanana kadar e-posta koduyla güvenle giriş yapabilirsiniz.')
+      setIsGoogleLoading(false)
+      return
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=/`,
+          queryParams: { prompt: 'select_account' },
+        },
+      })
+      if (error) throw error
+    } catch (error) {
       setAuthError(friendlyAuthError(error))
       setIsGoogleLoading(false)
     }
@@ -121,9 +156,10 @@ export default function LoginScreen() {
         <div className="login-card">
           {step === 'email' ? <>
             <div className="login-card-heading"><p className="eyebrow">Tekrar hoş geldin</p><h2>SAH hesabına giriş yap</h2><p>İlerlemen güvenle saklansın ve tüm cihazlarında seninle kalsın.</p></div>
-            <button className="google-button" type="button" onClick={handleGoogleLogin} disabled={isGoogleLoading || isSending} aria-busy={isGoogleLoading}>
-              <GoogleMark /><span>{isGoogleLoading ? 'Google’a yönlendiriliyor…' : 'Google ile devam et'}</span>{isGoogleLoading && <Spinner />}
+            <button className="google-button" type="button" onClick={handleGoogleLogin} disabled={isGoogleLoading || isSending || googleAvailability === 'checking'} aria-busy={isGoogleLoading || googleAvailability === 'checking'}>
+              <GoogleMark /><span>{googleAvailability === 'checking' ? 'Google girişi kontrol ediliyor…' : isGoogleLoading ? 'Google’a yönlendiriliyor…' : 'Google ile devam et'}</span>{(isGoogleLoading || googleAvailability === 'checking') && <Spinner />}
             </button>
+            {googleAvailability === 'disabled' && <p className="google-availability-note"><span aria-hidden>i</span> Google bağlantısı yönetici ayarı bekliyor. E-posta koduyla giriş kesintisiz çalışır.</p>}
             <div className="login-separator"><span>E-posta kodu ile devam et</span></div>
             <label className="login-label" htmlFor="email-input">E-posta adresi</label>
             <div className="login-email-row">
@@ -131,7 +167,7 @@ export default function LoginScreen() {
               <button type="button" onClick={handleSendOtp} disabled={isSending || !email.trim()} aria-busy={isSending}>{isSending ? <Spinner /> : 'Kod gönder'}</button>
             </div>
             <p className="login-privacy-note"><span aria-hidden>⌁</span> Şifre istemiyoruz. Tek kullanımlık kod veya Google hesabınla güvenli giriş yaparsın.</p>
-            {authError && <div className="login-error" role="alert"><span aria-hidden>!</span>{authError}</div>}
+            {authError && <div className="login-error" role="alert"><span aria-hidden>!</span><div>{authError}{requiresLocalhost && <a href="http://localhost:3000">localhost:3000 adresini aç</a>}</div></div>}
             {process.env.NODE_ENV === 'development' && <DevelopmentGuestButton />}
           </> : <>
             <button className="login-back" type="button" onClick={() => { setStep('email'); setOtp(emptyOtp()); setAuthError(null) }}>← E-posta adresini değiştir</button>

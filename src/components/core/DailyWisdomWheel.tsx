@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AppIcon } from '@/components/ui/AppIcon'
 import { HADITH_REFLECTIONS, VERSE_REFLECTIONS, getDailyReflectionIndex, type ReflectionKind } from '@/lib/dailyReflections'
 import { recordXpEvent } from '@/lib/xp'
@@ -32,7 +32,7 @@ export default function DailyWisdomWheel() {
     ? store.quranNotes.some((note) => note.date === today && note.ders.includes(dailyMarker))
     : store.hadisNotes.some((note) => note.date === today && note.uygulama.includes(dailyMarker))
 
-  const wheelLabels = useMemo(() => list.map((item) => item.theme), [list])
+  const formattedDate = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long' }).format(new Date())
 
   useEffect(() => () => {
     if (spinTimer.current) window.clearTimeout(spinTimer.current)
@@ -83,34 +83,55 @@ export default function DailyWisdomWheel() {
         {notice && <span className="success-toast" role="status"><AppIcon name="check" /> {notice}</span>}
       </header>
 
-      <section className="surface-card wisdom-card" aria-labelledby="wisdom-title">
-        <div className="wisdom-tabs" role="tablist" aria-label="Çark türü">
-          {(Object.keys(modeMeta) as ReflectionKind[]).map((key) => <button id={`wisdom-${key}-tab`} key={key} role="tab" aria-controls="wisdom-panel" aria-selected={mode === key} className={mode === key ? 'active' : ''} onClick={() => changeMode(key)}><AppIcon name={modeMeta[key].icon} /> {modeMeta[key].label}</button>)}
-        </div>
+      <section className={`surface-card wisdom-card wisdom-card--${mode}`} aria-labelledby="wisdom-title">
+        <header className="wisdom-toolbar">
+          <div className="wisdom-tabs" role="tablist" aria-label="Çark türü">
+            {(Object.keys(modeMeta) as ReflectionKind[]).map((key) => <button id={`wisdom-${key}-tab`} key={key} role="tab" aria-controls="wisdom-panel" aria-selected={mode === key} className={mode === key ? 'active' : ''} onClick={() => changeMode(key)}><AppIcon name={modeMeta[key].icon} /> {modeMeta[key].label}</button>)}
+          </div>
+          <span className="wisdom-date"><AppIcon name="calendar" /> {formattedDate}</span>
+        </header>
 
         <div id="wisdom-panel" className="wisdom-layout" role="tabpanel" aria-labelledby={`wisdom-${mode}-tab`}>
           <div className="wheel-stage">
-            <div className="wheel-pointer" aria-hidden><AppIcon name="triangle-filled" /></div>
-            <div className={`wisdom-wheel ${isSpinning ? 'spinning' : ''}`} style={{ transform: `rotate(${rotation}deg)` }} aria-hidden>
-              <div className="wheel-orbit" />
-              {wheelLabels.map((label, index) => <span key={`${label}-${index}`} style={{ transform: `rotate(${index * (360 / list.length)}deg) translateY(-116px) rotate(${-index * (360 / list.length) - rotation}deg)` }}>{label}</span>)}
-              <div className="wheel-center"><AppIcon name={modeMeta[mode].icon} /><small>{mode === 'verse' ? 'AYET' : 'HADİS'}</small></div>
+            <div className="wheel-stage-copy"><span>TEFEKKÜR PUSULASI</span><h2>{mode === 'verse' ? 'Bir ayetle dur ve düşün' : 'Bir hadisle yönünü tazele'}</h2><p>Çark sana bir başlangıç sunar; anlamı acele etmeden kendi hayatında karşılık bulsun.</p></div>
+
+            <div className="premium-dial" aria-hidden>
+              <div className="dial-pointer" />
+              <svg className="wisdom-dial" viewBox="0 0 320 320" style={{ transform: `rotate(${rotation}deg)` }}>
+                <defs>
+                  <linearGradient id="dialStroke" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#a5b4fc"/><stop offset=".52" stopColor="#8b5cf6"/><stop offset="1" stopColor="#f0abfc"/></linearGradient>
+                  <radialGradient id="dialGlow"><stop offset="0" stopColor="#818cf8" stopOpacity=".22"/><stop offset="1" stopColor="#312e81" stopOpacity="0"/></radialGradient>
+                </defs>
+                <circle cx="160" cy="160" r="151" fill="url(#dialGlow)" stroke="rgba(255,255,255,.08)" />
+                <circle cx="160" cy="160" r="128" fill="none" stroke="url(#dialStroke)" strokeWidth="1.5" strokeDasharray="2 8" />
+                <circle cx="160" cy="160" r="103" fill="none" stroke="rgba(255,255,255,.08)" />
+                <path d="M160 31 A129 129 0 0 1 288 160" fill="none" stroke="url(#dialStroke)" strokeWidth="4" strokeLinecap="round" />
+                {list.map((item, index) => {
+                  const angle = (index * (360 / list.length) - 90) * Math.PI / 180
+                  const cx = 160 + Math.cos(angle) * 128
+                  const cy = 160 + Math.sin(angle) * 128
+                  return <circle key={item.id} cx={cx} cy={cy} r={index === selectedIndex ? 6 : 3.5} fill={index === selectedIndex ? '#f5d0fe' : 'rgba(255,255,255,.45)'} stroke={index === selectedIndex ? '#fff' : 'transparent'} strokeWidth="2" />
+                })}
+              </svg>
+              <div className="dial-core"><span><AppIcon name={modeMeta[mode].icon} /></span><strong>{selected.theme}</strong><small>{String(selectedIndex + 1).padStart(2, '0')} / {String(list.length).padStart(2, '0')}</small></div>
             </div>
-            <button className="spin-button" type="button" onClick={spin} disabled={isSpinning} aria-busy={isSpinning}><AppIcon name="refresh" /> {isSpinning ? 'Çark dönüyor…' : `${modeMeta[mode].label}nı çevir`}</button>
-            <p>Her çeviriş yeni bir tefekkür önerisi sunar. Kaydetmek zorunlu değildir.</p>
+
+            <button className="spin-button" type="button" onClick={spin} disabled={isSpinning} aria-busy={isSpinning}><AppIcon name="refresh" /> {isSpinning ? 'Yeni seçim hazırlanıyor…' : `Yeni bir ${mode === 'verse' ? 'ayet' : 'hadis'} seç`}</button>
+            <p className="wheel-privacy"><AppIcon name="lock" /> Seçimin, sen kaydedene kadar yalnızca bu ekranda kalır.</p>
           </div>
 
           <article className="wisdom-result" aria-live="polite" aria-busy={isSpinning}>
-            <div className="wisdom-result-top"><span className="eyebrow">{modeMeta[mode].eyebrow}</span><span className="theme-chip">{selected.theme}</span></div>
-            <div className="wisdom-symbol" aria-hidden><AppIcon name={modeMeta[mode].icon} /></div>
+            <div className="wisdom-result-top"><span className="eyebrow">{modeMeta[mode].eyebrow}</span><span className="theme-chip"><i /> {selected.theme}</span></div>
+            <span className="wisdom-quote-mark" aria-hidden>“</span>
             <h2 id="wisdom-title">{isSpinning ? 'Yeni bir hatırlatma seçiliyor…' : selected.title}</h2>
-            <blockquote>{isSpinning ? 'Bir an dur, nefesine dön ve çarkın sakinleşmesini bekle.' : `“${selected.text}”`}</blockquote>
-            <strong className="wisdom-reference">{selected.reference}</strong>
+            <blockquote>{isSpinning ? 'Bir an dur, nefesine dön ve seçimin sakinleşmesini bekle.' : selected.text}</blockquote>
+            <div className="wisdom-citation"><span><AppIcon name={modeMeta[mode].icon} /></span><div><small>KAYNAK</small><strong>{selected.reference}</strong></div><a href={selected.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${selected.reference} kaynağını yeni sekmede aç`}><AppIcon name="external-link" /></a></div>
+            <div className="wisdom-reflection"><span><AppIcon name="bulb" /></span><div><small>BUGÜN İÇİN</small><p>Bu hatırlatmanın davranışlarında nasıl küçük bir karşılığı olabilir?</p></div></div>
             <div className="wisdom-actions">
               <button className="primary-button" type="button" onClick={save} disabled={isSpinning || alreadySaved}><AppIcon name={alreadySaved ? 'circle-check' : 'bookmark'} /> {alreadySaved ? modeMeta[mode].saved : modeMeta[mode].save}</button>
-              <a className="ghost-button" href={selected.sourceUrl} target="_blank" rel="noreferrer"><AppIcon name="external-link" /> Kaynağı aç</a>
+              <button className="ghost-button" type="button" onClick={spin} disabled={isSpinning}><AppIcon name="arrows-shuffle" /> Başka bir seçim</button>
             </div>
-            <p className="wisdom-source-note"><AppIcon name="info-circle" /> Kısa anlam, tefekkür için hazırlanmıştır. Tam metin ve bağlam için resmî kaynağı incele.</p>
+            <p className="wisdom-source-note"><AppIcon name="info-circle" /> Kısa anlam, tefekkür başlangıcıdır. Tam metin ve bağlam için kaynak bağlantısını incele.</p>
           </article>
         </div>
       </section>
