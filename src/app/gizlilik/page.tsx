@@ -1,0 +1,5 @@
+import Link from 'next/link'
+
+export default function PrivacyPage() {
+  return <main className="legal-page"><article className="legal-card"><Link className="legal-back" href="/">← SAH’a dön</Link><p className="eyebrow">Şeffaflık</p><h1>Gizlilik Politikası</h1><p>SAH, hesabını ve kişisel gelişim kayıtlarını yalnızca hizmeti sunmak için işler. Oturum doğrulama Supabase Auth üzerinden yürütülür; Google ile girişte uygulama Google şifreni görmez veya saklamaz.</p><h2>Toplanan veriler</h2><p>Hesap kimliği, tercih ettiğin görünen ad ve avatar; uygulama içinde oluşturduğun kayıtlar, XP ve seri bilgileri; gönderdiğin görüş ve öneriler tutulabilir.</p><h2>Kullanım ve erişim</h2><p>Kayıtların satır düzeyi güvenlik kurallarıyla hesabına bağlanır. Geri bildirim içeriklerini yalnızca sen ve yetkilendirilmiş yöneticiler görebilir. Sağlayıcı erişim anahtarları istemci koduna yazılmaz.</p><h2>Hakların</h2><p>Verilerinle ilgili erişim veya silme talebini Görüş ve Öneri alanından iletebilirsin. Bu metin ürün geliştikçe sürümlenecektir.</p></article></main>
+}

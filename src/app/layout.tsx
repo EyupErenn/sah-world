@@ -19,13 +19,13 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'SAH World | 3D Hayat Yolculuğu & Ahiret Deposu',
-  description: 'Kendi hayat yolculuğuna çık. 3D evrende ilerle, amellerini kaydet ve Ahiret Deponu inşa et.',
+  title: 'SAH | Kişisel Gelişim Alanı',
+  description: 'Gününü düzenle, düşüncelerini kaydet ve istikrarını sakin bir gelişim alanında takip et.',
   keywords: ['günlük', 'kuran', 'hadis', 'eisenhower', 'şükür', 'mescid', 'zikirmatik', 'kişisel gelişim'],
   authors: [{ name: 'SAH World' }],
   openGraph: {
-    title: 'SAH World | 3D Hayat Yolculuğu',
-    description: 'Kişisel gelişim, manevi rehberlik ve hayat yönetimi platformu.',
+    title: 'SAH | Kendi gelişim alanın',
+    description: 'Kişisel gelişim, manevi farkındalık ve hayat yönetimi platformu.',
     type: 'website',
   },
 };
@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Tabler Icons */}
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
       </head>
-      <body className="antialiased bg-[#fafbfc] text-slate-900 overflow-x-hidden">
+      <body className="antialiased overflow-x-hidden">
         <AuthProvider>
           {children}
         </AuthProvider>

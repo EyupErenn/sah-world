@@ -1,0 +1,83 @@
+import type { EisenhowerState, HadisNote, JournalEntry, LessonEntry, QuranNote, SukurEntry } from '@/types';
+
+export type ActivityCategory = 'journal' | 'quran' | 'hadis' | 'matrix' | 'lessons' | 'sukur' | 'mescidim';
+
+export type ActivityEvent = {
+  id: string;
+  category: ActivityCategory;
+  label: string;
+  detail: string;
+  xp: number;
+  createdAt: string;
+};
+
+export type ActivitySource = {
+  journal: JournalEntry[];
+  quranNotes: QuranNote[];
+  hadisNotes: HadisNote[];
+  eisenhower: EisenhowerState;
+  lessons: LessonEntry[];
+  sukurList: SukurEntry[];
+  totalZikir: number;
+};
+
+export const CATEGORY_META: Record<ActivityCategory, { label: string; icon: string; color: string }> = {
+  journal: { label: 'Günlük', icon: '✎', color: '#4f46e5' },
+  quran: { label: 'Kuran', icon: '◫', color: '#d97706' },
+  hadis: { label: 'Hadis', icon: '❞', color: '#0f766e' },
+  matrix: { label: 'Matris', icon: '⊞', color: '#0284c7' },
+  lessons: { label: 'Hatalar', icon: '↺', color: '#be123c' },
+  sukur: { label: 'Şükür', icon: '✦', color: '#059669' },
+  mescidim: { label: 'Mescidim', icon: '◌', color: '#7c3aed' },
+};
+
+export function buildActivityFeed(source: ActivitySource): ActivityEvent[] {
+  const tasks = Object.values(source.eisenhower).flat();
+  return [
+    ...source.journal.map((item) => ({ id: item.id, category: 'journal' as const, label: 'Günlük kaydı', detail: 'Günün kısa muhasebesi tamamlandı', xp: 25, createdAt: item.createdAt })),
+    ...source.quranNotes.map((item) => ({ id: item.id, category: 'quran' as const, label: 'Kuran notu', detail: item.sure ? `${item.sure} üzerine tefekkür` : 'Tefekkür notu eklendi', xp: 35, createdAt: item.createdAt })),
+    ...source.hadisNotes.map((item) => ({ id: item.id, category: 'hadis' as const, label: 'Hadis notu', detail: item.kaynak || 'Yeni ders kaydedildi', xp: 30, createdAt: item.createdAt })),
+    ...tasks.filter((item) => item.done).map((item) => ({ id: item.id, category: 'matrix' as const, label: 'Görev tamamlandı', detail: item.text, xp: 25, createdAt: item.createdAt })),
+    ...source.lessons.map((item) => ({ id: item.id, category: 'lessons' as const, label: 'Ders kaydı', detail: item.title || 'Deneyimden öğrenilen ders', xp: 25, createdAt: item.createdAt })),
+    ...source.sukurList.map((item) => ({ id: item.id, category: 'sukur' as const, label: 'Şükür kaydı', detail: item.text || 'Yeni bir nimet fark edildi', xp: 20, createdAt: item.createdAt })),
+  ].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+}
+
+export function relativeTime(value: string, now = Date.now()): string {
+  const seconds = Math.max(0, Math.floor((now - Date.parse(value)) / 1000));
+  if (seconds < 45) return 'az önce';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} dakika önce`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} saat önce`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} gün önce`;
+  return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(new Date(value));
+}
+
+export function dayKey(value: string | Date): string {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+export function getCategoryCounts(source: ActivitySource): Record<ActivityCategory, number> {
+  const tasks = Object.values(source.eisenhower).flat();
+  return {
+    journal: source.journal.length,
+    quran: source.quranNotes.length,
+    hadis: source.hadisNotes.length,
+    matrix: tasks.length,
+    lessons: source.lessons.length,
+    sukur: source.sukurList.length,
+    mescidim: Math.floor(source.totalZikir / 33),
+  };
+}
+
+export function getDailyActivity(events: ActivityEvent[]): Map<string, number> {
+  const result = new Map<string, number>();
+  for (const event of events) {
+    const key = dayKey(event.createdAt);
+    result.set(key, (result.get(key) ?? 0) + 1);
+  }
+  return result;
+}

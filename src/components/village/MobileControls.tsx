@@ -70,14 +70,14 @@ export default function MobileControls({ onInputChange }: MobileControlsProps) {
           onTouchStart={() => setJoystickActive(true)}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className="w-28 h-28 rounded-full glass-panel border border-white/20 flex items-center justify-center relative shadow-2xl bg-slate-900/60 backdrop-blur-md"
+          className="w-28 h-28 rounded-full glass-panel ring-1 ring-white/10 flex items-center justify-center relative shadow-2xl bg-slate-900/60 backdrop-blur-md"
         >
           {/* Base Center Ring */}
           <div className="w-10 h-10 rounded-full border border-indigo-400/40 bg-indigo-950/40" />
 
           {/* Movable Thumb Knob */}
           <div
-            className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 border-2 border-white shadow-lg absolute transition-transform duration-75"
+            className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 ring-2 ring-white/80 shadow-lg absolute transition-transform duration-75"
             style={{
               transform: `translate(${knobPos.x}px, ${knobPos.y}px)`,
             }}
@@ -93,8 +93,8 @@ export default function MobileControls({ onInputChange }: MobileControlsProps) {
           onTouchEnd={() => setIsBrake(false)}
           onMouseDown={() => setIsBrake(true)}
           onMouseUp={() => setIsBrake(false)}
-          className={`w-16 h-16 rounded-2xl glass-panel border border-rose-500/40 flex flex-col items-center justify-center text-xs font-bold transition-all active:scale-90 ${
-            isBrake ? 'bg-rose-600/60 border-rose-400 text-white scale-95 shadow-lg' : 'bg-slate-900/60 text-rose-300'
+          className={`w-16 h-16 rounded-2xl glass-panel ring-1 ring-rose-500/30 flex flex-col items-center justify-center text-xs font-bold transition-all active:scale-90 ${
+            isBrake ? 'bg-rose-600/60 text-white scale-95 shadow-lg' : 'bg-slate-900/60 text-rose-300'
           }`}
         >
           <span className="text-lg">🛑</span>
@@ -107,7 +107,7 @@ export default function MobileControls({ onInputChange }: MobileControlsProps) {
           onTouchEnd={() => setIsGas(false)}
           onMouseDown={() => setIsGas(true)}
           onMouseUp={() => setIsGas(false)}
-          className={`w-20 h-20 rounded-2xl glass-panel border border-emerald-500/40 flex flex-col items-center justify-center text-xs font-bold transition-all active:scale-90 ${
+          className={`w-20 h-20 rounded-2xl glass-panel ring-1 ring-indigo-400/30 flex flex-col items-center justify-center text-xs font-bold transition-all active:scale-90 ${
             isGas ? 'bg-emerald-600/60 border-emerald-400 text-white scale-95 shadow-lg' : 'bg-slate-900/60 text-emerald-300'
           }`}
         >

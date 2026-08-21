@@ -132,7 +132,7 @@ export function ensureUUID(id?: string): string {
 
 async function getAuthenticatedUserId(): Promise<string | null> {
   const storeUser = useAuthStore.getState().user || useAuthStore.getState().session?.user;
-  if (storeUser?.id) return storeUser.id;
+  if (storeUser?.id && isValidUUID(storeUser.id)) return storeUser.id;
   try {
     const { data } = await supabase.auth.getSession();
     return data.session?.user?.id ?? null;
@@ -211,11 +211,11 @@ export const useJourneyStore = create<JourneyState>()(
       },
 
       checkBadges: () => {
-        const { xp, journal, quranNotes, hadisNotes, lessons, suukurList = get().sukurList, totalZikir, eisenhower, unlockBadge } = get() as any;
+        const { xp, journal, quranNotes, hadisNotes, lessons, sukurList, totalZikir, eisenhower, unlockBadge } = get();
         const completedTasks = [...eisenhower.q1, ...eisenhower.q2, ...eisenhower.q3, ...eisenhower.q4].filter(t => t.done).length;
 
-        if (xp > 0 || journal.length > 0 || suukurList.length > 0) unlockBadge('first_step');
-        if (suukurList.length >= 20) unlockBadge('sukur_master');
+        if (xp > 0 || journal.length > 0 || sukurList.length > 0) unlockBadge('first_step');
+        if (sukurList.length >= 20) unlockBadge('sukur_master');
         if (totalZikir >= 500) unlockBadge('zikir_master');
         if (quranNotes.length >= 10) unlockBadge('kuran_dostu');
         if (hadisNotes.length >= 10) unlockBadge('hadis_alimi');

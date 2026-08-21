@@ -1,23 +1,17 @@
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient as createSupabaseBrowserClient } from '@supabase/ssr'
+import type { Database, ProfileRow, ChatMessageRow } from '@/types/database'
 
 // Env tanımlı değilse client constructor'ı fırlatmasın diye güvenli fallback.
 // Gerçek env varken gerçek değerler kullanılır; yoksa istekler ağ katmanında
 // sessizce başarısız olur (çağıran tarafta try/catch ile yakalanır).
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'anon-key-placeholder'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'anon-key-placeholder'
 
 const makeClient = () =>
-  createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      // Supabase auth token'larını localStorage'de sakla (session persistence)
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  })
+  createSupabaseBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
 
-// Tarayıcı client'ı tek örnek (singleton) — birden fazla GoTrueClient örneği
-// uyarısını ve aynı storage key üzerinde eşzamanlı kullanımı önler.
+// Tarayıcı client'ı tek örnek (singleton). @supabase/ssr oturumu cookie'de
+// saklar; böylece aynı kullanıcı Server Component/Action katmanında da doğrulanır.
 let browserClient: ReturnType<typeof makeClient> | null = null
 
 export const createBrowserClient = () => {
@@ -29,19 +23,7 @@ export const createBrowserClient = () => {
 export const supabase = createBrowserClient()
 
 // Database tip tanımları (Supabase codegen yerine elle — basit kalması için)
-export type Profile = {
-  id: string
-  display_name: string
-  avatar_url: string | null
-  vehicle_type: string
-  xp: number
-  streak_current: number
-  streak_last_date: string
-  badges: string[]
-  total_zikir: number
-  created_at: string
-  updated_at: string
-}
+export type Profile = ProfileRow
 
 export type JournalEntryRow = {
   id: string
@@ -124,14 +106,7 @@ export type Friendship = {
   created_at: string
 }
 
-export type ChatMessage = {
-  id: string
-  sender_id: string
-  receiver_id: string
-  content: string
-  is_read: boolean
-  created_at: string
-}
+export type ChatMessage = ChatMessageRow
 
 export type PublicProfileSummary = {
   id: string

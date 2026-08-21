@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
+import { isValidUUID } from '@/store/useJourneyStore';
 import type { ChatMessage } from '@/lib/supabase';
 
 type ChatFriend = {
@@ -25,24 +26,35 @@ export default function ChatTab() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 1. Arkadaş listesini (son mesajlarla birlikte) çek
-  const fetchFriends = async () => {
-    if (!user) return;
+  const fetchFriends = useCallback(async () => {
+    if (!user || !isValidUUID(user.id)) {
+      setFriends([]);
+      return;
+    }
     try {
-      const { data, error } = await supabase.rpc('get_friends_with_last_message');
+      const { data, error } = await supabase.rpc('get_friends_with_last_message', { requesting_user: user.id });
       if (error) throw error;
-      setFriends(data || []);
+      setFriends((data || []).map((friend) => ({
+        id: friend.friend_id,
+        display_name: friend.display_name,
+        avatar_url: friend.avatar_url,
+        last_message: friend.last_message,
+        last_message_time: friend.last_message_at,
+      })));
     } catch (err) {
       console.warn('Sohbet arkadaşları alınamadı:', err);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    fetchFriends();
-  }, [user]);
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void fetchFriends(); });
+    return () => { cancelled = true; };
+  }, [fetchFriends]);
 
   // 2. Aktif arkadaş değiştiğinde mesajları çek
   useEffect(() => {
-    if (!user || !activeFriend) return;
+    if (!user || !activeFriend || !isValidUUID(user.id)) return;
     
     const loadMessages = async () => {
       setIsLoadingMessages(true);
@@ -73,11 +85,11 @@ export default function ChatTab() {
       .eq('is_read', false)
       .then();
 
-  }, [user, activeFriend]);
+  }, [user, activeFriend, fetchFriends]);
 
   // 3. Supabase Realtime Subscription (Sohbet açıkken yeni mesaj gelirse)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isValidUUID(user.id)) return;
 
     const channel = supabase.channel('realtime:chat_messages')
       .on(
@@ -111,7 +123,7 @@ export default function ChatTab() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, activeFriend]);
+  }, [user, activeFriend, fetchFriends]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -144,8 +156,8 @@ export default function ChatTab() {
     <div className="max-w-6xl mx-auto h-[calc(100vh-140px)] min-h-[500px] flex gap-4 animate-in slide-in-from-bottom-4 duration-500 fade-in">
       
       {/* ── Sol: Arkadaş Listesi ── */}
-      <div className="w-1/3 md:w-80 bg-white/5 border border-white/10 rounded-3xl flex flex-col overflow-hidden">
-        <div className="p-5 border-b border-white/5 bg-black/20">
+      <div className="sah-card w-1/3 md:w-80 flex flex-col overflow-hidden">
+        <div className="p-6 bg-black/20 shadow-[0_8px_20px_rgba(0,0,0,0.12)]">
           <h3 className="font-bold text-white flex items-center gap-2">
             <span>💭</span> Sohbetler
           </h3>
@@ -153,8 +165,10 @@ export default function ChatTab() {
         
         <div className="flex-1 overflow-y-auto p-2">
           {friends.length === 0 ? (
-            <div className="p-4 text-center text-sm text-slate-500">
-              Henüz kimseyle arkadaş değilsin.
+            <div className="sah-empty-state m-2 min-h-40 p-4 text-sm">
+              <span className="text-3xl">🌙</span>
+              <strong className="text-slate-300">Sohbet listesi sessiz</strong>
+              <span>Arkadaş eklediğinde konuşmaların burada başlayacak.</span>
             </div>
           ) : (
             friends.map(f => (
@@ -170,9 +184,9 @@ export default function ChatTab() {
                 <img 
                   src={f.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${f.display_name}`} 
                   alt="Avatar" 
-                  className="w-12 h-12 rounded-full bg-black/30 border border-white/10 flex-shrink-0"
+                  className="w-12 h-12 rounded-full bg-black/30 ring-1 ring-white/10 flex-shrink-0"
                 />
-                <div className="flex-1 min-w-0 overflow-hidden pt-0.5">
+                <div className="flex-1 min-w-0 overflow-hidden pt-1">
                   <div className="font-bold text-sm truncate">{f.display_name}</div>
                   <div className={`text-xs truncate ${activeFriend?.id === f.id ? 'text-indigo-200' : 'text-slate-500'}`}>
                     {f.last_message || 'Sohbete başla...'}
@@ -185,11 +199,11 @@ export default function ChatTab() {
       </div>
 
       {/* ── Sağ: Mesajlaşma Alanı ── */}
-      <div className="flex-1 bg-white/5 border border-white/10 rounded-3xl flex flex-col overflow-hidden relative">
+      <div className="sah-card flex-1 flex flex-col overflow-hidden relative">
         {activeFriend ? (
           <>
             {/* Sohbet Başlığı */}
-            <div className="h-16 px-6 border-b border-white/5 bg-black/20 flex items-center gap-3">
+            <div className="h-16 px-6 bg-black/20 shadow-[0_8px_20px_rgba(0,0,0,0.12)] flex items-center gap-3">
               <img 
                 src={activeFriend.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${activeFriend.display_name}`} 
                 alt="Avatar" 
@@ -205,7 +219,7 @@ export default function ChatTab() {
                   <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-slate-500 space-y-3">
+                <div className="sah-empty-state h-full text-slate-500">
                   <span className="text-4xl">👋</span>
                   <p>İlk mesajı sen gönder!</p>
                 </div>
@@ -214,10 +228,10 @@ export default function ChatTab() {
                   const isMe = msg.sender_id === user?.id;
                   return (
                     <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[75%] px-5 py-3 rounded-2xl text-sm leading-relaxed ${
+                      <div className={`max-w-[75%] px-6 py-3 rounded-2xl text-sm leading-relaxed ${
                         isMe 
                           ? 'bg-indigo-600 text-white rounded-br-sm shadow-md shadow-indigo-600/20' 
-                          : 'bg-slate-800 text-slate-200 rounded-bl-sm border border-white/5 shadow-md shadow-black/20'
+                          : 'bg-slate-800 text-slate-200 rounded-bl-lg shadow-md shadow-black/20'
                       }`}>
                         {msg.content}
                         <div className={`text-[10px] mt-1 text-right ${isMe ? 'text-indigo-200' : 'text-slate-500'}`}>
@@ -232,19 +246,19 @@ export default function ChatTab() {
             </div>
 
             {/* Mesaj Gönderme */}
-            <div className="p-4 bg-black/30 border-t border-white/5">
+            <div className="p-4 bg-black/30 shadow-[0_-8px_20px_rgba(0,0,0,0.12)]">
               <form onSubmit={handleSendMessage} className="flex gap-2">
                 <input
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Mesaj yaz..."
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="glass-input flex-1 px-4 py-3"
                 />
                 <button
                   type="submit"
                   disabled={!newMessage.trim()}
-                  className="w-12 h-12 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/10 text-white rounded-xl transition-colors cursor-pointer flex-shrink-0"
+                  className="sah-button-primary w-12 h-12 flex items-center justify-center disabled:opacity-40 flex-shrink-0"
                 >
                   <span className="text-xl -ml-1">➤</span>
                 </button>
@@ -252,7 +266,7 @@ export default function ChatTab() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+          <div className="sah-empty-state flex-1 m-6 text-slate-500">
             <span className="text-5xl mb-4 opacity-50">💭</span>
             <p>Sohbet etmek için sol taraftan bir arkadaş seçin.</p>
           </div>

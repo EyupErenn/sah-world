@@ -1,274 +1,235 @@
 'use client';
 
-import { useMemo, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { VILLAGE_LOCATIONS, getTerrainHeight, isRoadSurface } from '@/lib/villageData';
+import {
+  VILLAGE_LOCATIONS,
+  WORLD_BOUNDS,
+  WORLD_SIZE,
+  getRoadDistance,
+  getActiveRoadPaths,
+  getStreamCenterZ,
+  getTerrainHeight,
+  isRoadSurface,
+} from '@/lib/villageData';
+import { WORLD_COLORS } from '@/lib/designTokens';
+import type { VillageTier } from '@/lib/growth';
+import { SafeGltfInstances, SafeGltfModel, preloadGltfAssets, type AssetTransform } from './ModelAsset';
 
-// ============================================================
-// Procedural Village Terrain with Vertex Colors, Lake & Roads
-// ============================================================
+interface SceneryPoint {
+  x: number;
+  y: number;
+  z: number;
+  scale: number;
+  rotation: number;
+}
+const TREE_MODELS = [
+  '/models/nature/tree_cone_dark.glb',
+  '/models/nature/tree_default.glb',
+  '/models/nature/tree_detailed.glb',
+  '/models/nature/tree_oak.glb',
+  '/models/nature/tree_pineTallA_detailed.glb',
+  '/models/nature/tree_pineRoundC.glb',
+  '/models/nature/tree_plateau.glb',
+  '/models/nature/tree_thin_dark.glb',
+];
+const FLOWERING_TREE_MODELS = ['/models/nature/tree_small_fall.glb', '/models/nature/tree_blocks_fall.glb'];
+const ROCK_MODELS = ['/models/nature/rock_largeA.glb', '/models/nature/rock_largeC.glb', '/models/nature/rock_tallD.glb'];
+const BUSH_MODELS = ['/models/nature/plant_bush.glb', '/models/nature/plant_bushDetailed.glb', '/models/nature/plant_bushLarge.glb'];
 
-function createVillageTerrainGeometry() {
-  const size = 160;
-  const segments = 56;
+preloadGltfAssets([...TREE_MODELS, ...FLOWERING_TREE_MODELS, ...ROCK_MODELS, ...BUSH_MODELS, '/models/nature/bridge_stone.glb']);
 
-  const geo = new THREE.PlaneGeometry(size, size, segments, segments);
-  const posAttr = geo.attributes.position;
+function seeded(seed: number) {
+  const value = Math.sin(seed * 91.731) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+function createVillageTerrainGeometry(villageTier: VillageTier) {
+  const geometry = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, 112, 112);
+  const positions = geometry.attributes.position;
   const colors: number[] = [];
+  const grassLow = new THREE.Color(WORLD_COLORS.grassLow);
+  const grassHigh = new THREE.Color(WORLD_COLORS.grassHigh);
+  const road = new THREE.Color(WORLD_COLORS.road);
+  const plaza = new THREE.Color(WORLD_COLORS.plaza);
+  const rock = new THREE.Color(WORLD_COLORS.rock);
+  const soil = new THREE.Color(WORLD_COLORS.soil);
 
-  const grassColor = new THREE.Color('#064e3b');
-  const grassHighlight = new THREE.Color('#047857');
-  const pathColor = new THREE.Color('#1e293b');
-  const plazaColor = new THREE.Color('#334155');
-  const hillSummitColor = new THREE.Color('#1e1b4b');
-  const sandColor = new THREE.Color('#451a03');
+  for (let index = 0; index < positions.count; index += 1) {
+    const x = positions.getX(index);
+    const z = -positions.getY(index);
+    const height = getTerrainHeight(x, z);
+    const slope = Math.abs(getTerrainHeight(x + 1.5, z) - height) + Math.abs(getTerrainHeight(x, z + 1.5) - height);
+    const roadDistance = getRoadDistance(x, z, villageTier);
+    const color = new THREE.Color();
+    positions.setZ(index, height);
 
-  for (let i = 0; i < posAttr.count; i++) {
-    const x = posAttr.getX(i);
-    const z = -posAttr.getY(i);
-
-    const h = getTerrainHeight(x, z);
-    posAttr.setZ(i, h);
-
-    const distFromCenter = Math.hypot(x, z);
-    const onRoad = isRoadSurface(x, z);
-    const tempColor = new THREE.Color();
-
-    if (distFromCenter < 14) {
-      tempColor.copy(plazaColor);
-    } else if (onRoad) {
-      tempColor.copy(pathColor);
-    } else if (h < -0.2) {
-      tempColor.copy(sandColor);
-    } else if (h > 3.0) {
-      tempColor.copy(hillSummitColor);
-    } else {
-      const t = Math.min(1.0, Math.max(0, h / 2.0));
-      tempColor.copy(grassColor).lerp(grassHighlight, t);
+    if (Math.hypot(x, z) < 17) color.copy(plaza);
+    else if (isRoadSurface(x, z, villageTier)) {
+      if (villageTier === 1) color.copy(soil).multiplyScalar(0.82);
+      else color.copy(road).lerp(soil, villageTier === 2 ? 0.22 : 0);
+    } else if (slope > 1.15 || height > 8) color.copy(rock).lerp(soil, 0.28);
+    else if (roadDistance < 10 || Math.abs(z - getStreamCenterZ(x)) < 9) color.copy(soil).lerp(grassLow, 0.25);
+    else {
+      const heightMix = THREE.MathUtils.clamp((height + 3) / 11, 0, 1);
+      const variation = seeded(index + Math.round(x * 3 + z * 5)) * 0.13;
+      color.copy(grassLow).lerp(grassHigh, THREE.MathUtils.clamp(heightMix * 0.62 + variation, 0, 1));
     }
-
-    colors.push(tempColor.r, tempColor.g, tempColor.b);
+    colors.push(color.r, color.g, color.b);
   }
 
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  geo.computeVertexNormals();
-  return geo;
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
-// ── Water Lake ──
-function VillageLake() {
-  const waterRef = useRef<THREE.Mesh>(null);
-
-  useFrame(({ clock }) => {
-    if (waterRef.current) {
-      waterRef.current.position.y = -0.15 + Math.sin(clock.getElapsedTime() * 1.2) * 0.03;
+function createRiverGeometry() {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  const samples = 80;
+  const riverWidth = 6.4;
+  for (let index = 0; index <= samples; index += 1) {
+    const x = -WORLD_BOUNDS - 6 + (index / samples) * (WORLD_BOUNDS * 2 + 12);
+    const z = getStreamCenterZ(x);
+    const nextZ = getStreamCenterZ(x + 1);
+    const tangent = new THREE.Vector2(1, nextZ - z).normalize();
+    const normal = new THREE.Vector2(-tangent.y, tangent.x);
+    const waterY = getTerrainHeight(x, z) + 0.22;
+    positions.push(x + normal.x * riverWidth, waterY, z + normal.y * riverWidth, x - normal.x * riverWidth, waterY, z - normal.y * riverWidth);
+    uvs.push(index / samples, 0, index / samples, 1);
+    if (index < samples) {
+      const offset = index * 2;
+      indices.push(offset, offset + 2, offset + 1, offset + 2, offset + 3, offset + 1);
     }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function VillageRiver() {
+  const materialRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const riverGeometry = useMemo(() => createRiverGeometry(), []);
+  const bridgeZ = getStreamCenterZ(13);
+  useFrame(({ clock }) => {
+    if (!materialRef.current) return;
+    materialRef.current.emissiveIntensity = 0.2 + Math.sin(clock.elapsedTime * 1.15) * 0.06;
+    materialRef.current.opacity = 0.86 + Math.sin(clock.elapsedTime * 0.8) * 0.035;
   });
-
   return (
-    <group position={[-14, 0, 12]}>
-      {/* Lake Bed Soft Rim */}
-      <mesh position={[0, -0.22, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[11.6, 32]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.9} />
+    <group>
+      <mesh geometry={riverGeometry} receiveShadow renderOrder={2}>
+        <meshPhysicalMaterial ref={materialRef} color="#38bdf8" emissive="#075985" emissiveIntensity={0.2} roughness={0.12} metalness={0.2} transmission={0.38} thickness={0.5} transparent opacity={0.88} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
-
-      {/* Lake Water Surface */}
-      <mesh ref={waterRef} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[11.2, 32]} />
-        <meshPhysicalMaterial
-          color="#0284c7"
-          roughness={0.08}
-          metalness={0.25}
-          transmission={0.7}
-          thickness={0.6}
-          transparent
-          opacity={0.92}
-        />
-      </mesh>
+      <SafeGltfModel url="/models/nature/bridge_stone.glb" position={[13, getTerrainHeight(13, bridgeZ) + 0.24, bridgeZ]} rotation={[0, -0.12, 0]} scale={[3.1, 1.5, 4.1]} fallbackColor="#64748b" />
     </group>
   );
 }
 
-// ── Instanced Trees, Shadows & Road Lanterns ──
-function InstancedVillageScenery() {
-  const treeTrunkRef = useRef<THREE.InstancedMesh>(null);
-  const treeLeavesRef = useRef<THREE.InstancedMesh>(null);
-  const treeShadowRef = useRef<THREE.InstancedMesh>(null);
+function addToGroup(groups: Record<string, AssetTransform[]>, url: string, point: SceneryPoint, modelScale: number) {
+  (groups[url] ??= []).push({ position: [point.x, point.y, point.z], rotation: [0, point.rotation, 0], scale: point.scale * modelScale });
+}
+
+function ModelVillageScenery({ villageTier }: { villageTier: VillageTier }) {
   const lanternPostRef = useRef<THREE.InstancedMesh>(null);
   const lanternBulbRef = useRef<THREE.InstancedMesh>(null);
-
-  const trunkGeo = useMemo(() => new THREE.CylinderGeometry(0.22, 0.35, 2.0, 6), []);
-  const leavesGeo = useMemo(() => new THREE.ConeGeometry(1.2, 2.4, 6), []);
-  const shadowGeo = useMemo(() => new THREE.CircleGeometry(1.4, 16), []);
-  const lanternGeo = useMemo(() => new THREE.CylinderGeometry(0.08, 0.12, 2.6, 6), []);
-  const bulbGeo = useMemo(() => new THREE.SphereGeometry(0.18, 8, 8), []);
-
-  const trunkMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#451a03', roughness: 0.9 }), []);
-  const leavesMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#065f46', roughness: 0.6 }), []);
-  const shadowMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#020617', transparent: true, opacity: 0.45, depthWrite: false }), []);
-  const lanternMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#1e293b', metalness: 0.85 }), []);
-  const bulbMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#fbbf24', emissive: '#f59e0b', emissiveIntensity: 3.5 }), []);
-
-  const sceneryData = useMemo(() => {
-    const trees: Array<{ x: number; y: number; z: number; scale: number }> = [];
-    const lanterns: Array<{ x: number; y: number; z: number }> = [];
-
-    // 1. Lanterns along road connections
-    for (const loc of VILLAGE_LOCATIONS) {
-      if (loc.id === 0) continue;
-      for (const t of [0.35, 0.7]) {
-        const lx = loc.x * t + 1.8;
-        const lz = loc.z * t + 1.8;
-        const ly = getTerrainHeight(lx, lz);
-        lanterns.push({ x: lx, y: ly, z: lz });
-      }
-    }
-
-    // 2. Trees scattered around the meadows and borders
-    for (let gx = -70; gx <= 70; gx += 12) {
-      for (let gz = -70; gz <= 70; gz += 12) {
-        const jitterX = ((gx * 37 + gz * 19) % 7) - 3.5;
-        const jitterZ = ((gx * 23 + gz * 43) % 7) - 3.5;
-        const x = gx + jitterX;
-        const z = gz + jitterZ;
-
-        if (isRoadSurface(x, z) || Math.hypot(x, z) < 18 || Math.hypot(x + 14, z - 12) < 14) {
-          continue;
+  const scenery = useMemo(() => {
+    const groups: Record<string, AssetTransform[]> = {};
+    const lanterns: SceneryPoint[] = [];
+    for (let gx = -142; gx <= 142; gx += 10) {
+      for (let gz = -142; gz <= 142; gz += 10) {
+        const seed = (gx + 171) * 401 + (gz + 173) * 97;
+        const x = gx + (seeded(seed) - 0.5) * 8;
+        const z = gz + (seeded(seed + 1) - 0.5) * 8;
+        const nearStation = VILLAGE_LOCATIONS.some(location => Math.hypot(x - location.x, z - location.z) < (location.id === 8 ? 24 : 17));
+        const nearRiver = Math.abs(z - getStreamCenterZ(x)) < 12;
+        if (isRoadSurface(x, z, villageTier) || nearStation || nearRiver || Math.hypot(x, z) < 25 || seeded(seed + 2) < (villageTier === 1 ? 0.42 : 0.28)) continue;
+        const point: SceneryPoint = { x, y: getTerrainHeight(x, z), z, scale: 0.72 + seeded(seed + 3) * 0.72, rotation: seeded(seed + 4) * Math.PI * 2 };
+        addToGroup(groups, TREE_MODELS[Math.floor(seeded(seed + 5) * TREE_MODELS.length)], point, 1.32);
+        if (seeded(seed + 6) > 0.68) {
+          const detail: SceneryPoint = { x: x + (seeded(seed + 7) - 0.5) * 7, z: z + (seeded(seed + 8) - 0.5) * 7, y: 0, scale: 0.55 + seeded(seed + 9) * 0.7, rotation: seeded(seed + 10) * Math.PI };
+          detail.y = getTerrainHeight(detail.x, detail.z);
+          const isRock = seeded(seed + 11) > 0.48;
+          const collection = isRock ? ROCK_MODELS : BUSH_MODELS;
+          addToGroup(groups, collection[Math.floor(seeded(seed + 12) * collection.length)], detail, isRock ? 1.3 : 1.05);
         }
-
-        const y = getTerrainHeight(x, z);
-        const scale = 0.85 + Math.abs((gx * 13 + gz * 7) % 5) * 0.18;
-        trees.push({ x, y, z, scale });
       }
     }
-
-    return { trees, lanterns };
-  }, []);
+    const floweringTreeCount = villageTier === 1 ? 0 : villageTier === 2 ? 8 : 26;
+    for (let index = 0; index < floweringTreeCount; index += 1) {
+      const angle = (index / 26) * Math.PI * 2 + seeded(index + 900) * 0.4;
+      const radius = 13 + (index % 4) * 4.2;
+      const x = 24 + Math.cos(angle) * radius;
+      const z = 116 + Math.sin(angle) * radius;
+      addToGroup(groups, FLOWERING_TREE_MODELS[index % FLOWERING_TREE_MODELS.length], { x, y: getTerrainHeight(x, z), z, scale: 0.76 + seeded(index + 940) * 0.44, rotation: angle }, 1.28);
+    }
+    const lanternSpacing = villageTier === 2 ? 44 : villageTier === 3 ? 30 : 20;
+    for (const path of villageTier === 1 ? [] : getActiveRoadPaths(villageTier)) {
+      for (let segment = 0; segment < path.points.length - 1; segment += 1) {
+        const start = path.points[segment];
+        const end = path.points[segment + 1];
+        const dx = end[0] - start[0];
+        const dz = end[1] - start[1];
+        const length = Math.hypot(dx, dz);
+        const nx = -dz / length;
+        const nz = dx / length;
+        for (let distance = 16; distance < length; distance += lanternSpacing) {
+          const t = distance / length;
+          const side = (segment + Math.round(distance / 13)) % 2 === 0 ? 1 : -1;
+          const x = start[0] + dx * t + nx * (path.width + 2.2) * side;
+          const z = start[1] + dz * t + nz * (path.width + 2.2) * side;
+          lanterns.push({ x, y: getTerrainHeight(x, z), z, scale: 1, rotation: 0 });
+        }
+      }
+    }
+    return { groups, lanterns };
+  }, [villageTier]);
 
   useEffect(() => {
-    if (!treeTrunkRef.current || !treeLeavesRef.current || !treeShadowRef.current || !lanternPostRef.current || !lanternBulbRef.current) return;
-
+    if (!lanternPostRef.current || !lanternBulbRef.current) return;
     const dummy = new THREE.Object3D();
-
-    // Setup Trees
-    sceneryData.trees.forEach((t, i) => {
-      // Tree Ground Shadow
-      dummy.position.set(t.x, t.y + 0.02, t.z);
-      dummy.rotation.set(-Math.PI / 2, 0, 0);
-      dummy.scale.set(t.scale, t.scale, 1);
+    scenery.lanterns.forEach((point, index) => {
+      dummy.position.set(point.x, point.y + 1.45, point.z);
       dummy.updateMatrix();
-      treeShadowRef.current!.setMatrixAt(i, dummy.matrix);
-
-      // Trunk
-      dummy.position.set(t.x, t.y + 1.0 * t.scale, t.z);
-      dummy.scale.set(t.scale, t.scale, t.scale);
-      dummy.rotation.set(0, (i * 0.5) % Math.PI, 0);
+      lanternPostRef.current!.setMatrixAt(index, dummy.matrix);
+      dummy.position.y = point.y + 2.82;
       dummy.updateMatrix();
-      treeTrunkRef.current!.setMatrixAt(i, dummy.matrix);
-
-      // Leaves
-      dummy.position.set(t.x, t.y + 2.8 * t.scale, t.z);
-      dummy.scale.set(t.scale * 1.6, t.scale * 2.2, t.scale * 1.6);
-      dummy.updateMatrix();
-      treeLeavesRef.current!.setMatrixAt(i, dummy.matrix);
+      lanternBulbRef.current!.setMatrixAt(index, dummy.matrix);
     });
-
-    // Setup Lanterns
-    sceneryData.lanterns.forEach((l, i) => {
-      // Post
-      dummy.position.set(l.x, l.y + 1.3, l.z);
-      dummy.scale.set(1, 1, 1);
-      dummy.rotation.set(0, 0, 0);
-      dummy.updateMatrix();
-      lanternPostRef.current!.setMatrixAt(i, dummy.matrix);
-
-      // Glowing Bulb
-      dummy.position.set(l.x, l.y + 2.5, l.z);
-      dummy.updateMatrix();
-      lanternBulbRef.current!.setMatrixAt(i, dummy.matrix);
-    });
-
-    treeShadowRef.current.instanceMatrix.needsUpdate = true;
-    treeTrunkRef.current.instanceMatrix.needsUpdate = true;
-    treeLeavesRef.current.instanceMatrix.needsUpdate = true;
     lanternPostRef.current.instanceMatrix.needsUpdate = true;
     lanternBulbRef.current.instanceMatrix.needsUpdate = true;
-  }, [sceneryData]);
+  }, [scenery.lanterns]);
 
+  const lanternCount = Math.max(1, scenery.lanterns.length);
   return (
     <group>
-      {/* Tree Ground Shadows */}
-      <instancedMesh
-        ref={treeShadowRef}
-        args={[shadowGeo, shadowMat, Math.max(1, sceneryData.trees.length)]}
-      />
-
-      {/* Tree Trunks */}
-      <instancedMesh
-        ref={treeTrunkRef}
-        args={[trunkGeo, trunkMat, Math.max(1, sceneryData.trees.length)]}
-        castShadow
-      />
-
-      {/* Tree Foliage */}
-      <instancedMesh
-        ref={treeLeavesRef}
-        args={[leavesGeo, leavesMat, Math.max(1, sceneryData.trees.length)]}
-        castShadow
-      />
-
-      {/* Road Lantern Posts */}
-      <instancedMesh
-        ref={lanternPostRef}
-        args={[lanternGeo, lanternMat, Math.max(1, sceneryData.lanterns.length)]}
-        castShadow
-      />
-
-      {/* Road Lantern Glowing Bulbs */}
-      <instancedMesh
-        ref={lanternBulbRef}
-        args={[bulbGeo, bulbMat, Math.max(1, sceneryData.lanterns.length)]}
-      />
+      {Object.entries(scenery.groups).map(([url, transforms]) => <SafeGltfInstances key={url} url={url} transforms={transforms} />)}
+      <instancedMesh ref={lanternPostRef} args={[undefined, undefined, lanternCount]} castShadow>
+        <cylinderGeometry args={[0.09, 0.13, 2.9, 7]} />
+        <meshStandardMaterial color="#1e293b" metalness={0.82} roughness={0.3} />
+      </instancedMesh>
+      <instancedMesh ref={lanternBulbRef} args={[undefined, undefined, lanternCount]} castShadow>
+        <sphereGeometry args={[0.2, 8, 8]} />
+        <meshStandardMaterial color={WORLD_COLORS.lantern} emissive="#f59e0b" emissiveIntensity={3.3} />
+      </instancedMesh>
     </group>
   );
 }
 
-export default function VillageTerrain() {
-  const terrainGeo = useMemo(() => createVillageTerrainGeometry(), []);
-
+export default function VillageTerrain({ villageTier }: { villageTier: VillageTier }) {
+  const terrainGeometry = useMemo(() => createVillageTerrainGeometry(villageTier), [villageTier]);
   return (
     <group>
-      {/* Main Village Undulating Terrain */}
-      <mesh
-        geometry={terrainGeo}
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, 0, 0]}
-        receiveShadow
-      >
-        <meshStandardMaterial
-          vertexColors
-          roughness={0.82}
-          metalness={0.06}
-        />
-      </mesh>
-
-      {/* Central Plaza Compass Inlay */}
-      <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <circleGeometry args={[14, 32]} />
-        <meshStandardMaterial color="#334155" roughness={0.6} metalness={0.2} />
-      </mesh>
-      <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[13.2, 13.8, 32]} />
-        <meshStandardMaterial color="#6366f1" emissive="#818cf8" emissiveIntensity={2.0} />
-      </mesh>
-
-      {/* Village Water Lake */}
-      <VillageLake />
-
-      {/* Instanced Scenery with Shadows & Glowing Lanterns */}
-      <InstancedVillageScenery />
+      <mesh geometry={terrainGeometry} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><meshStandardMaterial vertexColors roughness={0.86} metalness={0.04} /></mesh>
+      <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><ringGeometry args={[8, 17, 48]} /><meshStandardMaterial color={villageTier === 1 ? WORLD_COLORS.soil : WORLD_COLORS.plaza} roughness={0.68} metalness={villageTier === 1 ? 0 : 0.12} /></mesh>
+      {villageTier >= 2 && <group><mesh position={[0, 0.07, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[7.35, 7.8, 48]} /><meshStandardMaterial color="#6366f1" emissive="#4f46e5" emissiveIntensity={1.2 + villageTier * 0.12} /></mesh><mesh position={[0, 0.18, 0]} castShadow><cylinderGeometry args={[2.4, 2.8, 0.35, 12]} /><meshStandardMaterial color="#334155" roughness={0.7} /></mesh><mesh position={[0, 1.45, 0]} castShadow><octahedronGeometry args={[1.15, 0]} /><meshStandardMaterial color="#818cf8" emissive="#4f46e5" emissiveIntensity={1.6 + villageTier * 0.2} metalness={0.6} roughness={0.2} /></mesh></group>}
+      <VillageRiver />
+      <ModelVillageScenery villageTier={villageTier} />
     </group>
   );
 }

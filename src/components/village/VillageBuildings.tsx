@@ -1,803 +1,257 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import { VILLAGE_LOCATIONS, getTerrainHeight } from '@/lib/villageData';
+import type { StationTier, StationTierMap, VillageTier } from '@/lib/growth';
+import { SafeGltfInstances, SafeGltfModel, preloadGltfAssets, type AssetTransform } from './ModelAsset';
 
 interface VillageBuildingsProps {
   activeBuildingId: number | null;
   xp: number;
+  villageTier: VillageTier;
+  stationTiers: StationTierMap;
 }
+const BUILDING = {
+  floor: '/models/buildings/floor.glb',
+  wall: '/models/buildings/wall.glb',
+  roundCorner: '/models/buildings/wall-corner-round.glb',
+  squareDoor: '/models/buildings/wall-doorway-square.glb',
+  roundDoor: '/models/buildings/wall-doorway-round.glb',
+  wideRoundDoor: '/models/buildings/wall-doorway-wide-round.glb',
+  squareWindow: '/models/buildings/wall-window-square-detailed.glb',
+  roundWindow: '/models/buildings/wall-window-round-detailed.glb',
+  wideWindow: '/models/buildings/wall-window-wide-square.glb',
+  column: '/models/buildings/column.glb',
+  thinColumn: '/models/buildings/column-thin.glb',
+  wideColumn: '/models/buildings/column-wide.glb',
+  roof: '/models/buildings/roof-flat-square.glb',
+  roofCorner: '/models/buildings/roof-flat-corner.glb',
+  stairs: '/models/buildings/stairs-center.glb',
+  border: '/models/buildings/border.glb',
+  borderRound: '/models/buildings/border-corner-round.glb',
+  plating: '/models/buildings/plating-detailed.glb',
+} as const;
 
-// ── Contact Ground Shadow Helper ──
-function BuildingGroundShadow({ radius = 5.5, opacity = 0.55 }: { radius?: number; opacity?: number }) {
-  return (
-    <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <circleGeometry args={[radius, 32]} />
-      <meshBasicMaterial color="#020617" transparent opacity={opacity} depthWrite={false} />
-    </mesh>
-  );
-}
+preloadGltfAssets(Object.values(BUILDING));
 
-// ============================================================
-// 1. GÜNLÜK: Cozy Cabin / Mountain Lodge with Charming Details
-// ============================================================
-function CabinStructure({ isActive }: { isActive: boolean }) {
-  const smokePuffs = useRef<THREE.Group>(null);
-  const lanternLightRef = useRef<THREE.PointLight>(null);
-
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
-    if (smokePuffs.current) {
-      smokePuffs.current.children.forEach((puff, i) => {
-        const offset = i * 0.8;
-        const progress = ((t + offset) % 3.0) / 3.0; // 0 to 1
-        puff.position.y = 5.2 + progress * 2.8;
-        puff.position.x = Math.sin(t * 1.2 + i) * 0.25;
-        puff.scale.setScalar(0.35 + progress * 0.65);
-        const mat = (puff as THREE.Mesh).material as THREE.MeshStandardMaterial;
-        if (mat) mat.opacity = (1 - progress) * 0.55;
-      });
-    }
-    if (lanternLightRef.current) {
-      lanternLightRef.current.intensity = (isActive ? 3.0 : 1.6) + Math.sin(t * 4) * 0.2;
-    }
+function useStationScale(tier: StationTier) {
+  const groupRef = useRef<THREE.Group>(null);
+  useFrame((_, delta) => {
+    if (!groupRef.current) return;
+    const target = tier === 1 ? 0.86 : tier === 2 ? 0.98 : 1.1;
+    const factor = 1 - Math.exp(-3.4 * delta);
+    const next = THREE.MathUtils.lerp(groupRef.current.scale.x, target, factor);
+    groupRef.current.scale.setScalar(next);
   });
+  return groupRef;
+}
 
+function GrowthLayer({ active, children }: { active: boolean; children: ReactNode }) {
+  const groupRef = useRef<THREE.Group>(null);
+  useFrame((_, delta) => {
+    if (!groupRef.current) return;
+    const target = active ? 1 : 0.001;
+    const factor = 1 - Math.exp(-4.4 * delta);
+    const next = THREE.MathUtils.lerp(groupRef.current.scale.x, target, factor);
+    groupRef.current.scale.setScalar(next);
+    groupRef.current.visible = next > 0.008;
+  });
+  return <group ref={groupRef} scale={active ? 1 : 0.001}>{children}</group>;
+}
+
+interface ShellProps {
+  width?: number;
+  depth?: number;
+  height?: number;
+  tint: string;
+  door?: 'round' | 'square' | 'wide-round';
+  window?: 'round' | 'square' | 'wide';
+  position?: [number, number, number];
+  rotation?: [number, number, number];
+}
+
+function BuildingShell({ width = 2.8, depth = 2.4, height = 1, tint, door = 'square', window = 'square', position = [0, 0, 0], rotation = [0, 0, 0] }: ShellProps) {
+  const doorUrl = door === 'round' ? BUILDING.roundDoor : door === 'wide-round' ? BUILDING.wideRoundDoor : BUILDING.squareDoor;
+  const windowUrl = window === 'round' ? BUILDING.roundWindow : window === 'wide' ? BUILDING.wideWindow : BUILDING.squareWindow;
+  const wallY = 1.55 * height;
+  const roofY = 3.2 * height;
   return (
-    <group>
-      <BuildingGroundShadow radius={5.8} />
-
-      {/* Stone Foundation Base */}
-      <mesh position={[0, 0.35, 0]} castShadow receiveShadow>
-        <boxGeometry args={[6.6, 0.7, 5.8]} />
-        <meshStandardMaterial color="#475569" roughness={0.9} />
-      </mesh>
-
-      {/* Front Entrance Stone Steps */}
-      <mesh position={[0, 0.15, 3.2]} castShadow receiveShadow>
-        <boxGeometry args={[2.4, 0.3, 0.8]} />
-        <meshStandardMaterial color="#334155" roughness={0.9} />
-      </mesh>
-      <mesh position={[0, 0.3, 2.8]} castShadow receiveShadow>
-        <boxGeometry args={[2.0, 0.3, 0.6]} />
-        <meshStandardMaterial color="#475569" roughness={0.9} />
-      </mesh>
-
-      {/* Wooden Cabin Walls */}
-      <mesh position={[0, 1.9, 0]} castShadow receiveShadow>
-        <boxGeometry args={[5.8, 2.4, 5.2]} />
-        <meshStandardMaterial color="#78350f" roughness={0.8} />
-      </mesh>
-
-      {/* Corner Timber Posts */}
-      {[-2.8, 2.8].map((x, i) =>
-        [-2.5, 2.5].map((z, j) => (
-          <mesh key={`${i}-${j}`} position={[x, 1.9, z]} castShadow>
-            <cylinderGeometry args={[0.2, 0.22, 2.5, 6]} />
-            <meshStandardMaterial color="#451a03" roughness={0.8} />
-          </mesh>
-        ))
-      )}
-
-      {/* Pitched Wooden Roof */}
-      <mesh position={[0, 3.8, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
-        <coneGeometry args={[4.8, 2.0, 4]} />
-        <meshStandardMaterial color="#451a03" roughness={0.7} />
-      </mesh>
-
-      {/* Front Wooden Door with Frame */}
-      <mesh position={[0, 1.25, 2.62]} castShadow>
-        <boxGeometry args={[1.2, 1.9, 0.1]} />
-        <meshStandardMaterial color="#271306" />
-      </mesh>
-      {/* Warm Golden Door Glow Spill */}
-      <mesh position={[0, 1.25, 2.64]}>
-        <planeGeometry args={[0.9, 1.6]} />
-        <meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={isActive ? 2.5 : 1.2} />
-      </mesh>
-
-      {/* Warm Glowing Windows with Planter Flower Boxes */}
-      {[-1.8, 1.8].map((x, i) => (
-        <group key={i} position={[x, 1.8, 2.62]}>
-          <mesh>
-            <boxGeometry args={[1.0, 1.0, 0.08]} />
-            <meshStandardMaterial
-              color="#fbbf24"
-              emissive="#f59e0b"
-              emissiveIntensity={isActive ? 2.8 : 1.4}
-            />
-          </mesh>
-          {/* Flower Box */}
-          <mesh position={[0, -0.6, 0.12]} castShadow>
-            <boxGeometry args={[1.2, 0.22, 0.3]} />
-            <meshStandardMaterial color="#451a03" />
-          </mesh>
-          {/* Flowers in Box */}
-          {[-0.35, 0, 0.35].map((fx, fi) => (
-            <mesh key={fi} position={[fx, -0.42, 0.16]}>
-              <sphereGeometry args={[0.1, 6, 6]} />
-              <meshStandardMaterial color={fi % 2 === 0 ? '#f43f5e' : '#f59e0b'} />
-            </mesh>
-          ))}
-        </group>
-      ))}
-
-      {/* Stone Chimney */}
-      <mesh position={[1.8, 3.4, -1.2]} castShadow>
-        <boxGeometry args={[0.95, 3.6, 0.95]} />
-        <meshStandardMaterial color="#334155" roughness={0.9} />
-      </mesh>
-
-      {/* Animated Chimney Smoke Puffs */}
-      <group ref={smokePuffs} position={[1.8, 0, -1.2]}>
-        {[0, 1, 2].map(i => (
-          <mesh key={i} position={[0, 5.2, 0]}>
-            <sphereGeometry args={[0.4, 8, 8]} />
-            <meshStandardMaterial color="#e2e8f0" transparent opacity={0.5} roughness={0.9} />
-          </mesh>
-        ))}
-      </group>
-
-      {/* Porch Bench */}
-      <group position={[-2.2, 0.65, 3.1]}>
-        <mesh castShadow>
-          <boxGeometry args={[1.5, 0.1, 0.5]} />
-          <meshStandardMaterial color="#78350f" roughness={0.8} />
-        </mesh>
-        <mesh position={[0, 0.35, -0.22]} rotation={[-0.1, 0, 0]} castShadow>
-          <boxGeometry args={[1.5, 0.6, 0.08]} />
-          <meshStandardMaterial color="#78350f" roughness={0.8} />
-        </mesh>
-        {[-0.6, 0.6].map((bx, bi) => (
-          <mesh key={bi} position={[bx, -0.25, 0]} castShadow>
-            <boxGeometry args={[0.1, 0.4, 0.45]} />
-            <meshStandardMaterial color="#451a03" />
-          </mesh>
-        ))}
-      </group>
-
-      {/* Porch Hanging Lantern */}
-      <group position={[0.9, 2.3, 2.8]}>
-        <mesh castShadow>
-          <cylinderGeometry args={[0.02, 0.02, 0.35, 6]} />
-          <meshStandardMaterial color="#1e293b" metalness={0.9} />
-        </mesh>
-        <mesh position={[0, -0.2, 0]}>
-          <boxGeometry args={[0.22, 0.32, 0.22]} />
-          <meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={3.5} />
-        </mesh>
-        <pointLight ref={lanternLightRef} position={[0, -0.2, 0.2]} color="#f59e0b" intensity={2.2} distance={8} />
-      </group>
-
-      {/* Decorative Wooden Trail Sign */}
-      <group position={[3.6, 0, 2.5]} rotation={[0, -0.3, 0]}>
-        <mesh position={[0, 0.7, 0]} castShadow>
-          <cylinderGeometry args={[0.06, 0.08, 1.4, 6]} />
-          <meshStandardMaterial color="#78350f" />
-        </mesh>
-        <mesh position={[0.2, 1.1, 0]} castShadow>
-          <boxGeometry args={[0.7, 0.25, 0.06]} />
-          <meshStandardMaterial color="#fef3c7" roughness={0.6} />
-        </mesh>
-      </group>
+    <group position={position} rotation={rotation}>
+      <SafeGltfModel url={BUILDING.floor} position={[0, 0.05, 0]} scale={[width, 1, depth]} tint={tint} fallbackColor={tint} />
+      <SafeGltfModel url={BUILDING.wall} position={[0, wallY, -depth]} scale={[width, height, 1]} tint={tint} fallbackColor={tint} />
+      <SafeGltfModel url={doorUrl} position={[0, wallY, depth]} rotation={[0, Math.PI, 0]} scale={[width, height, 1]} tint={tint} fallbackColor={tint} />
+      <SafeGltfModel url={windowUrl} position={[-width, wallY, 0]} rotation={[0, Math.PI / 2, 0]} scale={[depth, height, 1]} tint={tint} fallbackColor={tint} />
+      <SafeGltfModel url={windowUrl} position={[width, wallY, 0]} rotation={[0, -Math.PI / 2, 0]} scale={[depth, height, 1]} tint={tint} fallbackColor={tint} />
+      <SafeGltfModel url={BUILDING.roof} position={[0, roofY, 0]} scale={[width * 1.1, 1, depth * 1.1]} tint={tint} fallbackColor={tint} />
+      <SafeGltfModel url={BUILDING.stairs} position={[0, 0.05, depth + 0.65]} rotation={[0, Math.PI, 0]} scale={[1.35, 0.72, 1.2]} tint={tint} fallbackColor={tint} />
     </group>
   );
 }
 
-// ============================================================
-// 2. KURAN: Gilded Dome Pavilion & Sacred Courtyard
-// ============================================================
-function QuranPavilion({ isActive }: { isActive: boolean }) {
-  const crystalRef = useRef<THREE.Group>(null);
-
-  useFrame(({ clock }) => {
-    if (crystalRef.current) {
-      crystalRef.current.rotation.y += 0.018;
-      crystalRef.current.position.y = 2.4 + Math.sin(clock.getElapsedTime() * 2) * 0.18;
-    }
-  });
-
+function ModelColumns({ radius, count, height, tint, y = 0 }: { radius: number; count: number; height: number; tint: string; y?: number }) {
   return (
     <group>
-      <BuildingGroundShadow radius={6.2} />
-
-      {/* Tiered Octagonal Marble Base */}
-      <mesh position={[0, 0.2, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[5.2, 5.6, 0.4, 8]} />
-        <meshStandardMaterial color="#f1f5f9" roughness={0.3} metalness={0.1} />
-      </mesh>
-      <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[4.4, 4.8, 0.35, 8]} />
-        <meshStandardMaterial color="#ffffff" roughness={0.25} metalness={0.15} />
-      </mesh>
-
-      {/* 6 Elegant Fluted Marble Columns */}
-      {[0, 1, 2, 3, 4, 5].map(i => {
-        const angle = (i * Math.PI) / 3;
-        const x = Math.cos(angle) * 3.4;
-        const z = Math.sin(angle) * 3.4;
-        return (
-          <group key={i} position={[x, 2.2, z]}>
-            <mesh castShadow>
-              <cylinderGeometry args={[0.22, 0.28, 3.2, 12]} />
-              <meshStandardMaterial color="#ffffff" roughness={0.2} metalness={0.2} />
-            </mesh>
-            {/* Column Capital & Base Ring */}
-            <mesh position={[0, 1.55, 0]} castShadow>
-              <boxGeometry args={[0.55, 0.12, 0.55]} />
-              <meshStandardMaterial color="#f59e0b" metalness={0.8} roughness={0.2} />
-            </mesh>
-            <mesh position={[0, -1.55, 0]} castShadow>
-              <boxGeometry args={[0.6, 0.12, 0.6]} />
-              <meshStandardMaterial color="#cbd5e1" roughness={0.4} />
-            </mesh>
-          </group>
-        );
+      {Array.from({ length: count }, (_, index) => {
+        const angle = index / count * Math.PI * 2;
+        return <SafeGltfModel key={index} url={BUILDING.thinColumn} position={[Math.cos(angle) * radius, y, Math.sin(angle) * radius]} scale={[0.75, height, 0.75]} tint={tint} fallbackColor={tint} />;
       })}
+    </group>
+  );
+}
 
-      {/* Gilded Dome Canopy */}
-      <mesh position={[0, 4.4, 0]} castShadow>
-        <sphereGeometry args={[3.6, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial
-          color="#f59e0b"
-          emissive="#d97706"
-          emissiveIntensity={isActive ? 0.9 : 0.4}
-          metalness={0.85}
-          roughness={0.15}
-        />
-      </mesh>
+function JournalStation({ tier }: { tier: StationTier }) {
+  const scaleRef = useStationScale(tier);
+  return (
+    <group ref={scaleRef}>
+      <BuildingShell width={3.1} depth={2.5} tint="#b45309" window="square" />
+      <SafeGltfModel url="/models/nature/log_stack.glb" position={[-4.2, 0, 1.8]} scale={1.4} />
+      <GrowthLayer active={tier >= 2}>
+        <SafeGltfModel url={BUILDING.roof} position={[0, 2.7, 4.15]} scale={[3.25, 0.72, 1.7]} tint="#92400e" />
+        {[-2.7, 2.7].map(x => <SafeGltfModel key={x} url={BUILDING.thinColumn} position={[x, 0, 4.6]} scale={[0.7, 1.6, 0.7]} tint="#78350f" />)}
+      </GrowthLayer>
+      <GrowthLayer active={tier >= 3}>
+        <BuildingShell width={1.9} depth={1.7} height={0.72} tint="#d97706" position={[0, 3.1, -0.35]} />
+        <SafeGltfModel url={BUILDING.wideWindow} position={[4.1, 1.25, -0.4]} rotation={[0, -Math.PI / 2, 0]} scale={[1.7, 1.3, 1]} tint="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.8} />
+        <Sparkles count={22} scale={[9, 7, 9]} color="#fde68a" size={1.8} speed={0.2} />
+      </GrowthLayer>
+      <pointLight position={[0, 2.4, 3.1]} color="#f59e0b" intensity={1.4 + tier * 0.45} distance={18} />
+    </group>
+  );
+}
 
-      {/* Dome Golden Finial */}
-      <mesh position={[0, 8.1, 0]}>
-        <cylinderGeometry args={[0.04, 0.08, 0.6, 8]} />
-        <meshStandardMaterial color="#fbbf24" metalness={0.9} emissive="#f59e0b" emissiveIntensity={1.5} />
-      </mesh>
-      <mesh position={[0, 8.45, 0]}>
-        <sphereGeometry args={[0.18, 12, 12]} />
-        <meshStandardMaterial color="#fbbf24" metalness={0.9} emissive="#f59e0b" emissiveIntensity={2.0} />
-      </mesh>
+function QuranStation({ tier }: { tier: StationTier }) {
+  const scaleRef = useStationScale(tier);
+  return (
+    <group ref={scaleRef}>
+      <SafeGltfModel url={BUILDING.floor} position={[0, 0.08, 0]} scale={[4.1, 1, 4.1]} tint="#fbbf24" />
+      <ModelColumns radius={3.6} count={6} height={2.5} tint="#f8fafc" />
+      <SafeGltfModel url={BUILDING.roofCorner} position={[0, 4.4, 0]} scale={[4.3, 1.2, 4.3]} tint="#fbbf24" emissive="#d97706" emissiveIntensity={0.3 + tier * 0.2} />
+      <SafeGltfModel url={BUILDING.wideRoundDoor} position={[0, 1.6, -2.7]} scale={[2.4, 1.5, 1]} tint="#f59e0b" />
+      <GrowthLayer active={tier >= 2}>
+        <ModelColumns radius={5.3} count={8} height={1.7} tint="#fde68a" />
+        <SafeGltfModel url={BUILDING.borderRound} position={[0, 4.9, 0]} scale={[4.8, 1, 4.8]} tint="#f59e0b" />
+      </GrowthLayer>
+      <GrowthLayer active={tier >= 3}>
+        <SafeGltfModel url={BUILDING.floor} position={[0, 0.16, 5.8]} scale={[2.4, 1, 2.4]} tint="#38bdf8" emissive="#0284c7" emissiveIntensity={0.7} />
+        {[[-2.3, 4.9], [2.3, 4.9], [-2.3, 6.8], [2.3, 6.8]].map(([x, z], index) => <SafeGltfModel key={index} url={BUILDING.roundCorner} position={[x, 0, z]} scale={[0.75, 1.8, 0.75]} tint="#fbbf24" />)}
+      </GrowthLayer>
+      <pointLight position={[0, 4, 0]} color="#fbbf24" intensity={2 + tier * 0.6} distance={22} />
+    </group>
+  );
+}
 
-      {/* Floating Sacred Script Crystal with Orbiting Ring */}
-      <group ref={crystalRef} position={[0, 2.4, 0]}>
-        <mesh castShadow>
-          <octahedronGeometry args={[0.95, 0]} />
-          <meshStandardMaterial
-            color="#fbbf24"
-            emissive="#f59e0b"
-            emissiveIntensity={isActive ? 3.5 : 1.8}
-            metalness={0.9}
-          />
-        </mesh>
-        <mesh rotation={[Math.PI / 4, 0, 0]}>
-          <torusGeometry args={[1.5, 0.06, 6, 24]} />
-          <meshStandardMaterial color="#fbbf24" emissive="#d97706" emissiveIntensity={2.0} />
-        </mesh>
-      </group>
+function HadisStation({ tier }: { tier: StationTier }) {
+  const scaleRef = useStationScale(tier);
+  return (
+    <group ref={scaleRef}>
+      <BuildingShell width={3.5} depth={2.8} tint="#475569" window="round" door="round" />
+      <SafeGltfModel url={BUILDING.plating} position={[0, 1.5, -2.95]} scale={[3, 1.5, 1]} tint="#10b981" />
+      <GrowthLayer active={tier >= 2}><BuildingShell width={1.8} depth={2.1} height={0.82} tint="#64748b" window="square" position={[4.8, 0, 0]} /><ModelColumns radius={4.8} count={4} height={1.55} tint="#d1fae5" /></GrowthLayer>
+      <GrowthLayer active={tier >= 3}><BuildingShell width={1.8} depth={2.1} height={0.82} tint="#64748b" window="square" position={[-4.8, 0, 0]} />{[-4.5, -1.5, 1.5, 4.5].map(x => <SafeGltfModel key={x} url={BUILDING.column} position={[x, 0, 5]} scale={[0.8, 2, 0.8]} tint="#f8fafc" />)}</GrowthLayer>
+      <pointLight position={[0, 2.8, 2.6]} color="#10b981" intensity={1.2 + tier * 0.45} distance={18} />
+    </group>
+  );
+}
 
-      {/* Miniature Cypress Shrubs in Pots Around Base */}
-      {[0.5, 2.5, 4.5].map((angleStep, idx) => {
-        const a = angleStep * (Math.PI / 3);
-        const px = Math.cos(a) * 4.8;
-        const pz = Math.sin(a) * 4.8;
+function MatrixStation({ tier }: { tier: StationTier }) {
+  const scaleRef = useStationScale(tier);
+  return (
+    <group ref={scaleRef}>
+      <BuildingShell width={2.7} depth={2.7} tint="#0891b2" window="wide" door="square" />
+      {[[-3.1, -3.1], [3.1, -3.1], [-3.1, 3.1], [3.1, 3.1]].map(([x, z], index) => <SafeGltfModel key={index} url={BUILDING.border} position={[x, 0.12, z]} rotation={[0, index % 2 ? Math.PI / 2 : 0, 0]} scale={[2.8, 1, 1]} tint="#22d3ee" emissive="#06b6d4" emissiveIntensity={1.1} />)}
+      <GrowthLayer active={tier >= 2}><SafeGltfModel url={BUILDING.plating} position={[0, 4.1, 0]} rotation={[0, Math.PI / 4, 0]} scale={[3.4, 2, 3.4]} tint="#22d3ee" emissive="#0891b2" emissiveIntensity={0.7} /></GrowthLayer>
+      <GrowthLayer active={tier >= 3}><BuildingShell width={1.85} depth={1.85} height={0.7} tint="#7c3aed" window="wide" position={[0, 3.25, 0]} />{[0, 1, 2].map(index => <SafeGltfModel key={index} url={BUILDING.borderRound} position={[0, 6.2 + index * 0.65, 0]} rotation={[index * 0.35, index * 0.6, 0]} scale={[3.1 - index * 0.35, 0.7, 3.1 - index * 0.35]} tint={index % 2 ? '#a78bfa' : '#22d3ee'} emissive="#06b6d4" emissiveIntensity={1.2} />)}</GrowthLayer>
+      <pointLight position={[0, 4, 0]} color="#22d3ee" intensity={1.8 + tier * 0.7} distance={24} />
+    </group>
+  );
+}
+
+function HatalarStation({ tier }: { tier: StationTier }) {
+  const scaleRef = useStationScale(tier);
+  return (
+    <group ref={scaleRef}>
+      <SafeGltfModel url={BUILDING.floor} position={[0, 0.04, 0]} scale={[4.5, 1, 4.5]} tint="#1c1917" />
+      <SafeGltfModel url={BUILDING.plating} position={[0, 0.2, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[3.3, 3, 1.3]} tint="#292524" />
+      <SafeGltfModel url={BUILDING.wideColumn} position={[0, 0, 0]} scale={[1.8, 3.5, 1.8]} tint="#292524" />
+      <GrowthLayer active={tier >= 2}><SafeGltfModel url={BUILDING.borderRound} position={[0, 0.18, 0]} scale={[5.3, 1, 5.3]} tint="#075985" emissive="#0284c7" emissiveIntensity={0.65} /></GrowthLayer>
+      <GrowthLayer active={tier >= 3}>{Array.from({ length: 6 }, (_, index) => { const angle = index * Math.PI / 3; return <SafeGltfModel key={index} url={BUILDING.column} position={[Math.cos(angle) * 5, 0, Math.sin(angle) * 5]} scale={[0.65, 2.1, 0.65]} tint="#78350f" emissive="#f59e0b" emissiveIntensity={0.8} />; })}<pointLight position={[0, 3.6, 0]} color="#f59e0b" intensity={2.4} distance={16} /></GrowthLayer>
+    </group>
+  );
+}
+
+function SukurStation({ tier }: { tier: StationTier }) {
+  const scaleRef = useStationScale(tier);
+  const flowerCount = tier === 1 ? 6 : tier === 2 ? 16 : 32;
+  const flowerModels = ['/models/nature/flower_purpleA.glb', '/models/nature/flower_redB.glb', '/models/nature/flower_yellowC.glb'];
+  const flowerGroups = flowerModels.map((url, variant) => ({ url, transforms: Array.from({ length: flowerCount }, (_, index) => index).filter(index => index % 3 === variant).map(index => { const angle = index / flowerCount * Math.PI * 2; const radius = 5.4 + index % 3 * 0.7; return { position: [Math.cos(angle) * radius, 0, Math.sin(angle) * radius], rotation: [0, angle, 0], scale: 1.4 + (index % 4) * 0.12 } as AssetTransform; }) }));
+  return (
+    <group ref={scaleRef}>
+      <SafeGltfModel url={BUILDING.floor} position={[0, 0.05, 0]} scale={[3.8, 1, 3.8]} tint="#10b981" />
+      <ModelColumns radius={3.3} count={8} height={2.2} tint="#fef3c7" />
+      <SafeGltfModel url={BUILDING.roofCorner} position={[0, 4, 0]} scale={[4, 1.1, 4]} tint="#f59e0b" />
+      {flowerGroups.map(group => <SafeGltfInstances key={group.url} url={group.url} transforms={group.transforms} />)}
+      <GrowthLayer active={tier >= 2}><SafeGltfModel url={BUILDING.borderRound} position={[0, 4.5, 0]} scale={[4.3, 1, 4.3]} tint="#fbbf24" /></GrowthLayer>
+      <GrowthLayer active={tier >= 3}><ModelColumns radius={5.4} count={10} height={1.3} tint="#fde68a" /><Sparkles count={48} scale={[15, 7, 15]} color="#fde68a" size={2.1} speed={0.25} /></GrowthLayer>
+      <pointLight position={[0, 3, 0]} color="#fbbf24" intensity={1.8 + tier * 0.6} distance={20} />
+    </group>
+  );
+}
+
+function MosqueStation({ tier }: { tier: StationTier }) {
+  const scaleRef = useStationScale(tier);
+  return (
+    <group ref={scaleRef}>
+      <BuildingShell width={3.7} depth={3.2} tint="#059669" window="round" door="wide-round" />
+      <ModelColumns radius={4.3} count={4} height={2.4} tint="#f8fafc" />
+      <GrowthLayer active={tier >= 2}><SafeGltfModel url={BUILDING.thinColumn} position={[-5.1, 0, -1]} scale={[1.1, 5.3, 1.1]} tint="#f8fafc" /><SafeGltfModel url={BUILDING.roofCorner} position={[-5.1, 8, -1]} scale={[1.5, 1.2, 1.5]} tint="#fbbf24" emissive="#d97706" emissiveIntensity={0.8} /></GrowthLayer>
+      <GrowthLayer active={tier >= 3}><SafeGltfModel url={BUILDING.floor} position={[0, 0.13, 6.4]} scale={[6.2, 1, 2.8]} tint="#e2e8f0" />{[-5, -2.5, 0, 2.5, 5].map(x => <SafeGltfModel key={x} url={BUILDING.column} position={[x, 0, 7.2]} scale={[0.75, 2.2, 0.75]} tint="#f8fafc" />)}<Sparkles count={34} scale={[14, 10, 14]} color="#fbbf24" size={2} speed={0.18} /></GrowthLayer>
+      <pointLight position={[0, 4, 2.5]} color="#34d399" intensity={2.2 + tier * 0.6} distance={26} />
+    </group>
+  );
+}
+
+function AhiretStation({ tier, villageTier, xp }: { tier: StationTier; villageTier: VillageTier; xp: number }) {
+  const scaleRef = useStationScale(Math.max(tier, Math.ceil(villageTier / 2)) as StationTier);
+  const glow = 1 + Math.min(xp / 400, 2.4);
+  return (
+    <group ref={scaleRef}>
+      <BuildingShell width={5.2} depth={4.5} height={1.35} tint="#fbbf24" window="round" door="wide-round" />
+      <ModelColumns radius={6.2} count={8} height={3.4} tint="#fef3c7" />
+      <SafeGltfModel url={BUILDING.borderRound} position={[0, 6.1, 0]} scale={[6.3, 1.2, 6.3]} tint="#fbbf24" emissive="#f59e0b" emissiveIntensity={1.2 * glow} />
+      <GrowthLayer active={villageTier >= 2}>{[-1, 1].map(side => <group key={side} position={[side * 7.2, 0, 0]}><SafeGltfModel url={BUILDING.wideColumn} position={[0, 0, 0]} scale={[1.4, 4.4, 1.4]} tint="#f8fafc" /><SafeGltfModel url={BUILDING.roofCorner} position={[0, 7.2, 0]} scale={[1.9, 1.3, 1.9]} tint="#fbbf24" emissive="#d97706" emissiveIntensity={1.1} /></group>)}</GrowthLayer>
+      <GrowthLayer active={villageTier >= 3}><BuildingShell width={2.5} depth={2.3} height={0.8} tint="#fde68a" window="round" door="round" position={[0, 5.3, 0]} /><Sparkles count={55} scale={[20, 18, 20]} color="#fde047" size={3} speed={0.3} /></GrowthLayer>
+      <GrowthLayer active={villageTier >= 4}>{[0, 1, 2].map(index => <SafeGltfModel key={index} url={BUILDING.borderRound} position={[0, 10.5 + index * 1.1, 0]} rotation={[index * 0.25, index * 0.55, 0]} scale={[7 - index, 0.8, 7 - index]} tint={index % 2 ? '#67e8f9' : '#fde047'} emissive="#f59e0b" emissiveIntensity={1.8} />)}</GrowthLayer>
+      {villageTier >= 5 && <Sparkles count={100} scale={[28, 28, 28]} color="#ffffff" size={3.3} speed={0.36} />}
+      <pointLight position={[0, 12, 0]} color="#f59e0b" intensity={4.5 * glow} distance={80 + villageTier * 20} />
+    </group>
+  );
+}
+
+function StationStructure({ id, tier, villageTier, xp }: { id: number; tier: StationTier; villageTier: VillageTier; xp: number }) {
+  if (id === 1) return <JournalStation tier={tier} />;
+  if (id === 2) return <QuranStation tier={tier} />;
+  if (id === 3) return <HadisStation tier={tier} />;
+  if (id === 4) return <MatrixStation tier={tier} />;
+  if (id === 5) return <HatalarStation tier={tier} />;
+  if (id === 6) return <SukurStation tier={tier} />;
+  if (id === 7) return <MosqueStation tier={tier} />;
+  return <AhiretStation tier={tier} villageTier={villageTier} xp={xp} />;
+}
+
+export default function VillageBuildings({ activeBuildingId, xp, villageTier, stationTiers }: VillageBuildingsProps) {
+  return (
+    <group>
+      {VILLAGE_LOCATIONS.map(location => {
+        if (location.id === 0) return null;
+        const y = getTerrainHeight(location.x, location.z) + (location.yOffset ?? 0);
+        const isActive = activeBuildingId === location.id;
         return (
-          <group key={idx} position={[px, 0.35, pz]}>
-            <mesh castShadow>
-              <cylinderGeometry args={[0.3, 0.22, 0.45, 8]} />
-              <meshStandardMaterial color="#334155" roughness={0.7} />
-            </mesh>
-            <mesh position={[0, 0.75, 0]} castShadow>
-              <coneGeometry args={[0.4, 1.2, 8]} />
-              <meshStandardMaterial color="#047857" roughness={0.5} />
-            </mesh>
-          </group>
-        );
-      })}
-
-      <pointLight position={[0, 2.6, 0]} color="#fbbf24" intensity={isActive ? 3.8 : 2.0} distance={11} />
-      <Sparkles count={20} scale={[5.5, 4.5, 5.5]} color="#fde68a" size={2.2} speed={0.4} />
-    </group>
-  );
-}
-
-// ============================================================
-// 3. HADIS: Classical Stone Library & Scholar Benches
-// ============================================================
-function HadisLibrary({ isActive }: { isActive: boolean }) {
-  return (
-    <group>
-      <BuildingGroundShadow radius={6.5} />
-
-      {/* Multi-tier Stone Base */}
-      <mesh position={[0, 0.4, 0]} castShadow receiveShadow>
-        <boxGeometry args={[7.6, 0.8, 5.8]} />
-        <meshStandardMaterial color="#475569" roughness={0.8} />
-      </mesh>
-      <mesh position={[0, 0.15, 3.2]} castShadow receiveShadow>
-        <boxGeometry args={[4.2, 0.3, 0.8]} />
-        <meshStandardMaterial color="#334155" roughness={0.9} />
-      </mesh>
-
-      {/* Library Main Hall */}
-      <mesh position={[0, 2.3, 0]} castShadow receiveShadow>
-        <boxGeometry args={[6.6, 3.0, 5.0]} />
-        <meshStandardMaterial color="#334155" roughness={0.7} />
-      </mesh>
-
-      {/* Front Classical Fluted Columns (4) */}
-      {[-2.5, -0.85, 0.85, 2.5].map((x, i) => (
-        <mesh key={i} position={[x, 2.3, 2.6]} castShadow>
-          <cylinderGeometry args={[0.22, 0.28, 3.0, 12]} />
-          <meshStandardMaterial color="#f8fafc" roughness={0.25} />
-        </mesh>
-      ))}
-
-      {/* Classical Triangular Pediment Roof */}
-      <mesh position={[0, 4.2, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
-        <coneGeometry args={[5.0, 1.5, 4]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.6} />
-      </mesh>
-
-      {/* Pediment Relief Medallion */}
-      <mesh position={[0, 4.0, 2.52]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.45, 0.45, 0.08, 12]} />
-        <meshStandardMaterial color="#10b981" emissive="#059669" emissiveIntensity={1.5} />
-      </mesh>
-
-      {/* Glowing Emerald Arched Entrance */}
-      <mesh position={[0, 1.7, 2.52]}>
-        <boxGeometry args={[1.5, 2.4, 0.1]} />
-        <meshStandardMaterial
-          color="#10b981"
-          emissive="#059669"
-          emissiveIntensity={isActive ? 2.8 : 1.4}
-        />
-      </mesh>
-
-      {/* Scholar Reading Benches on Sides */}
-      {[-3.8, 3.8].map((x, i) => (
-        <group key={i} position={[x, 0.45, 1.5]} rotation={[0, i === 0 ? 0.4 : -0.4, 0]}>
-          <mesh castShadow>
-            <boxGeometry args={[1.6, 0.12, 0.6]} />
-            <meshStandardMaterial color="#e2e8f0" roughness={0.4} />
-          </mesh>
-          {[-0.6, 0.6].map((bx, bi) => (
-            <mesh key={bi} position={[bx, -0.2, 0]} castShadow>
-              <boxGeometry args={[0.15, 0.35, 0.5]} />
-              <meshStandardMaterial color="#94a3b8" />
-            </mesh>
-          ))}
-        </group>
-      ))}
-
-      <pointLight position={[0, 2.1, 3.4]} color="#10b981" intensity={isActive ? 3.2 : 1.5} distance={9} />
-    </group>
-  );
-}
-
-// ============================================================
-// 4. MATRIS: Modern Geometric Matrix Pavilion
-// ============================================================
-function MatrixPavilion({ isActive }: { isActive: boolean }) {
-  const gyroX = useRef<THREE.Mesh>(null);
-  const gyroY = useRef<THREE.Mesh>(null);
-
-  useFrame(() => {
-    if (gyroX.current) gyroX.current.rotation.x += 0.015;
-    if (gyroY.current) gyroY.current.rotation.y += 0.025;
-  });
-
-  return (
-    <group>
-      <BuildingGroundShadow radius={5.8} />
-
-      {/* 4-Quadrant Eisenhower Geometric Floor */}
-      <group position={[0, 0.3, 0]}>
-        {/* Q1: Red (Urgent & Important) */}
-        <mesh position={[-1.7, 0, -1.7]} receiveShadow>
-          <boxGeometry args={[3.2, 0.5, 3.2]} />
-          <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={isActive ? 0.9 : 0.35} />
-        </mesh>
-        {/* Q2: Amber (Not Urgent & Important) */}
-        <mesh position={[1.7, 0, -1.7]} receiveShadow>
-          <boxGeometry args={[3.2, 0.5, 3.2]} />
-          <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={isActive ? 0.9 : 0.35} />
-        </mesh>
-        {/* Q3: Blue (Urgent & Not Important) */}
-        <mesh position={[-1.7, 0, 1.7]} receiveShadow>
-          <boxGeometry args={[3.2, 0.5, 3.2]} />
-          <meshStandardMaterial color="#3b82f6" emissive="#3b82f6" emissiveIntensity={isActive ? 0.9 : 0.35} />
-        </mesh>
-        {/* Q4: Slate (Not Urgent & Not Important) */}
-        <mesh position={[1.7, 0, 1.7]} receiveShadow>
-          <boxGeometry args={[3.2, 0.5, 3.2]} />
-          <meshStandardMaterial color="#64748b" emissive="#64748b" emissiveIntensity={isActive ? 0.9 : 0.35} />
-        </mesh>
-      </group>
-
-      {/* Cyber Glass Cube Pavilion */}
-      <mesh position={[0, 2.5, 0]} castShadow>
-        <boxGeometry args={[4.4, 3.8, 4.4]} />
-        <meshPhysicalMaterial
-          color="#06b6d4"
-          transmission={0.88}
-          roughness={0.06}
-          metalness={0.2}
-          thickness={0.5}
-          transparent
-          opacity={0.65}
-        />
-      </mesh>
-
-      {/* Cyber Corner Neon Struts */}
-      {[-2.2, 2.2].map((x, i) =>
-        [-2.2, 2.2].map((z, j) => (
-          <mesh key={`${i}-${j}`} position={[x, 2.5, z]} castShadow>
-            <cylinderGeometry args={[0.08, 0.08, 3.8, 8]} />
-            <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={2.0} />
-          </mesh>
-        ))
-      )}
-
-      {/* Dual Gyroscope Energy Core */}
-      <group position={[0, 2.5, 0]}>
-        <mesh ref={gyroX}>
-          <torusGeometry args={[1.5, 0.08, 8, 24]} />
-          <meshStandardMaterial color="#38bdf8" emissive="#06b6d4" emissiveIntensity={isActive ? 3.5 : 1.8} />
-        </mesh>
-        <mesh ref={gyroY} rotation={[0, 0, Math.PI / 2]}>
-          <torusGeometry args={[1.2, 0.07, 8, 24]} />
-          <meshStandardMaterial color="#818cf8" emissive="#6366f1" emissiveIntensity={isActive ? 3.5 : 1.8} />
-        </mesh>
-      </group>
-
-      <pointLight position={[0, 2.5, 0]} color="#38bdf8" intensity={isActive ? 3.2 : 1.6} distance={10} />
-    </group>
-  );
-}
-
-// ============================================================
-// 5. HATALAR: Basalt Reflection Shrine & Monument
-// ============================================================
-function HatalarMonument({ isActive }: { isActive: boolean }) {
-  const orbRef = useRef<THREE.Mesh>(null);
-
-  useFrame(({ clock }) => {
-    if (orbRef.current) {
-      orbRef.current.position.y = 3.8 + Math.sin(clock.getElapsedTime() * 2) * 0.16;
-      orbRef.current.rotation.y += 0.02;
-    }
-  });
-
-  return (
-    <group>
-      <BuildingGroundShadow radius={5.8} />
-
-      {/* Stepped Dark Basalt Circular Platform */}
-      <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[4.4, 4.8, 0.5, 16]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.6} metalness={0.4} />
-      </mesh>
-      <mesh position={[0, 0.6, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[3.6, 3.9, 0.3, 16]} />
-        <meshStandardMaterial color="#1e1b4b" roughness={0.4} metalness={0.6} />
-      </mesh>
-
-      {/* Central Reflection Monolith */}
-      <mesh position={[0, 2.2, 0]} castShadow>
-        <cylinderGeometry args={[0.7, 1.2, 3.4, 4]} />
-        <meshStandardMaterial color="#090d16" roughness={0.2} metalness={0.8} />
-      </mesh>
-
-      {/* Glowing Ruby Core */}
-      <mesh ref={orbRef} position={[0, 3.8, 0]}>
-        <octahedronGeometry args={[0.8, 0]} />
-        <meshStandardMaterial
-          color="#f43f5e"
-          emissive="#e11d48"
-          emissiveIntensity={isActive ? 3.8 : 1.8}
-          metalness={0.8}
-        />
-      </mesh>
-
-      {/* 4 Surrounding Basalt Runic Pillars */}
-      {[0, 1, 2, 3].map(i => {
-        const a = (i * Math.PI) / 2;
-        return (
-          <group key={i} position={[Math.cos(a) * 3.0, 1.1, Math.sin(a) * 3.0]}>
-            <mesh castShadow>
-              <boxGeometry args={[0.55, 1.8, 0.55]} />
-              <meshStandardMaterial color="#0f172a" />
-            </mesh>
-            {/* Runic Glow Inlay */}
-            <mesh position={[0, 0, 0.28]}>
-              <boxGeometry args={[0.15, 1.2, 0.02]} />
-              <meshStandardMaterial color="#f43f5e" emissive="#e11d48" emissiveIntensity={2.0} />
-            </mesh>
-          </group>
-        );
-      })}
-
-      <pointLight position={[0, 3.8, 0]} color="#f43f5e" intensity={isActive ? 3.5 : 1.5} distance={9} />
-      <Sparkles count={16} scale={[5, 4, 5]} color="#fda4af" size={2.0} speed={0.4} />
-    </group>
-  );
-}
-
-// ============================================================
-// 6. ŞÜKÜR: Garden Gazebo & Blossom Sanctuary
-// ============================================================
-function SukurGazebo({ isActive }: { isActive: boolean }) {
-  return (
-    <group>
-      <BuildingGroundShadow radius={6.0} />
-
-      {/* Stepped Garden Base */}
-      <mesh position={[0, 0.3, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[4.6, 5.0, 0.6, 12]} />
-        <meshStandardMaterial color="#064e3b" roughness={0.7} />
-      </mesh>
-
-      {/* Slender Golden Gazebo Pillars (8) */}
-      {[0, 1, 2, 3, 4, 5, 6, 7].map(i => {
-        const a = (i * Math.PI) / 4;
-        return (
-          <mesh key={i} position={[Math.cos(a) * 3.5, 1.9, Math.sin(a) * 3.5]} castShadow>
-            <cylinderGeometry args={[0.12, 0.12, 2.8, 8]} />
-            <meshStandardMaterial color="#fbbf24" metalness={0.8} roughness={0.2} />
-          </mesh>
-        );
-      })}
-
-      {/* Ornate Emerald Conical Roof */}
-      <mesh position={[0, 4.0, 0]} castShadow>
-        <coneGeometry args={[4.2, 1.8, 12]} />
-        <meshStandardMaterial color="#059669" metalness={0.6} roughness={0.3} />
-      </mesh>
-
-      {/* Central Luminous Floral Altar */}
-      <mesh position={[0, 1.2, 0]} castShadow>
-        <cylinderGeometry args={[1.3, 1.5, 1.4, 8]} />
-        <meshStandardMaterial
-          color="#10b981"
-          emissive="#059669"
-          emissiveIntensity={isActive ? 1.8 : 0.6}
-        />
-      </mesh>
-
-      {/* Surrounding Garden Blossom Urns */}
-      {[0.3, 1.8, 3.5, 5.2].map((angle, idx) => {
-        const gx = Math.cos(angle) * 4.6;
-        const gz = Math.sin(angle) * 4.6;
-        return (
-          <group key={idx} position={[gx, 0.6, gz]}>
-            <mesh castShadow>
-              <cylinderGeometry args={[0.35, 0.25, 0.5, 8]} />
-              <meshStandardMaterial color="#78350f" roughness={0.7} />
-            </mesh>
-            <mesh position={[0, 0.35, 0]}>
-              <sphereGeometry args={[0.3, 8, 8]} />
-              <meshStandardMaterial color="#ec4899" emissive="#db2777" emissiveIntensity={1.0} />
-            </mesh>
-          </group>
-        );
-      })}
-
-      <Sparkles count={26} scale={[6.5, 4.5, 6.5]} color="#6ee7b7" size={2.8} speed={0.35} />
-      <pointLight position={[0, 2.3, 0]} color="#10b981" intensity={isActive ? 3.4 : 1.8} distance={10} />
-    </group>
-  );
-}
-
-// ============================================================
-// 7. MESCİDİM: Digital Mosque with Minaret, Dome & Fountain
-// ============================================================
-function MosqueStructure({ isActive }: { isActive: boolean }) {
-  const crescentRef = useRef<THREE.Mesh>(null);
-
-  useFrame(({ clock }) => {
-    if (crescentRef.current) {
-      crescentRef.current.rotation.y = Math.sin(clock.getElapsedTime() * 0.8) * 0.35;
-    }
-  });
-
-  return (
-    <group>
-      <BuildingGroundShadow radius={7.5} />
-
-      {/* Mosque Marble Platform */}
-      <mesh position={[0, 0.4, 0]} castShadow receiveShadow>
-        <boxGeometry args={[9.8, 0.8, 8.8]} />
-        <meshStandardMaterial color="#f8fafc" roughness={0.4} />
-      </mesh>
-
-      {/* Front Entrance Steps */}
-      <mesh position={[0, 0.2, 4.7]} castShadow receiveShadow>
-        <boxGeometry args={[4.6, 0.4, 0.8]} />
-        <meshStandardMaterial color="#e2e8f0" roughness={0.5} />
-      </mesh>
-
-      {/* Main Prayer Hall */}
-      <mesh position={[0, 2.8, 0]} castShadow receiveShadow>
-        <boxGeometry args={[8.2, 3.8, 7.2]} />
-        <meshStandardMaterial color="#ffffff" roughness={0.3} metalness={0.1} />
-      </mesh>
-
-      {/* Grand Turquoise Central Dome */}
-      <mesh position={[0, 5.6, 0]} castShadow>
-        <sphereGeometry args={[3.4, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial
-          color="#0d9488"
-          emissive="#0f766e"
-          emissiveIntensity={isActive ? 1.0 : 0.45}
-          roughness={0.2}
-          metalness={0.4}
-        />
-      </mesh>
-
-      {/* Golden Crescent Finial atop Dome */}
-      <mesh ref={crescentRef} position={[0, 9.0, 0]}>
-        <torusGeometry args={[0.42, 0.08, 8, 16, Math.PI * 1.5]} />
-        <meshStandardMaterial color="#fbbf24" metalness={0.9} emissive="#f59e0b" emissiveIntensity={1.5} />
-      </mesh>
-
-      {/* Tall Minaret Tower (Right Side) */}
-      <group position={[4.8, 0, 4.0]}>
-        <mesh position={[0, 5.8, 0]} castShadow>
-          <cylinderGeometry args={[0.68, 0.95, 10.8, 12]} />
-          <meshStandardMaterial color="#f8fafc" roughness={0.3} />
-        </mesh>
-        {/* Minaret Balcony (Şerefe) */}
-        <mesh position={[0, 9.2, 0]} castShadow>
-          <cylinderGeometry args={[1.05, 0.75, 0.65, 12]} />
-          <meshStandardMaterial color="#0d9488" roughness={0.3} metalness={0.4} />
-        </mesh>
-        {/* Minaret Conical Spire (Külah) */}
-        <mesh position={[0, 12.0, 0]} castShadow>
-          <coneGeometry args={[0.68, 3.0, 12]} />
-          <meshStandardMaterial color="#0d9488" metalness={0.6} />
-        </mesh>
-      </group>
-
-      {/* Arched Entrance Doors */}
-      <mesh position={[0, 1.9, 3.62]}>
-        <boxGeometry args={[1.9, 2.8, 0.1]} />
-        <meshStandardMaterial
-          color="#047857"
-          emissive="#059669"
-          emissiveIntensity={isActive ? 2.8 : 1.2}
-        />
-      </mesh>
-
-      {/* Courtyard Ablution Fountain (Şadırvan) */}
-      <group position={[-3.2, 0.4, 4.8]}>
-        <mesh castShadow receiveShadow>
-          <cylinderGeometry args={[0.9, 1.0, 0.45, 8]} />
-          <meshStandardMaterial color="#cbd5e1" />
-        </mesh>
-        <mesh position={[0, 0.25, 0]}>
-          <cylinderGeometry args={[0.75, 0.75, 0.05, 8]} />
-          <meshStandardMaterial color="#0284c7" emissive="#0284c7" emissiveIntensity={0.8} />
-        </mesh>
-      </group>
-
-      <pointLight position={[0, 2.6, 4.8]} color="#14b8a6" intensity={isActive ? 3.8 : 2.0} distance={13} />
-      <Sparkles count={22} scale={[8.5, 6.5, 8.5]} color="#99f6e4" size={2.2} speed={0.35} />
-    </group>
-  );
-}
-
-// ============================================================
-// 8. AHIRET DEPOSU: Celestial Palace & Divine Vault
-// ============================================================
-function AhiretPalace({ isActive, xp }: { isActive: boolean; xp: number }) {
-  const crystalCrown = useRef<THREE.Group>(null);
-
-  useFrame(({ clock }) => {
-    if (crystalCrown.current) {
-      crystalCrown.current.rotation.y += 0.02;
-      crystalCrown.current.position.y = 8.0 + Math.sin(clock.getElapsedTime() * 1.8) * 0.38;
-    }
-  });
-
-  return (
-    <group>
-      <BuildingGroundShadow radius={8.5} />
-
-      {/* Grand Tiered Celestial Foundation */}
-      <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[8.8, 9.8, 1.0, 16]} />
-        <meshStandardMaterial color="#1e1b4b" metalness={0.8} roughness={0.2} />
-      </mesh>
-      <mesh position={[0, 1.5, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[7.5, 8.0, 0.8, 16]} />
-        <meshStandardMaterial color="#312e81" metalness={0.8} roughness={0.2} />
-      </mesh>
-
-      {/* Main Palace Citadel */}
-      <mesh position={[0, 4.0, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[6.0, 6.6, 4.4, 16]} />
-        <meshStandardMaterial color="#ffffff" roughness={0.15} metalness={0.3} />
-      </mesh>
-
-      {/* Gilded Celestial Grand Dome */}
-      <mesh position={[0, 7.0, 0]} castShadow>
-        <sphereGeometry args={[5.0, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial
-          color="#f59e0b"
-          emissive="#d97706"
-          emissiveIntensity={isActive ? 2.0 : 0.9}
-          metalness={0.9}
-          roughness={0.1}
-        />
-      </mesh>
-
-      {/* Floating Crown Gem of Deeds with Dual Gyro Rings */}
-      <group ref={crystalCrown} position={[0, 8.0, 0]}>
-        <mesh castShadow>
-          <octahedronGeometry args={[1.9, 0]} />
-          <meshStandardMaterial
-            color="#fbbf24"
-            emissive="#f59e0b"
-            emissiveIntensity={4.5}
-            metalness={0.9}
-          />
-        </mesh>
-        <mesh rotation={[Math.PI / 3, 0, 0]}>
-          <torusGeometry args={[3.0, 0.12, 8, 32]} />
-          <meshStandardMaterial color="#fbbf24" emissive="#d97706" emissiveIntensity={3.2} />
-        </mesh>
-        <mesh rotation={[-Math.PI / 3, 0, 0]}>
-          <torusGeometry args={[2.5, 0.09, 8, 32]} />
-          <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={3.0} />
-        </mesh>
-      </group>
-
-      <Sparkles count={45} scale={[13, 11, 13]} color="#fde047" size={3.8} speed={0.5} />
-      <pointLight position={[0, 6.5, 0]} color="#f59e0b" intensity={isActive ? 5.5 : 2.8} distance={20} />
-    </group>
-  );
-}
-
-// ============================================================
-// Main Village Buildings Group
-// ============================================================
-export default function VillageBuildings({ activeBuildingId, xp }: VillageBuildingsProps) {
-  return (
-    <group>
-      {VILLAGE_LOCATIONS.map(loc => {
-        if (loc.id === 0) return null; // Central plaza is in terrain
-
-        const y = getTerrainHeight(loc.x, loc.z) + (loc.yOffset ?? 0);
-        const isActive = activeBuildingId === loc.id;
-
-        return (
-          <group key={loc.id} position={[loc.x, y, loc.z]}>
-            {/* Active Proximity Halo Ring */}
-            {isActive && (
-              <mesh position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[6.8, 7.5, 32]} />
-                <meshStandardMaterial
-                  color={loc.color}
-                  emissive={loc.color}
-                  emissiveIntensity={3.5}
-                  transparent
-                  opacity={0.85}
-                />
-              </mesh>
-            )}
-
-            {/* Individual Themed Building Architecture */}
-            {loc.id === 1 && <CabinStructure isActive={isActive} />}
-            {loc.id === 2 && <QuranPavilion isActive={isActive} />}
-            {loc.id === 3 && <HadisLibrary isActive={isActive} />}
-            {loc.id === 4 && <MatrixPavilion isActive={isActive} />}
-            {loc.id === 5 && <HatalarMonument isActive={isActive} />}
-            {loc.id === 6 && <SukurGazebo isActive={isActive} />}
-            {loc.id === 7 && <MosqueStructure isActive={isActive} />}
-            {loc.id === 8 && <AhiretPalace isActive={isActive} xp={xp} />}
+          <group key={location.id} position={[location.x, y, location.z]}>
+            {isActive && <mesh position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[6.8, 7.5, 32]} /><meshStandardMaterial color={location.color} emissive={location.color} emissiveIntensity={3.5} transparent opacity={0.85} /></mesh>}
+            <StationStructure id={location.id} tier={stationTiers[location.id]} villageTier={villageTier} xp={xp} />
           </group>
         );
       })}

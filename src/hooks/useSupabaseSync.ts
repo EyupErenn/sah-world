@@ -156,17 +156,19 @@ export function useSupabaseSync() {
   const journeyStore = useJourneyStore();
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isValidUUID(user.id)) return;
 
     async function loadAllData() {
       setIsProfileLoading(true);
       try {
         // 1. Profil verisi çek (maybeSingle ile 406/PGRST116 hatasını önle)
-        let { data: profileData, error: profileError } = await supabase
+        const profileResult = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user!.id)
           .maybeSingle();
+        let profileData = profileResult.data;
+        const profileError = profileResult.error;
 
         if (profileError) {
           console.warn('[SAH Sync] Profil sorgu hatası:', profileError);
@@ -221,10 +223,10 @@ export function useSupabaseSync() {
         const journal: JournalEntry[] = (journalData || []).map((j) => ({
           id: j.id,
           date: j.date,
-          mood: j.mood,
-          energy: j.energy,
-          stress: j.stress,
-          sleep: j.sleep,
+          mood: j.mood ?? 3,
+          energy: j.energy ?? 7,
+          stress: j.stress ?? 3,
+          sleep: j.sleep ?? undefined,
           content: j.content,
           tags: j.tags,
           createdAt: j.created_at,
@@ -256,7 +258,7 @@ export function useSupabaseSync() {
           title: l.title,
           wrong: l.wrong,
           learned: l.learned,
-          severity: l.severity,
+          severity: l.severity ?? 3,
           createdAt: l.created_at,
         }));
 
