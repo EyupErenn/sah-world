@@ -8,6 +8,7 @@ import { buildActivityFeed, CATEGORY_META, relativeTime } from '@/lib/activity'
 import { getLevelForXP } from '@/lib/constants'
 
 const quickActions = [
+  { id: 'daily-wheel', icon: 'refresh', title: 'Bugünün çarkı', note: 'Ayet veya hadis hatırlatması seç' },
   { id: 'journal', icon: 'pencil', title: 'Günlük yaz', note: 'Bugünü birkaç cümleyle kaydet' },
   { id: 'sukur', icon: 'sparkles', title: 'Şükür ekle', note: 'Fark ettiğin bir nimeti yaz' },
   { id: 'quran', icon: 'book-2', title: 'Kur’an notu', note: 'Okuduğundan kalan düşünce' },

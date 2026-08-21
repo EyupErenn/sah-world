@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['10.58.0.180'],
   // Turbopack (Next.js 16 default) — no webpack config needed.
   // Three.js / R3F work fine under Turbopack with no extra config.
   turbopack: {},

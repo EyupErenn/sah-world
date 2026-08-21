@@ -17,15 +17,17 @@ import WelcomeGuide from './WelcomeGuide'
 const DashboardView = dynamic(() => import('./DashboardView'), { loading: () => <ViewSkeleton /> })
 const ReportsView = dynamic(() => import('./ReportsView'), { loading: () => <ViewSkeleton /> })
 const CommunityView = dynamic(() => import('./CommunityView'), { loading: () => <ViewSkeleton /> })
+const DailyWisdomWheel = dynamic(() => import('./DailyWisdomWheel'), { loading: () => <ViewSkeleton /> })
 const SectionView = dynamic(() => import('./SectionView'), { loading: () => <ViewSkeleton /> })
 
-type ViewKey = 'dashboard' | 'community' | 'reports' | SectionKey
+type ViewKey = 'dashboard' | 'community' | 'reports' | 'daily-wheel' | SectionKey
 type NavigationItem = { id: ViewKey; label: string; icon: string }
 
 const navigationGroups: Array<{ label: string; items: NavigationItem[] }> = [
   { label: 'Ana alan', items: [
     { id: 'dashboard', label: 'Evrenim', icon: 'home-2' },
     { id: 'journal', label: 'Günlük', icon: 'notebook' },
+    { id: 'daily-wheel', label: 'Bugünün Çarkı', icon: 'refresh' },
   ] },
   { label: 'Manevi kayıtlar', items: [
     { id: 'quran', label: 'Kur’an', icon: 'book-2' },
@@ -133,7 +135,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
         </header>
 
         <main className="app-main" id="main-content">
-          {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : <SectionView section={view} />}
+          {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel /> : <SectionView section={view} />}
         </main>
       </div>
 
