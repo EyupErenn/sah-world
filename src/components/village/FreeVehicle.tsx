@@ -51,6 +51,7 @@ export default function FreeVehicle({ vehicleType, isInputBlocked, villageTier, 
   const suspensionRef = useRef({ fl: 0, fr: 0, rl: 0, rr: 0 });
   const [displaySpeed, setDisplaySpeed] = useState(0);
   const [displaySteer, setDisplaySteer] = useState(0);
+  const [displaySuspension, setDisplaySuspension] = useState({ fl: 0, fr: 0, rl: 0, rr: 0 });
   const displayFrameCount = useRef(0);
   const keysRef = useRef<Record<string, boolean>>({});
 
@@ -164,6 +165,7 @@ export default function FreeVehicle({ vehicleType, isInputBlocked, villageTier, 
     if (displayFrameCount.current % 4 === 0) {
       setDisplaySpeed(speed);
       setDisplaySteer(steerInputRef.current);
+      setDisplaySuspension({ ...suspensionRef.current });
     }
   });
 
@@ -176,7 +178,7 @@ export default function FreeVehicle({ vehicleType, isInputBlocked, villageTier, 
         {shadowTexture ? <meshBasicMaterial map={shadowTexture} transparent opacity={0.65} depthWrite={false} /> : <meshBasicMaterial color="#000000" transparent opacity={0.4} />}
       </mesh>
       <group ref={bodyGroupRef}>
-        <VehicleModelAsset vehicleType={vehicleType} color={color} speed={displaySpeed} steerAngle={displaySteer * 0.45} suspensionFL={suspensionRef.current.fl} suspensionFR={suspensionRef.current.fr} suspensionRL={suspensionRef.current.rl} suspensionRR={suspensionRef.current.rr} />
+        <VehicleModelAsset vehicleType={vehicleType} color={color} speed={displaySpeed} steerAngle={displaySteer * 0.45} suspensionFL={displaySuspension.fl} suspensionFR={displaySuspension.fr} suspensionRL={displaySuspension.rl} suspensionRR={displaySuspension.rr} />
         <group position={[0, 0.05, 1.8]} visible={Math.abs(displaySpeed) > 2.5}><Sparkles count={14} scale={[1.4, 0.5, 2.2]} size={1.9} speed={0.9} color="#94a3b8" opacity={0.55} /></group>
       </group>
     </group>

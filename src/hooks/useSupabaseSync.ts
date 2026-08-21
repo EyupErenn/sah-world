@@ -162,11 +162,13 @@ export function useSupabaseSync() {
       setIsProfileLoading(true);
       try {
         // 1. Profil verisi çek (maybeSingle ile 406/PGRST116 hatasını önle)
-        let { data: profileData, error: profileError } = await supabase
+        const profileResult = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user!.id)
           .maybeSingle();
+        let profileData = profileResult.data;
+        const profileError = profileResult.error;
 
         if (profileError) {
           console.warn('[SAH Sync] Profil sorgu hatası:', profileError);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import { isValidUUID } from '@/store/useJourneyStore';
@@ -26,7 +26,7 @@ export default function ChatTab() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 1. Arkadaş listesini (son mesajlarla birlikte) çek
-  const fetchFriends = async () => {
+  const fetchFriends = useCallback(async () => {
     if (!user || !isValidUUID(user.id)) {
       setFriends([]);
       return;
@@ -44,11 +44,13 @@ export default function ChatTab() {
     } catch (err) {
       console.warn('Sohbet arkadaşları alınamadı:', err);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    fetchFriends();
-  }, [user]);
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void fetchFriends(); });
+    return () => { cancelled = true; };
+  }, [fetchFriends]);
 
   // 2. Aktif arkadaş değiştiğinde mesajları çek
   useEffect(() => {
@@ -83,7 +85,7 @@ export default function ChatTab() {
       .eq('is_read', false)
       .then();
 
-  }, [user, activeFriend]);
+  }, [user, activeFriend, fetchFriends]);
 
   // 3. Supabase Realtime Subscription (Sohbet açıkken yeni mesaj gelirse)
   useEffect(() => {
@@ -121,7 +123,7 @@ export default function ChatTab() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, activeFriend]);
+  }, [user, activeFriend, fetchFriends]);
 
   // Scroll to bottom
   useEffect(() => {

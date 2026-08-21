@@ -52,7 +52,7 @@ export default function EvimHub({ onClose }: Props) {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id)}
               className={`w-full flex items-center justify-center md:justify-start gap-3 px-4 py-3 rounded-2xl transition-all cursor-pointer ${
                 activeTab === tab.id 
                   ? 'bg-indigo-600/25 text-indigo-200 font-bold shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-400/20'

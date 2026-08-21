@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import { isValidUUID } from '@/store/useJourneyStore';
@@ -13,14 +13,6 @@ type PublicProfile = {
   streak_current: number;
 };
 
-type Friendship = {
-  id: string;
-  user_id: string;
-  friend_id: string;
-  status: 'pending' | 'accepted';
-  created_at: string;
-};
-
 export default function FriendsTab() {
   const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,7 +22,7 @@ export default function FriendsTab() {
   const [friends, setFriends] = useState<{ profile: PublicProfile, status: string, fid: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchFriends = async () => {
+  const fetchFriends = useCallback(async () => {
     if (!user || !isValidUUID(user.id)) {
       setFriends([]);
       setIsLoading(false);
@@ -72,11 +64,13 @@ export default function FriendsTab() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    fetchFriends();
-  }, [user]);
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void fetchFriends(); });
+    return () => { cancelled = true; };
+  }, [fetchFriends]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();

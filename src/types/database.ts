@@ -60,6 +60,31 @@ export type XpEventRow = {
   created_at: string;
 };
 
+export type FeedbackType = 'suggestion' | 'bug' | 'usability' | 'content' | 'performance' | 'other';
+export type FeedbackStatus = 'received' | 'reviewing' | 'planned' | 'completed' | 'closed';
+export type FeedbackRow = {
+  id: string;
+  user_id: string;
+  type: FeedbackType;
+  title: string;
+  message: string;
+  rating: number | null;
+  page_path: string;
+  status: FeedbackStatus;
+  admin_response: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminFeedbackRow = Omit<FeedbackRow, 'reviewed_by'> & {
+  display_name: string;
+  avatar_url: string | null;
+  total_count: number;
+};
+
 export interface Database {
   public: {
     Tables: {
@@ -76,6 +101,7 @@ export interface Database {
       groups: RowTable<GroupRow>;
       group_members: RowTable<GroupMemberRow>;
       xp_events: RowTable<XpEventRow>;
+      feedback: RowTable<FeedbackRow>;
     };
     Views: {
       public_profile_summary: { Row: Pick<ProfileRow, 'id' | 'display_name' | 'avatar_url' | 'xp' | 'streak_current' | 'badges'>; Relationships: [] };
@@ -88,6 +114,11 @@ export interface Database {
       get_group_roster: { Args: { target_group_id: string }; Returns: Array<{ user_id: string; display_name: string; avatar_url: string | null; xp: number; streak_current: number; badges: string[]; role: 'owner' | 'member'; joined_at: string }> };
       get_friends_with_last_message: { Args: { requesting_user: string }; Returns: Array<{ friend_id: string; display_name: string; avatar_url: string | null; xp: number; streak_current: number; friendship_id: string; last_message: string | null; last_message_at: string | null; unread_count: number }> };
       search_users_by_name: { Args: { search_term: string; requesting_user: string }; Returns: Array<{ id: string; display_name: string; avatar_url: string | null; xp: number; streak_current: number }> };
+      is_app_admin: { Args: Record<string, never>; Returns: boolean };
+      submit_feedback: { Args: { feedback_type: FeedbackType; feedback_title: string; feedback_message: string; feedback_rating?: number | null; feedback_page_path?: string }; Returns: string };
+      admin_feedback_stats: { Args: Record<string, never>; Returns: Array<{ total_count: number; received_count: number; reviewing_count: number; planned_count: number; completed_count: number; average_rating: number | null }> };
+      admin_list_feedback: { Args: { filter_status?: string | null; filter_type?: string | null; filter_rating?: number | null; search_text?: string | null; sort_order?: string; page_number?: number; page_size?: number; include_archived?: boolean }; Returns: AdminFeedbackRow[] };
+      admin_update_feedback: { Args: { target_id: string; next_status: FeedbackStatus; response_text?: string | null; archive_item?: boolean }; Returns: undefined };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
