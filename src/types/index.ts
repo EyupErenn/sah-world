@@ -103,6 +103,21 @@ export interface SukurEntry {
   createdAt: string;
 }
 
+export type FocusTimerType = 'countdown' | 'stopwatch';
+
+export interface FocusSession {
+  id: string;
+  taskLabel: string;
+  timerType: FocusTimerType;
+  plannedDurationSeconds: number;
+  actualDurationSeconds: number;
+  startedAt: string;
+  endedAt: string;
+  completed: boolean;
+  linkedJournalEntryId?: string;
+  xpAwarded: number;
+}
+
 export interface StreakData {
   current: number;
   lastDate: string;  // YYYY-MM-DD

@@ -60,6 +60,21 @@ export type XpEventRow = {
   created_at: string;
 };
 
+export type FocusSessionRow = {
+  id: string;
+  user_id: string;
+  task_label: string;
+  timer_type: 'countdown' | 'stopwatch';
+  planned_duration_seconds: number;
+  actual_duration_seconds: number;
+  started_at: string;
+  ended_at: string;
+  completed: boolean;
+  linked_journal_entry_id: string | null;
+  xp_awarded: number;
+  created_at: string;
+};
+
 export type FeedbackType = 'suggestion' | 'bug' | 'usability' | 'content' | 'performance' | 'other';
 export type FeedbackStatus = 'received' | 'reviewing' | 'planned' | 'completed' | 'closed';
 export type FeedbackRow = {
@@ -101,6 +116,7 @@ export interface Database {
       groups: RowTable<GroupRow>;
       group_members: RowTable<GroupMemberRow>;
       xp_events: RowTable<XpEventRow>;
+      focus_sessions: RowTable<FocusSessionRow>;
       feedback: RowTable<FeedbackRow>;
     };
     Views: {

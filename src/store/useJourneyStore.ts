@@ -12,6 +12,7 @@ import type {
   LessonEntry,
   SukurEntry,
   StreakData,
+  FocusSession,
 } from '@/types';
 import { VEHICLE_DEFS } from '@/lib/constants';
 
@@ -52,6 +53,9 @@ interface JourneyState {
   totalZikir: number;
   currentTespih: number;
 
+  // Focus
+  focusSessions: FocusSession[];
+
   // XP Orb trigger
   xpOrbTrigger: number;
   lastXPAmount: number;
@@ -86,6 +90,9 @@ interface JourneyState {
   addSukur: (entry: SukurEntry) => void;
   deleteSukur: (id: string) => void;
 
+  addFocusSession: (session: FocusSession) => void;
+  logFocusToJournal: (sessionId: string, note: string) => string;
+
   incrementTespih: () => void;
   resetTespih: () => void;
 
@@ -107,6 +114,7 @@ export interface ExportSchema {
   lessons: LessonEntry[];
   sukurList: SukurEntry[];
   totalZikir: number;
+  focusSessions: FocusSession[];
 }
 
 // ============================================================
@@ -166,6 +174,7 @@ export const useJourneyStore = create<JourneyState>()(
       sukurList: [],
       totalZikir: 0,
       currentTespih: 0,
+      focusSessions: [],
       xpOrbTrigger: 0,
       lastXPAmount: 0,
 
@@ -478,6 +487,54 @@ export const useJourneyStore = create<JourneyState>()(
         });
       },
 
+      // Focus sessions
+      addFocusSession: (session) => {
+        const validSession: FocusSession = { ...session, id: ensureUUID(session.id) };
+        set((state) => ({ focusSessions: [validSession, ...state.focusSessions.filter((item) => item.id !== validSession.id)] }));
+        getAuthenticatedUserId().then((uid) => {
+          if (!uid) return;
+          supabase.from('focus_sessions').upsert({
+            id: validSession.id,
+            user_id: uid,
+            task_label: validSession.taskLabel,
+            timer_type: validSession.timerType,
+            planned_duration_seconds: validSession.plannedDurationSeconds,
+            actual_duration_seconds: validSession.actualDurationSeconds,
+            started_at: validSession.startedAt,
+            ended_at: validSession.endedAt,
+            completed: validSession.completed,
+            linked_journal_entry_id: validSession.linkedJournalEntryId ?? null,
+            xp_awarded: validSession.xpAwarded,
+          }, { onConflict: 'id' }).then(({ error }) => {
+            if (error && error.code !== '42P01') notifySyncError(error, 'addFocusSession');
+          });
+        });
+      },
+      logFocusToJournal: (sessionId, note) => {
+        const today = new Date().toISOString().split('T')[0];
+        const existing = get().journal.find((entry) => entry.date === today);
+        const journalId = existing?.id ?? ensureUUID();
+        const createdAt = existing?.createdAt ?? new Date().toISOString();
+        const entry: JournalEntry = existing
+          ? { ...existing, content: `${existing.content.trim()}\n\n${note}`.trim(), tags: [...new Set([...(existing.tags ?? []), 'odak'])] }
+          : { id: journalId, date: today, mood: 3, energy: 5, stress: 3, content: note, tags: ['odak'], createdAt };
+        set((state) => ({
+          journal: existing ? state.journal.map((item) => item.id === journalId ? entry : item) : [entry, ...state.journal],
+          focusSessions: state.focusSessions.map((item) => item.id === sessionId ? { ...item, linkedJournalEntryId: journalId } : item),
+        }));
+        getAuthenticatedUserId().then((uid) => {
+          if (!uid) return;
+          void supabase.from('journal_entries').upsert({
+            id: entry.id, user_id: uid, date: entry.date, mood: entry.mood, energy: entry.energy,
+            stress: entry.stress, sleep: entry.sleep ?? null, content: entry.content, tags: entry.tags,
+            created_at: entry.createdAt,
+          }, { onConflict: 'id' }).then(({ error }) => { if (error) notifySyncError(error, 'logFocusToJournal'); });
+          void supabase.from('focus_sessions').update({ linked_journal_entry_id: journalId }).eq('id', sessionId).eq('user_id', uid)
+            .then(({ error }) => { if (error && error.code !== '42P01') notifySyncError(error, 'linkFocusSession'); });
+        });
+        return journalId;
+      },
+
       // Tespih
       incrementTespih: () => {
         let t = 0;
@@ -509,6 +566,7 @@ export const useJourneyStore = create<JourneyState>()(
         sukurList: [],
         totalZikir: 0,
         currentTespih: 0,
+        focusSessions: [],
         xpOrbTrigger: 0,
         lastXPAmount: 0,
       }),
@@ -526,6 +584,7 @@ export const useJourneyStore = create<JourneyState>()(
         lessons: data.lessons ?? [],
         sukurList: data.sukurList ?? [],
         totalZikir: data.totalZikir ?? 0,
+        focusSessions: data.focusSessions ?? [],
       }),
 
       exportAll: () => {
@@ -542,6 +601,7 @@ export const useJourneyStore = create<JourneyState>()(
           lessons: s.lessons,
           sukurList: s.sukurList,
           totalZikir: s.totalZikir,
+          focusSessions: s.focusSessions,
         };
       },
     }),
@@ -561,6 +621,7 @@ export const useJourneyStore = create<JourneyState>()(
         sukurList: s.sukurList,
         totalZikir: s.totalZikir,
         currentTespih: s.currentTespih,
+        focusSessions: s.focusSessions,
       }),
     }
   )

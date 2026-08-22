@@ -22,13 +22,15 @@ const ReportsView = dynamic(() => import('./ReportsView'), { loading: () => <Vie
 const CommunityView = dynamic(() => import('./CommunityView'), { loading: () => <ViewSkeleton /> })
 const DailyWisdomWheel = dynamic(() => import('./DailyWisdomWheel'), { loading: () => <ViewSkeleton /> })
 const SectionView = dynamic(() => import('./SectionView'), { loading: () => <ViewSkeleton /> })
+const FocusTimerView = dynamic(() => import('./FocusTimerView'), { loading: () => <ViewSkeleton /> })
 
-type ViewKey = 'dashboard' | 'community' | 'reports' | 'daily-wheel' | SectionKey
+type ViewKey = 'dashboard' | 'community' | 'reports' | 'daily-wheel' | 'focus' | SectionKey
 type NavigationItem = { id: ViewKey; label: string; icon: string }
 
 const navigationGroups: Array<{ label: string; items: NavigationItem[] }> = [
   { label: 'Ana alan', items: [
     { id: 'dashboard', label: 'Evrenim', icon: 'home-2' },
+    { id: 'focus', label: 'Odaklanma Zamanlayıcısı', icon: 'target-arrow' },
     { id: 'journal', label: 'Günlük', icon: 'notebook' },
     { id: 'daily-wheel', label: 'Bugünün Çarkı', icon: 'refresh' },
   ] },
@@ -67,6 +69,13 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
   const journalCount = store.journal.length
   const streakCurrent = store.streak.current
   const currentLevelName = level.name
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('focus') === '1') {
+      const timer = window.setTimeout(() => setView('focus'), 0)
+      return () => window.clearTimeout(timer)
+    }
+  }, [])
 
   useEffect(() => {
     const closeMenu = (event: PointerEvent) => {
@@ -142,7 +151,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
   const avatarUrl = activeProfile?.avatar_url || `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(activeProfile?.display_name || 'Yolcu')}`
 
   return (
-    <div className="core-app">
+    <div className={`core-app ${view === 'focus' ? 'focus-mode' : ''}`}>
       {activeProfile?.created_at && <WelcomeGuide createdAt={activeProfile.created_at} onStart={() => navigate('journal')} />}
 
       <aside className="app-sidebar" aria-label="Ana navigasyon">
@@ -196,7 +205,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
 
         <main className="app-main" id="main-content">
           <AnimatePresence mode="wait" initial={false}><motion.div key={view} className="view-motion-shell" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: .2, ease: [0.22, 1, 0.36, 1] }}>
-            {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel /> : <SectionView section={view} onNavigate={navigate} />}
+            {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel /> : view === 'focus' ? <FocusTimerView onExit={() => navigate('dashboard')} /> : <SectionView section={view} onNavigate={navigate} />}
           </motion.div></AnimatePresence>
         </main>
       </div>
