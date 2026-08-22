@@ -22,14 +22,31 @@ export type ActivitySource = {
 };
 
 export const CATEGORY_META: Record<ActivityCategory, { label: string; icon: string; color: string }> = {
-  journal: { label: 'Günlük', icon: '✎', color: '#4f46e5' },
-  quran: { label: 'Kuran', icon: '◫', color: '#d97706' },
-  hadis: { label: 'Hadis', icon: '❞', color: '#0f766e' },
-  matrix: { label: 'Matris', icon: '⊞', color: '#0284c7' },
-  lessons: { label: 'Hatalar', icon: '↺', color: '#be123c' },
-  sukur: { label: 'Şükür', icon: '✦', color: '#059669' },
-  mescidim: { label: 'Mescidim', icon: '◌', color: '#7c3aed' },
+  journal: { label: 'Günlük', icon: 'notebook', color: '#4f46e5' },
+  quran: { label: 'Kur’an', icon: 'book-2', color: '#d97706' },
+  hadis: { label: 'Hadis', icon: 'quote', color: '#0f766e' },
+  matrix: { label: 'Matris', icon: 'layout-grid', color: '#0284c7' },
+  lessons: { label: 'Hatalar', icon: 'history', color: '#be123c' },
+  sukur: { label: 'Şükür', icon: 'sparkles', color: '#059669' },
+  mescidim: { label: 'Mescidim', icon: 'building-mosque', color: '#7c3aed' },
 };
+
+export type SearchResult = { id: string; category: ActivityCategory; view: string; title: string; preview: string; searchable: string; icon: string; color: string };
+
+export function buildSearchIndex(source: ActivitySource): SearchResult[] {
+  const make = (category: ActivityCategory, id: string, title: string, preview: string) => ({
+    id, category, view: category, title, preview, searchable: `${title} ${preview}`.toLocaleLowerCase('tr-TR'),
+    icon: CATEGORY_META[category].icon, color: CATEGORY_META[category].color,
+  });
+  return [
+    ...source.journal.map((item) => make('journal', item.id, 'Günlük kaydı', item.content)),
+    ...source.quranNotes.map((item) => make('quran', item.id, `${item.sure || 'Kur’an'} notu`, `${item.ayet} ${item.tefsir} ${item.ders}`)),
+    ...source.hadisNotes.map((item) => make('hadis', item.id, item.konu || 'Hadis notu', `${item.metin} ${item.kaynak} ${item.uygulama}`)),
+    ...Object.values(source.eisenhower).flat().map((item) => make('matrix', item.id, item.done ? 'Tamamlanan görev' : 'Görev', item.text)),
+    ...source.lessons.map((item) => make('lessons', item.id, item.title || 'Hatalar ve Dersler', `${item.wrong} ${item.learned}`)),
+    ...source.sukurList.map((item) => make('sukur', item.id, 'Şükür kaydı', `${item.text} ${item.nimets.join(' ')}`)),
+  ].sort((a, b) => a.title.localeCompare(b.title, 'tr'));
+}
 
 export function buildActivityFeed(source: ActivitySource): ActivityEvent[] {
   const tasks = Object.values(source.eisenhower).flat();
