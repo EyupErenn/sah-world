@@ -2,7 +2,8 @@
 /* eslint-disable @next/next/no-img-element */
 
 import dynamic from 'next/dynamic'
-import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import LoginScreen from '@/components/auth/LoginScreen'
 import { AppIcon } from '@/components/ui/AppIcon'
@@ -13,6 +14,8 @@ import { supabase } from '@/lib/supabase'
 import type { Profile } from '@/lib/supabase'
 import type { SectionKey } from './SectionView'
 import WelcomeGuide from './WelcomeGuide'
+import CommandPalette from './CommandPalette'
+import MilestoneCelebration, { type Milestone } from './MilestoneCelebration'
 
 const DashboardView = dynamic(() => import('./DashboardView'), { loading: () => <ViewSkeleton /> })
 const ReportsView = dynamic(() => import('./ReportsView'), { loading: () => <ViewSkeleton /> })
@@ -54,8 +57,16 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
   const [view, setView] = useState<ViewKey>('dashboard')
   const [moreOpen, setMoreOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [milestone, setMilestone] = useState<Milestone>(null)
+  const milestoneArmed = useRef(false)
+  const milestoneSnapshot = useRef({ journal: store.journal.length, streak: store.streak.current, level: getLevelForXP(store.xp).level.name })
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const { level } = getLevelForXP(store.xp)
+  const journalCount = store.journal.length
+  const streakCurrent = store.streak.current
+  const currentLevelName = level.name
 
   useEffect(() => {
     const closeMenu = (event: PointerEvent) => {
@@ -64,6 +75,47 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
     document.addEventListener('pointerdown', closeMenu)
     return () => document.removeEventListener('pointerdown', closeMenu)
   }, [])
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem('sah-theme')
+    const nextTheme = saved === 'dark' ? 'dark' : 'light'
+    document.documentElement.dataset.theme = nextTheme
+    const timer = window.setTimeout(() => setTheme(nextTheme), 0)
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    const shortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setSearchOpen((value) => !value) }
+    }
+    document.addEventListener('keydown', shortcut)
+    return () => document.removeEventListener('keydown', shortcut)
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      milestoneArmed.current = true
+    }, 1500)
+    return () => window.clearTimeout(timer)
+  }, []) // İlk veri eşitlemesini kutlama olarak göstermeyiz.
+
+  useEffect(() => {
+    const current = { journal: journalCount, streak: streakCurrent, level: currentLevelName }
+    const previous = milestoneSnapshot.current
+    if (milestoneArmed.current && !milestone) {
+      let next: Exclude<Milestone, null> | null = null
+      if (previous.journal < 10 && current.journal >= 10) next = { id: 'journal-10', eyebrow: 'BİR DÖNÜM NOKTASI', title: 'Kendine on kez alan açtın.', message: 'On günlük kaydı; hızdan çok, tekrar tekrar kendine dönmeyi seçtiğini gösteriyor.', icon: 'notebook' }
+      else if ([7, 30, 100].includes(current.streak) && previous.streak < current.streak) next = { id: `streak-${current.streak}`, eyebrow: 'İSTİKRARIN GÖRÜNÜR OLDU', title: `${current.streak} günlük seri.`, message: 'Küçük adımların birbirine eklenerek nasıl bir ritim kurduğunu fark et.', icon: 'flame' }
+      else if (previous.level !== current.level) next = { id: `level-${current.level}`, eyebrow: 'YENİ BİR EVRE', title: `${current.level} seviyesine ulaştın.`, message: 'Bu seviye yalnızca uygulamadaki istikrarının yeni bir görünümüdür. Yolculuğun sana ait.', icon: 'sparkles' }
+      if (next && !window.localStorage.getItem(`sah-milestone-${next.id}`)) {
+        window.localStorage.setItem(`sah-milestone-${next.id}`, '1')
+        setMilestone(next)
+      }
+    }
+    milestoneSnapshot.current = current
+  }, [currentLevelName, journalCount, milestone, streakCurrent])
+
+  const closeSearch = useCallback(() => setSearchOpen(false), [])
 
   const activeUser = user || initialUser
   const activeProfile = profile || initialProfile
@@ -75,6 +127,12 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
     setMoreOpen(false)
     setProfileOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light'
+    setTheme(next)
+    document.documentElement.dataset.theme = next
+    window.localStorage.setItem('sah-theme', next)
   }
   const openPage = (path: string) => {
     setMoreOpen(false)
@@ -117,6 +175,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
           <button className="mobile-brand" onClick={() => navigate('dashboard')} aria-label="SAH ana sayfa"><span className="brand-mark">S</span><strong>SAH</strong></button>
           <div className="route-context"><span>SAH World</span><strong>{viewLabels[view]}</strong></div>
           <div className="header-actions" ref={profileMenuRef}>
+            <button className="global-search-button" onClick={() => setSearchOpen(true)} aria-label="Her yerde ara"><AppIcon name="search" /><span>Her yerde ara</span><kbd>Ctrl K</kbd></button>
             <button className="header-feedback" onClick={() => openPage('/feedback')}><AppIcon name="message-heart" /><span>Görüş bırak</span></button>
             <button className="profile-button" onClick={() => setProfileOpen((value) => !value)} aria-expanded={profileOpen} aria-haspopup="menu">
               <img src={avatarUrl} alt="" />
@@ -127,6 +186,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
               <div className="profile-summary"><img src={avatarUrl} alt="" /><span><strong>{activeProfile?.display_name || 'Yolcu'}</strong><small>{store.streak.current} günlük seri · {level.name}</small></span></div>
               <button role="menuitem" onClick={() => navigate('reports')}><AppIcon name="chart-histogram" /> Gelişim raporlarım</button>
               <button role="menuitem" onClick={() => navigate('community')}><AppIcon name="users-group" /> Topluluklarım</button>
+              <button role="menuitem" onClick={toggleTheme}><AppIcon name={theme === 'light' ? 'moon' : 'sun'} /> {theme === 'light' ? 'Gece görünümü' : 'Aydınlık görünüm'}</button>
               <button role="menuitem" onClick={() => openPage('/feedback')}><AppIcon name="message-heart" /> Görüş ve öneri</button>
               {activeUser?.app_metadata?.role === 'admin' && <button role="menuitem" onClick={() => openPage('/admin/feedback')}><AppIcon name="shield-check" /> Geri bildirim yönetimi</button>}
               <button className="signout" role="menuitem" onClick={() => void supabase.auth.signOut()}><AppIcon name="logout" /> Oturumu kapat</button>
@@ -135,7 +195,9 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
         </header>
 
         <main className="app-main" id="main-content">
-          {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel /> : <SectionView section={view} />}
+          <AnimatePresence mode="wait" initial={false}><motion.div key={view} className="view-motion-shell" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: .2, ease: [0.22, 1, 0.36, 1] }}>
+            {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel /> : <SectionView section={view} onNavigate={navigate} />}
+          </motion.div></AnimatePresence>
         </main>
       </div>
 
@@ -152,6 +214,8 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
         <button onClick={() => openPage('/feedback')}><AppIcon name="message-heart" /><span>Görüş</span></button>
         {activeUser?.app_metadata?.role === 'admin' && <button onClick={() => openPage('/admin/feedback')}><AppIcon name="shield-check" /><span>Yönetim</span></button>}
       </div>}
+      <CommandPalette open={searchOpen} onClose={closeSearch} onNavigate={navigate} />
+      <MilestoneCelebration milestone={milestone} onClose={() => setMilestone(null)} />
     </div>
   )
 }

@@ -19,13 +19,13 @@ const meta: Record<SectionKey, { title: string; eyebrow: string; description: st
   depot: { title: 'Ahiret Deposu', eyebrow: 'YOLCULUK ÖZETİ', description: 'Uygulamadaki istikrarının ve oluşturduğun kayıtların sakin bir özeti.', icon: 'archive' },
 };
 
-export default function SectionView({ section }: { section: SectionKey }) {
+export default function SectionView({ section, onNavigate }: { section: SectionKey; onNavigate: (view: string) => void }) {
   const store = useJourneyStore();
   const [notice, setNotice] = useState('');
   const info = meta[section];
 
   const reward = (amount: number, label: string, sourceType: string, sourceId: string) => {
-    store.addXP(amount); store.checkBadges(); setNotice(`${label} kaydedildi · +${amount} XP`);
+    store.addXP(amount); store.updateStreak(); store.checkBadges(); setNotice(`${label} kaydedildi · +${amount} XP`);
     void recordXpEvent({ sourceType, sourceId, label, amount });
     window.setTimeout(() => setNotice(''), 3200);
   };
@@ -42,26 +42,43 @@ export default function SectionView({ section }: { section: SectionKey }) {
   };
 
   return <div className="view-stack"><header className="page-heading section-heading"><div><span className="eyebrow">{info.eyebrow}</span><h1><i><AppIcon name={info.icon}/></i> {info.title}</h1><p>{info.description}</p></div>{notice && <span className="success-toast"><AppIcon name="check"/> {notice}</span>}</header>
-    {section === 'matrix' ? <Matrix reward={reward} /> : section === 'mescidim' ? <Mescid reward={reward} /> : section === 'depot' ? <Depot /> : <EntrySection section={section} onSubmit={submit} />}
+    {section === 'matrix' ? <Matrix reward={reward} /> : section === 'mescidim' ? <Mescid reward={reward} /> : section === 'depot' ? <Depot /> : <EntrySection section={section} onSubmit={submit} onNavigate={onNavigate} />}
   </div>;
 }
 
-function Field({ label, name, type = 'text', placeholder, required = true }: { label: string; name: string; type?: 'text' | 'textarea' | 'number'; placeholder: string; required?: boolean }) {
-  return <label className="field"><span>{label}</span>{type === 'textarea' ? <textarea name={name} placeholder={placeholder} required={required} rows={4}/> : <input name={name} type={type} placeholder={placeholder} required={required}/>}</label>;
+function Field({ label, name, type = 'text', placeholder, required = true, min, max }: { label: string; name: string; type?: 'text' | 'textarea' | 'number'; placeholder: string; required?: boolean; min?: number; max?: number }) {
+  const validation = {
+    required, onInvalid: (event: React.InvalidEvent<HTMLInputElement | HTMLTextAreaElement>) => event.currentTarget.setCustomValidity('Bu alanı tamamlaman gerekiyor.'),
+    onInput: (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>) => event.currentTarget.setCustomValidity(''),
+  };
+  return <label className="field"><span>{label}</span>{type === 'textarea' ? <textarea name={name} placeholder={placeholder} rows={4} {...validation}/> : <input name={name} type={type} placeholder={placeholder} min={min} max={max} {...validation}/>}<small className="field-error">Bu alanı tamamlaman gerekiyor.</small></label>;
 }
 
-function EntrySection({ section, onSubmit }: { section: Exclude<SectionKey, 'matrix'|'mescidim'|'depot'>; onSubmit: (e: React.FormEvent<HTMLFormElement>) => void }) {
+function EntrySection({ section, onSubmit, onNavigate }: { section: Exclude<SectionKey, 'matrix'|'mescidim'|'depot'>; onSubmit: (e: React.FormEvent<HTMLFormElement>) => void; onNavigate: (view: string) => void }) {
   const store = useJourneyStore();
   const lists = { journal: store.journal, quran: store.quranNotes, hadis: store.hadisNotes, lessons: store.lessons, sukur: store.sukurList };
   const items = lists[section];
   return <div className="workspace-grid"><form className="surface-card entry-form" onSubmit={onSubmit}><div className="card-heading"><div><span className="eyebrow">YENİ KAYIT</span><h2>Bugünden bir iz bırak</h2></div></div>
-    {section === 'journal' && <><div className="three-fields"><Field label="Ruh hali (1-5)" name="mood" type="number" placeholder="3"/><Field label="Enerji (1-10)" name="energy" type="number" placeholder="7"/><Field label="Stres (1-10)" name="stress" type="number" placeholder="3"/></div><Field label="Bugün sende ne kaldı?" name="content" type="textarea" placeholder="Kendine dürüst ve şefkatli bir not..."/></>}
+    {section === 'journal' && <><div className="three-fields"><Field label="Ruh hali (1-5)" name="mood" type="number" min={1} max={5} placeholder="3"/><Field label="Enerji (1-10)" name="energy" type="number" min={1} max={10} placeholder="7"/><Field label="Stres (1-10)" name="stress" type="number" min={1} max={10} placeholder="3"/></div><Field label="Bugün sende ne kaldı?" name="content" type="textarea" placeholder="Kendine dürüst ve şefkatli bir not..."/></>}
     {section === 'quran' && <><div className="two-fields"><Field label="Sure" name="sure" placeholder="Örn. İnşirah"/><Field label="Ayet" name="ayet" placeholder="Ayet numarası veya kısa referans"/></div><Field label="Tefsir / not" name="tefsir" type="textarea" placeholder="Okuduğundan anladığın..."/><Field label="Hayata taşıyacağım ders" name="ders" type="textarea" placeholder="Bugün uygulayabileceğim küçük bir adım..."/></>}
     {section === 'hadis' && <><div className="two-fields"><Field label="Kaynak" name="kaynak" placeholder="Örn. Buhârî"/><Field label="Konu" name="konu" placeholder="Örn. İstikrar"/></div><Field label="Hadis metni / kısa not" name="metin" type="textarea" placeholder="Kaynakla birlikte notun..."/><Field label="Hayata uygulama niyeti" name="uygulama" type="textarea" placeholder="Bunu bugün nasıl yaşayabilirim?"/></>}
-    {section === 'lessons' && <><div className="two-fields"><Field label="Başlık" name="title" placeholder="Durumu kısa adlandır"/><Field label="Etkisi (1-5)" name="severity" type="number" placeholder="3"/></div><Field label="Ne oldu?" name="wrong" type="textarea" placeholder="Yargılamadan olayı tarif et..."/><Field label="Bundan ne öğrendim?" name="learned" type="textarea" placeholder="Bir sonraki sefer için küçük ve gerçekçi bir ders..."/></>}
+    {section === 'lessons' && <><div className="two-fields"><Field label="Başlık" name="title" placeholder="Durumu kısa adlandır"/><Field label="Etkisi (1-5)" name="severity" type="number" min={1} max={5} placeholder="3"/></div><Field label="Ne oldu?" name="wrong" type="textarea" placeholder="Yargılamadan olayı tarif et..."/><Field label="Bundan ne öğrendim?" name="learned" type="textarea" placeholder="Bir sonraki sefer için küçük ve gerçekçi bir ders..."/></>}
     {section === 'sukur' && <><Field label="Bugünün şükür notu" name="text" type="textarea" placeholder="Bugün fark ettiğim..."/><div className="three-fields"><Field label="Nimet 1" name="n1" placeholder="Küçük de olabilir"/><Field label="Nimet 2" name="n2" placeholder="Bugünden"/><Field label="Nimet 3" name="n3" placeholder="Kalbine gelen"/></div></>}
+    <ContextLinks section={section} onNavigate={onNavigate} />
     <button className="primary-button" type="submit">Kaydı tamamla</button></form>
-    <section className="surface-card recent-card"><div className="card-heading"><div><span className="eyebrow">ARŞİV</span><h2>Son kayıtlar</h2></div><span className="quiet-chip">{items.length} toplam</span></div>{items.length === 0 ? <div className="empty-state"><i><AppIcon name="notes"/></i><strong>Henüz kayıt yok</strong><p>İlk notun burada güvenle görünecek.</p></div> : <div className="simple-records">{items.slice(0,8).map((item) => <article key={item.id}><strong>{new Intl.DateTimeFormat('tr-TR',{day:'numeric',month:'long'}).format(new Date(item.createdAt))}</strong><p>{'content' in item ? item.content : 'ders' in item ? item.ders : 'uygulama' in item ? item.uygulama : 'learned' in item ? item.learned : item.text}</p></article>)}</div>}</section></div>;
+    <section className="surface-card recent-card"><div className="card-heading"><div><span className="eyebrow">ARŞİV</span><h2>Son kayıtlar</h2></div><span className="quiet-chip">{items.length} toplam</span></div>{items.length === 0 ? <div className="empty-state"><i><AppIcon name="notes"/></i><strong>Bu sayfa ilk izini bekliyor</strong><p>Bugünden kalan tek bir cümle, zamanla anlamlı bir yolculuğa dönüşebilir.</p></div> : <div className="simple-records">{items.slice(0,8).map((item) => <article key={item.id}><strong>{new Intl.DateTimeFormat('tr-TR',{day:'numeric',month:'long'}).format(new Date(item.createdAt))}</strong><p>{'content' in item ? item.content : 'ders' in item ? item.ders : 'uygulama' in item ? item.uygulama : 'learned' in item ? item.learned : item.text}</p></article>)}</div>}</section></div>;
+}
+
+function ContextLinks({ section, onNavigate }: { section: Exclude<SectionKey, 'matrix'|'mescidim'|'depot'>; onNavigate: (view: string) => void }) {
+  const links = section === 'journal'
+    ? [{ view: 'quran', icon: 'book-2', label: 'İlgili Kur’an notu ekle' }, { view: 'hadis', icon: 'quote', label: 'İlgili hadis notu ekle' }]
+    : section === 'lessons'
+      ? [{ view: 'matrix', icon: 'layout-grid', label: 'Bununla ilgili bir hedef oluştur' }]
+      : ['quran', 'hadis'].includes(section)
+        ? [{ view: 'journal', icon: 'notebook', label: 'Bunu günlüğüme yansıt' }]
+        : [];
+  if (!links.length) return null;
+  return <div className="context-links"><span><AppIcon name="link" /> İstersen bu kaydı başka bir alanla derinleştir</span><div>{links.map((link) => <button type="button" key={link.view} onClick={() => onNavigate(link.view)}><AppIcon name={link.icon} /> {link.label}<AppIcon name="arrow-right" /></button>)}</div></div>;
 }
 
 function Matrix({ reward }: { reward: (a:number,l:string,s:string,id:string)=>void }) {
