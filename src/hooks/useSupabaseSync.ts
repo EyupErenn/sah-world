@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useJourneyStore, type ExportSchema, ensureUUID, isValidUUID } from '@/store/useJourneyStore';
 import type { Profile } from '@/lib/supabase';
-import type { JournalEntry, QuranNote, HadisNote, EisenhowerTask, LessonEntry, SukurEntry } from '@/types';
+import type { JournalEntry, QuranNote, HadisNote, EisenhowerTask, LessonEntry, SukurEntry, FocusSession } from '@/types';
 
 // ============================================================
 // Migration: localStorage → Supabase (bir kez çalışır)
@@ -195,6 +195,7 @@ export function useSupabaseSync() {
           { data: lessonData },
           { data: sukurData },
           { data: eisenhowerData },
+          { data: focusData },
         ] = await Promise.all([
           supabase.from('journal_entries').select('*').eq('user_id', authenticatedUserId).order('created_at', { ascending: false }),
           supabase.from('quran_notes').select('*').eq('user_id', authenticatedUserId).order('created_at', { ascending: false }),
@@ -202,6 +203,7 @@ export function useSupabaseSync() {
           supabase.from('lesson_entries').select('*').eq('user_id', authenticatedUserId).order('created_at', { ascending: false }),
           supabase.from('sukur_entries').select('*').eq('user_id', authenticatedUserId).order('created_at', { ascending: false }),
           supabase.from('eisenhower_tasks').select('*').eq('user_id', authenticatedUserId).order('created_at', { ascending: false }),
+          supabase.from('focus_sessions').select('*').eq('user_id', authenticatedUserId).order('started_at', { ascending: false }),
         ]);
 
         // Verileri dönüştür
@@ -264,6 +266,19 @@ export function useSupabaseSync() {
           else if (t.quadrant === 'q4') eisenhower.q4.push(task);
         });
 
+        const focusSessions: FocusSession[] = (focusData || []).map((session) => ({
+          id: session.id,
+          taskLabel: session.task_label,
+          timerType: session.timer_type,
+          plannedDurationSeconds: session.planned_duration_seconds,
+          actualDurationSeconds: session.actual_duration_seconds,
+          startedAt: session.started_at,
+          endedAt: session.ended_at,
+          completed: session.completed,
+          linkedJournalEntryId: session.linked_journal_entry_id ?? undefined,
+          xpAwarded: session.xp_awarded,
+        }));
+
         // 3. Zustand store'a DB verilerini yükle (importAll)
         importAll({
           xp: profile.xp ?? 0,
@@ -283,6 +298,7 @@ export function useSupabaseSync() {
           lessons,
           sukurList,
           eisenhower,
+          focusSessions,
         });
 
         // 4. Migrasyon kontrolü

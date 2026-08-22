@@ -1,6 +1,6 @@
-import type { EisenhowerState, HadisNote, JournalEntry, LessonEntry, QuranNote, SukurEntry } from '@/types';
+import type { EisenhowerState, FocusSession, HadisNote, JournalEntry, LessonEntry, QuranNote, SukurEntry } from '@/types';
 
-export type ActivityCategory = 'journal' | 'quran' | 'hadis' | 'matrix' | 'lessons' | 'sukur' | 'mescidim';
+export type ActivityCategory = 'journal' | 'quran' | 'hadis' | 'matrix' | 'lessons' | 'sukur' | 'mescidim' | 'focus';
 
 export type ActivityEvent = {
   id: string;
@@ -19,6 +19,7 @@ export type ActivitySource = {
   lessons: LessonEntry[];
   sukurList: SukurEntry[];
   totalZikir: number;
+  focusSessions: FocusSession[];
 };
 
 export const CATEGORY_META: Record<ActivityCategory, { label: string; icon: string; color: string }> = {
@@ -29,6 +30,7 @@ export const CATEGORY_META: Record<ActivityCategory, { label: string; icon: stri
   lessons: { label: 'Hatalar', icon: 'history', color: '#be123c' },
   sukur: { label: 'Şükür', icon: 'sparkles', color: '#059669' },
   mescidim: { label: 'Mescidim', icon: 'building-mosque', color: '#7c3aed' },
+  focus: { label: 'Odak', icon: 'target-arrow', color: '#0d9488' },
 };
 
 export type SearchResult = { id: string; category: ActivityCategory; view: string; title: string; preview: string; searchable: string; icon: string; color: string };
@@ -45,6 +47,7 @@ export function buildSearchIndex(source: ActivitySource): SearchResult[] {
     ...Object.values(source.eisenhower).flat().map((item) => make('matrix', item.id, item.done ? 'Tamamlanan görev' : 'Görev', item.text)),
     ...source.lessons.map((item) => make('lessons', item.id, item.title || 'Hatalar ve Dersler', `${item.wrong} ${item.learned}`)),
     ...source.sukurList.map((item) => make('sukur', item.id, 'Şükür kaydı', `${item.text} ${item.nimets.join(' ')}`)),
+    ...source.focusSessions.map((item) => make('focus', item.id, 'Odak oturumu', `${item.taskLabel} ${Math.round(item.actualDurationSeconds / 60)} dakika`)),
   ].sort((a, b) => a.title.localeCompare(b.title, 'tr'));
 }
 
@@ -57,6 +60,7 @@ export function buildActivityFeed(source: ActivitySource): ActivityEvent[] {
     ...tasks.filter((item) => item.done).map((item) => ({ id: item.id, category: 'matrix' as const, label: 'Görev tamamlandı', detail: item.text, xp: 25, createdAt: item.createdAt })),
     ...source.lessons.map((item) => ({ id: item.id, category: 'lessons' as const, label: 'Ders kaydı', detail: item.title || 'Deneyimden öğrenilen ders', xp: 25, createdAt: item.createdAt })),
     ...source.sukurList.map((item) => ({ id: item.id, category: 'sukur' as const, label: 'Şükür kaydı', detail: item.text || 'Yeni bir nimet fark edildi', xp: 20, createdAt: item.createdAt })),
+    ...source.focusSessions.map((item) => ({ id: item.id, category: 'focus' as const, label: 'Odak oturumu', detail: `${item.taskLabel} · ${Math.round(item.actualDurationSeconds / 60)} dakika`, xp: item.xpAwarded, createdAt: item.endedAt })),
   ].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
@@ -87,6 +91,7 @@ export function getCategoryCounts(source: ActivitySource): Record<ActivityCatego
     lessons: source.lessons.length,
     sukur: source.sukurList.length,
     mescidim: Math.floor(source.totalZikir / 33),
+    focus: source.focusSessions.length,
   };
 }
 

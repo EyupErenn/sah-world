@@ -11,6 +11,7 @@ import { buildActivityFeed, CATEGORY_META, dayKey, getCategoryCounts, relativeTi
 import { getLevelForXP } from '@/lib/constants'
 
 const quickActions = [
+  { id: 'focus', icon: 'target-arrow', title: 'Odaklan', note: 'Kesintisiz bir çalışma alanı aç' },
   { id: 'daily-wheel', icon: 'refresh', title: 'Bugünün çarkı', note: 'Ayet veya hadis hatırlatması seç' },
   { id: 'journal', icon: 'pencil', title: 'Günlük yaz', note: 'Bugünü birkaç cümleyle kaydet' },
   { id: 'sukur', icon: 'sparkles', title: 'Şükür ekle', note: 'Fark ettiğin bir nimeti yaz' },
@@ -40,10 +41,10 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
   const hour = new Date().getHours()
   const streakAtRisk = hour >= 20 && !hasActivityToday && store.streak.lastDate !== todayKey
   const personalizedActions = useMemo(() => {
-    const usage: Record<string, number> = { journal: counts.journal, quran: counts.quran, hadis: counts.hadis, sukur: counts.sukur, matrix: counts.matrix, mescidim: counts.mescidim }
-    return quickActions.filter((action) => action.id !== 'daily-wheel').sort((a, b) => (usage[b.id] ?? 0) - (usage[a.id] ?? 0)).slice(0, 3)
-  }, [counts.hadis, counts.journal, counts.matrix, counts.mescidim, counts.quran, counts.sukur])
-  const suggested = personalizedActions[0] ?? quickActions[1]
+    const usage: Record<string, number> = { focus: counts.focus, journal: counts.journal, quran: counts.quran, hadis: counts.hadis, sukur: counts.sukur, matrix: counts.matrix, mescidim: counts.mescidim }
+    return quickActions.filter((action) => !['daily-wheel', 'focus'].includes(action.id)).sort((a, b) => (usage[b.id] ?? 0) - (usage[a.id] ?? 0)).slice(0, 2)
+  }, [counts.focus, counts.hadis, counts.journal, counts.matrix, counts.mescidim, counts.quran, counts.sukur])
+  const suggested = personalizedActions[0] ?? quickActions[2]
   const ritualMessage = hour < 12 ? 'Güne sakin bir notla başlamak ister misin?' : hour < 18 ? 'Bugünden sende kalanları iki dakikada kaydedebilirsin.' : 'Günü kapatmadan önce kendine kısa bir alan aç.'
 
   return (
@@ -64,7 +65,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
         <aside className="surface-card today-card" aria-labelledby="today-actions-title">
           <div className="card-heading"><div><span className="eyebrow">BUGÜN</span><h2 id="today-actions-title">Neye alan açacaksın?</h2></div><span className="quiet-chip">1 adım yeter</span></div>
           <div className="quick-actions">
-            {[quickActions[0], ...personalizedActions].map((action, index) => <button key={action.id} className={index === 0 ? 'primary-quick' : ''} onClick={() => onNavigate(action.id)}>
+            {[quickActions[0], quickActions[1], ...personalizedActions].map((action, index) => <button key={action.id} className={index === 0 ? 'primary-quick' : ''} onClick={() => onNavigate(action.id)}>
               <span className="quick-action-icon"><AppIcon name={action.icon} /></span>
               <span><strong>{action.title}</strong><small>{action.note}</small></span>
               <AppIcon name="arrow-right" />

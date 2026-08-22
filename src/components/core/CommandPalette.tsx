@@ -7,7 +7,7 @@ import { buildSearchIndex } from '@/lib/activity'
 import { useJourneyStore } from '@/store/useJourneyStore'
 
 const destinations = [
-  ['dashboard', 'Evrenim', 'home-2'], ['daily-wheel', 'Bugünün Çarkı', 'refresh'], ['journal', 'Günlük', 'notebook'],
+  ['dashboard', 'Evrenim', 'home-2'], ['focus', 'Odaklanma Zamanlayıcısı', 'target-arrow'], ['daily-wheel', 'Bugünün Çarkı', 'refresh'], ['journal', 'Günlük', 'notebook'],
   ['quran', 'Kur’an', 'book-2'], ['hadis', 'Hadis', 'quote'], ['sukur', 'Şükür', 'sparkles'],
   ['lessons', 'Hatalar ve Dersler', 'history'], ['matrix', 'Öncelik Matrisi', 'layout-grid'],
   ['mescidim', 'Mescidim', 'building-mosque'], ['reports', 'Raporlarım', 'chart-histogram'], ['community', 'Topluluk', 'users-group'],
