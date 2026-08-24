@@ -133,6 +133,44 @@ export type AwarenessEngagementRow = {
   updated_at: string;
 };
 
+export type ProfessionTrackRow = {
+  id: string;
+  profession_name: string;
+  icon: string;
+  description: string;
+  color_accent: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProfessionLessonRow = {
+  id: string;
+  track_id: string;
+  title: string;
+  order_index: number;
+  duration_estimate_minutes: number;
+  content_body: Json;
+  source_references: Json;
+  xp_reward: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UserProfessionTrackRow = {
+  id: string;
+  user_id: string;
+  track_id: string;
+  followed_at: string;
+};
+
+export type UserLessonProgressRow = {
+  id: string;
+  user_id: string;
+  lesson_id: string;
+  completed_at: string;
+  reflection_note: string | null;
+};
+
 export type FeedbackType = 'suggestion' | 'bug' | 'usability' | 'content' | 'performance' | 'other';
 export type FeedbackStatus = 'received' | 'reviewing' | 'planned' | 'completed' | 'closed';
 export type FeedbackRow = {
@@ -180,6 +218,10 @@ export interface Database {
       awareness_quiz_questions: RowTable<AwarenessQuizQuestionRow>;
       user_quiz_attempts: RowTable<UserQuizAttemptRow>;
       awareness_engagement_log: RowTable<AwarenessEngagementRow>;
+      profession_tracks: RowTable<ProfessionTrackRow>;
+      profession_lessons: RowTable<ProfessionLessonRow>;
+      user_profession_tracks: RowTable<UserProfessionTrackRow>;
+      user_lesson_progress: RowTable<UserLessonProgressRow>;
     };
     Views: {
       public_profile_summary: { Row: Pick<ProfileRow, 'id' | 'display_name' | 'avatar_url' | 'xp' | 'streak_current' | 'badges'>; Relationships: [] };
@@ -198,6 +240,7 @@ export interface Database {
       admin_feedback_stats: { Args: Record<string, never>; Returns: Array<{ total_count: number; received_count: number; reviewing_count: number; planned_count: number; completed_count: number; average_rating: number | null }> };
       admin_list_feedback: { Args: { filter_status?: string | null; filter_type?: string | null; filter_rating?: number | null; search_text?: string | null; sort_order?: string; page_number?: number; page_size?: number; include_archived?: boolean; filter_from?: string | null; filter_to?: string | null }; Returns: AdminFeedbackRow[] };
       admin_update_feedback: { Args: { target_id: string; next_status: FeedbackStatus; response_text?: string | null; archive_item?: boolean }; Returns: undefined };
+      complete_profession_lesson: { Args: { target_lesson_id: string; reflection_text?: string | null }; Returns: Array<{ awarded: boolean; xp_awarded: number; track_completed: boolean }> };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

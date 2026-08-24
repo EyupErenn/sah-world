@@ -12,6 +12,7 @@ const destinations = [
   ['lessons', 'Hatalar ve Dersler', 'history'], ['matrix', 'Öncelik Matrisi', 'layout-grid'],
   ['mescidim', 'Mescidim', 'building-mosque'], ['reports', 'Raporlarım', 'chart-histogram'], ['community', 'Topluluk', 'users-group'],
   ['awareness', 'Mazlum Coğrafyalar', 'world-heart'],
+  ['profession-school', 'Meslek ve Ahlak Okulu', 'certificate'],
 ] as const
 
 export default function CommandPalette({ open, onClose, onNavigate }: { open: boolean; onClose: () => void; onNavigate: (view: string) => void }) {
