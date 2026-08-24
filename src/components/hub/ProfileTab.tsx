@@ -80,9 +80,9 @@ export default function ProfileTab() {
           {/* XP Progress Bar */}
           <div className="xp-progress-stack w-full pt-1">
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-xs text-slate-300 font-mono font-semibold leading-none">
-              <span className="justify-self-start whitespace-nowrap">{currentLevelXP} XP</span>
+              <span className="justify-self-start whitespace-nowrap">{currentLevelXP} XH</span>
               <span className="justify-self-center text-cyan-300 font-bold px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 whitespace-nowrap">{Math.round(progressPercent)}%</span>
-              <span className="justify-self-end whitespace-nowrap">{nextLevelXP} XP</span>
+              <span className="justify-self-end whitespace-nowrap">{nextLevelXP} XH</span>
             </div>
             <div className="w-full h-3 bg-slate-900/90 rounded-full overflow-hidden p-1 relative shadow-inner">
               <div 
@@ -92,7 +92,7 @@ export default function ProfileTab() {
             </div>
             <div className="flex flex-wrap justify-between items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 font-mono">
               <span>Seviye İlerlemesi</span>
-              <span>Toplam Amel: <strong className="text-white font-bold">{profile.xp} XP</strong></span>
+              <span>Toplam Amel: <strong className="text-white font-bold">{profile.xp} XH</strong></span>
             </div>
           </div>
         </div>

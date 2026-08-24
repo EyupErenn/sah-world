@@ -175,7 +175,7 @@ export default function FocusTimerView({ onExit }: { onExit: () => void }) {
       </FocusModal>}
 
       {modal === 'stop' && <FocusModal title="Oturumu şimdi bitir?" onClose={() => setModal(null)} compact>
-        <div className="focus-confirm-message"><span><AppIcon name="clock-pause" /></span><p><strong>{formatFocusDuration(elapsedSeconds)} boyunca odaktaydın.</strong> Bu süre kısmi oturum olarak kaydedilecek; tamamlanan oturuma göre daha az XP verebilir.</p></div>
+        <div className="focus-confirm-message"><span><AppIcon name="clock-pause" /></span><p><strong>{formatFocusDuration(elapsedSeconds)} boyunca odaktaydın.</strong> Bu süre kısmi oturum olarak kaydedilecek; tamamlanan oturuma göre daha az XH verebilir.</p></div>
         <ModalActions onCancel={() => setModal(null)} cancelLabel="Devam et" confirmLabel="Bitir ve kaydet" onConfirm={() => { setModal(null); finalizeFocusSession(false) }} danger />
       </FocusModal>}
     </AnimatePresence>

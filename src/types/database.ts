@@ -79,6 +79,44 @@ export type FocusSessionRow = {
   created_at: string;
 };
 
+export type GeographyRow = 'filistin' | 'dogu_turkistan';
+export type RegionalAwarenessContentRow = {
+  id: string;
+  geography: GeographyRow;
+  section: 'overview' | 'heritage' | 'today';
+  title: string;
+  body: string;
+  source_label: string;
+  source_url: string;
+  order_index: number;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export type AwarenessQuizQuestionRow = {
+  id: string;
+  geography: GeographyRow;
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_option: 'A' | 'B' | 'C' | 'D';
+  explanation_text: string;
+  source_url: string;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+};
+export type UserQuizAttemptRow = {
+  id: string;
+  user_id: string;
+  geography: GeographyRow;
+  score: number;
+  xh_awarded: number;
+  completed_at: string;
+};
+
 export type FeedbackType = 'suggestion' | 'bug' | 'usability' | 'content' | 'performance' | 'other';
 export type FeedbackStatus = 'received' | 'reviewing' | 'planned' | 'completed' | 'closed';
 export type FeedbackRow = {
@@ -122,6 +160,9 @@ export interface Database {
       xp_events: RowTable<XpEventRow>;
       focus_sessions: RowTable<FocusSessionRow>;
       feedback: RowTable<FeedbackRow>;
+      regional_awareness_content: RowTable<RegionalAwarenessContentRow>;
+      awareness_quiz_questions: RowTable<AwarenessQuizQuestionRow>;
+      user_quiz_attempts: RowTable<UserQuizAttemptRow>;
     };
     Views: {
       public_profile_summary: { Row: Pick<ProfileRow, 'id' | 'display_name' | 'avatar_url' | 'xp' | 'streak_current' | 'badges'>; Relationships: [] };

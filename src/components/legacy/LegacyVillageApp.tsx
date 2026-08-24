@@ -111,7 +111,7 @@ function VillageWorld() {
     5: { summary: `${store.lessons.length} ders`, detail: formatLastEntry(store.lessons.map(entry => entry.createdAt ?? entry.date)) },
     6: { summary: `${store.sukurList.length} şükür`, detail: formatLastEntry(store.sukurList.map(entry => entry.createdAt ?? entry.date)) },
     7: { summary: `${store.totalZikir} zikir`, detail: store.currentTespih ? `Tespihe ${store.currentTespih}/33 devam et` : 'Manevi molanı başlat' },
-    8: { summary: `${store.xp} XP`, detail: `${level.icon} ${level.name} mertebesi` },
+    8: { summary: `${store.xp} XH`, detail: `${level.icon} ${level.name} mertebesi` },
   };
 
   // First visit vehicle prompt
@@ -203,7 +203,7 @@ function VillageWorld() {
   // Earn XP helper
   const earnXP = useCallback((amount: number, reason: string) => {
     store.addXP(amount);
-    showToast(`+${amount} Amel XP ✨`, reason);
+    showToast(`+${amount} Amel XH ✨`, reason);
     playSuccessChime();
     store.checkBadges();
   }, [store, showToast]);
@@ -399,7 +399,7 @@ function VillageWorld() {
 
           {/* XP & Level Indicator Pill */}
           <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-full glass-pill border-emerald-500/25 text-emerald-300 text-xs font-bold font-mono shadow-sm">
-            <span>✨ {store.xp} XP</span>
+            <span>✨ {store.xp} XH</span>
             <span className="text-slate-500 text-[10px]">·</span>
             <span>{level.icon} {level.name}</span>
           </div>
@@ -781,7 +781,7 @@ function GunlukPanelContent({ onSubmit, entries }: GunlukProps) {
           type="submit"
           className="sah-button-primary w-full py-4 text-sm"
         >
-          💾 Kaydet (+50 XP)
+          💾 Kaydet (+50 XH)
         </button>
       </form>
 
@@ -838,7 +838,7 @@ function KuranPanelContent({ onSubmit, entries }: KuranProps) {
           type="submit"
           className="sah-button-primary w-full py-4 text-sm"
         >
-          📖 Kaydet (+60 XP)
+          📖 Kaydet (+60 XH)
         </button>
       </form>
 
@@ -895,7 +895,7 @@ function HadisPanelContent({ onSubmit, entries }: HadisProps) {
           type="submit"
           className="sah-button-primary w-full py-4 text-sm"
         >
-          🕌 Kaydet (+60 XP)
+          🕌 Kaydet (+60 XH)
         </button>
       </form>
 
@@ -1032,7 +1032,7 @@ function HatalarPanelContent({ onSubmit, severity, onSeverityChange, entries }: 
           type="submit"
           className="sah-button-primary w-full py-4 text-sm"
         >
-          🛡️ Kaydet (+40 XP)
+          🛡️ Kaydet (+40 XH)
         </button>
       </form>
 
@@ -1074,7 +1074,7 @@ function SukurPanelContent({ onSubmit, entries }: SukurProps) {
           type="submit"
           className="sah-button-primary w-full py-4 text-sm"
         >
-          ✨ Kaydet (+35 XP)
+          ✨ Kaydet (+35 XH)
         </button>
       </form>
 

@@ -85,7 +85,7 @@ export default function FocusTimerFloatingWidget() {
       <section className="focus-global-modal" role="dialog" aria-modal="true" aria-labelledby="focus-global-complete-title">
         <span className="focus-global-success"><AppIcon name="sparkles" /></span>
         <div><span className="eyebrow">ODAK TAMAMLANDI</span><h2 id="focus-global-complete-title">Emeğin gününde bir iz bıraktı.</h2></div>
-        <div className="focus-complete-summary"><span><AppIcon name="target-arrow" /></span><div><strong>{timer.completedSession.taskLabel}</strong><p>{formatFocusDuration(timer.completedSession.actualDurationSeconds)} odak · +{timer.completedSession.xpAwarded} XP</p></div></div>
+        <div className="focus-complete-summary"><span><AppIcon name="target-arrow" /></span><div><strong>{timer.completedSession.taskLabel}</strong><p>{formatFocusDuration(timer.completedSession.actualDurationSeconds)} odak · +{timer.completedSession.xpAwarded} XH</p></div></div>
         <p className="journal-offer-copy">Bu oturumu bugünün Günlük kaydına eklemek ister misin?</p>
         <footer><button onClick={timer.dismissCompletion}>Şimdi değil</button><button onClick={logToJournal}>Günlüğe ekle</button></footer>
       </section>
