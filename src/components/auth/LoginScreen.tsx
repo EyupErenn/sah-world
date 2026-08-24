@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { getGoogleAuthAvailability, supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/useAuthStore'
+import PurposeEquation from '@/components/core/PurposeEquation'
+import CardioidMotif from './CardioidMotif'
 
 type Step = 'email' | 'otp'
 type GoogleAvailability = 'checking' | 'enabled' | 'disabled' | 'unknown'
@@ -146,7 +148,8 @@ export default function LoginScreen() {
           <h1 id="login-title">İyi alışkanlıkların,<br /><em>kendi evrenini kurar.</em></h1>
           <p>Günlüğünü, hedeflerini ve manevi yolculuğunu tek bir sakin alanda takip et. Her kayıt ilerlemene dönüşsün.</p>
         </div>
-        <div className="login-orbit" aria-hidden><span className="orbit-core">✦</span><i /><i /><i /></div>
+        <CardioidMotif />
+        <PurposeEquation compact />
         <ul className="login-trust-list" aria-label="Platform özellikleri">
           <li><span>✓</span> Sekiz yaşam alanı</li><li><span>✓</span> XH ve gelişim raporları</li><li><span>✓</span> Verilerin sana özel</li>
         </ul>

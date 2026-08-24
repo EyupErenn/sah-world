@@ -17,6 +17,7 @@ import type { SectionKey } from './SectionView'
 import WelcomeGuide from './WelcomeGuide'
 import CommandPalette from './CommandPalette'
 import MilestoneCelebration, { type Milestone } from './MilestoneCelebration'
+import AwarenessProfileSummary from './AwarenessProfileSummary'
 
 const DashboardView = dynamic(() => import('./DashboardView'), { loading: () => <ViewSkeleton /> })
 const ReportsView = dynamic(() => import('./ReportsView'), { loading: () => <ViewSkeleton /> })
@@ -227,6 +228,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
             </button>
             {profileOpen && <div className="profile-popover" role="menu">
               <div className="profile-summary"><img src={avatarUrl} alt="" /><span><strong>{activeProfile?.display_name || 'Yolcu'}</strong><small>{store.streak.current} günlük seri · {level.name}</small></span></div>
+              <AwarenessProfileSummary onOpen={() => navigate('awareness')} />
               <button role="menuitem" onClick={() => navigate('reports')}><AppIcon name="chart-histogram" /> Gelişim raporlarım</button>
               <button role="menuitem" onClick={() => navigate('community')}><AppIcon name="users-group" /> Topluluklarım</button>
               <button role="menuitem" onClick={toggleTheme}><AppIcon name={theme === 'light' ? 'moon' : 'sun'} /> {theme === 'light' ? 'Gece görünümü' : 'Aydınlık görünüm'}</button>
