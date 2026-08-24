@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useId, useMemo } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { getLevelForXP, LEVELS } from '@/lib/constants'
 
 export default function GrowthTree({ xp, trigger, lastAmount }: { xp: number; trigger: number; lastAmount: number }) {
@@ -10,6 +10,7 @@ export default function GrowthTree({ xp, trigger, lastAmount }: { xp: number; tr
   const end = nextLevel?.xp ?? start
   const progress = nextLevel ? Math.min(100, ((xp - start) / Math.max(1, end - start)) * 100) : 100
   const uid = useId().replace(/:/g, '')
+  const [delighted, setDelighted] = useState(false)
   const motes = useMemo(() => Array.from({ length: Math.min(18, 3 + index * 2) }, (_, i) => ({ x: 34 + ((i * 73) % 350), y: 40 + ((i * 47) % 190), delay: `${(i % 8) * .23}s` })), [index])
 
   return <section className="growth-card" aria-labelledby="growth-title">
@@ -26,7 +27,7 @@ export default function GrowthTree({ xp, trigger, lastAmount }: { xp: number; tr
     <div className={`growth-illustration level-${index + 1}`} aria-label={`${level.name} gelişim illüstrasyonu`}>
       {trigger > 0 && lastAmount > 0 && <span key={trigger} className="xp-particle">+{lastAmount} XH</span>}
       <span className="scene-level-chip">{level.icon} {level.name} · %{Math.round(progress)}</span>
-      <motion.div className="growth-scene-frame" key={index} initial={{ opacity: .2, scale: .965, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: .7, ease: [0.16, 1, 0.3, 1] }}>
+      <motion.div className={`growth-scene-frame ${delighted ? 'is-delighted' : ''}`} key={index} initial={{ opacity: .2, scale: .965, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: .7, ease: [0.16, 1, 0.3, 1] }} role="button" tabIndex={0} aria-label="Gelişim sahnesini canlandır" onClick={() => { setDelighted(true); window.setTimeout(() => setDelighted(false), 1200) }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setDelighted(true); window.setTimeout(() => setDelighted(false), 1200) } }}>
         <svg viewBox="0 0 440 340" role="img" aria-label={`${level.name} seviyesinde katmanlı doğa ve ışık sahnesi`}>
           <defs>
             <linearGradient id={`${uid}-sky`} x1="0" y1="0" x2="0" y2="1"><stop stopColor={index >= 8 ? '#17153f' : index >= 6 ? '#4338ca' : '#b9dcff'}/><stop offset=".52" stopColor={index >= 8 ? '#553c9a' : index >= 6 ? '#8b5cf6' : '#e5e7ff'}/><stop offset="1" stopColor={index >= 8 ? '#f59e8b' : '#fff1d6'}/></linearGradient>
@@ -51,6 +52,7 @@ export default function GrowthTree({ xp, trigger, lastAmount }: { xp: number; tr
             <path d="M-10 302C95 275 146 313 239 292C327 272 365 307 460 279V350H-10Z" fill={index >= 7 ? '#0d4350' : '#2d8c66'} opacity=".72"/>
             <ellipse cx="228" cy="298" rx={index < 2 ? 38 : 112} ry="18" fill="#0a2f35" opacity=".22" filter={`url(#${uid}-glow)`}/>
             <GrowthSubject index={index} uid={uid}/>
+            <g className="delight-particles" aria-hidden>{[[-46,-3],[-30,-27],[-5,-40],[22,-33],[43,-8],[29,20],[-21,24]].map(([x,y], itemIndex) => <circle key={itemIndex} cx={228 + x} cy={184 + y} r={2 + itemIndex % 2} fill={itemIndex % 3 === 0 ? '#fde68a' : '#bbf7d0'} style={{ '--particle-x': `${x * .45}px`, '--particle-y': `${y * .55 - 22}px`, animationDelay: `${itemIndex * .045}s` } as React.CSSProperties}/>)}</g>
             {index >= 4 && <GroundLife index={index}/>}
             {index >= 6 && motes.map((m, i) => <circle key={i} cx={m.x} cy={m.y} r={1.5 + (i % 3)} fill={i % 3 === 0 ? '#ffe58d' : i % 2 ? '#d8b4fe' : '#a7f3d0'} className="mote" style={{ animationDelay: m.delay }}/>) }
             {index >= 9 && <g className="constellation" fill="none" stroke="#fef3c7" strokeWidth="1" opacity=".7"><path d="M49 49l35 19 29-31 31 32M328 42l25 29 35-20"/><circle cx="49" cy="49" r="3" fill="#fff"/><circle cx="84" cy="68" r="2" fill="#fff"/><circle cx="113" cy="37" r="3" fill="#fff"/><circle cx="144" cy="69" r="2" fill="#fff"/><circle cx="328" cy="42" r="2" fill="#fff"/><circle cx="353" cy="71" r="3" fill="#fff"/><circle cx="388" cy="51" r="2" fill="#fff"/></g>}
@@ -65,6 +67,19 @@ export default function GrowthTree({ xp, trigger, lastAmount }: { xp: number; tr
 function GrowthSubject({ index, uid }: { index: number; uid: string }) {
   if (index === 0) return <g className="seed-stage" filter={`url(#${uid}-shadow)`}><path d="M176 294c19-19 75-24 108 0-27 20-82 20-108 0Z" fill="#704a35"/><ellipse cx="228" cy="283" rx="12" ry="8" fill="#c18a55" transform="rotate(-20 228 283)"/><path d="M228 278c-1-14 4-24 12-31" stroke="#2b9b63" strokeWidth="4" strokeLinecap="round"/><path d="M239 247c8-5 15-3 18 4-8 5-15 4-18-4Z" fill="#6ee7a2"/></g>
   if (index === 1) return <g className="sprout-stage" filter={`url(#${uid}-shadow)`}><path d="M190 296c20-16 66-17 86 0-20 13-67 14-86 0Z" fill="#704a35"/><path d="M229 289c-2-29 0-55 4-75" stroke="#258b58" strokeWidth="8" strokeLinecap="round"/><path d="M231 248c-23-18-43-12-46 5 19 12 35 10 46-5Z" fill="#55d98a"/><path d="M232 231c16-19 35-16 41-2-13 15-29 16-41 2Z" fill="#35bb70"/></g>
+  if (index === 2) return <g className="tree-stage fidan-stage" filter={`url(#${uid}-shadow)`}>
+    <g className="fidan-roots" fill="none" stroke={`url(#${uid}-trunk)`} strokeLinecap="round"><path d="M228 294c-16 4-29 9-41 17"/><path d="M231 294c17 3 31 8 44 16"/><path d="M226 292c-7 8-11 15-13 23"/></g>
+    <path className="fidan-trunk" d="M224 297C219 272 226 251 222 229C218 208 225 190 235 171C234 191 241 208 236 229C231 251 239 274 235 298Z" fill={`url(#${uid}-trunk)`}/>
+    <g className="fidan-branches" fill="none" stroke={`url(#${uid}-trunk)`} strokeLinecap="round" strokeLinejoin="round"><path d="M228 254C210 242 197 230 188 213"/><path d="M232 237c18-12 32-27 40-44"/><path d="M226 222c-10-13-15-28-14-43"/><path d="M234 213c10-11 17-23 20-36"/><path d="M219 238c-13-4-25-11-35-21"/></g>
+    <g className="fidan-leaves">
+      <path d="M161 201c-3-20 15-34 33-27 6-17 29-19 38-4 4 18-5 32-22 40-17 8-35 5-49-9Z" fill="#2fbf73"/>
+      <path d="M247 187c1-20 21-31 37-20 11-11 32-5 34 11-5 18-18 28-38 29-17 1-28-6-33-20Z" fill="#35ca7a"/>
+      <path d="M190 166c0-17 17-27 32-20 8-17 32-17 40-1 2 19-10 32-27 37-18 4-35-1-45-16Z" fill="#57d98b"/>
+      <path d="M171 224c-3-13 10-23 22-18 7-8 21-4 23 7-4 13-15 20-29 20-8-1-13-4-16-9Z" fill="#199f62"/>
+      <path d="M264 218c2-13 17-19 27-10 10-5 22 3 21 14-8 11-20 15-34 10-7-2-11-7-14-14Z" fill="#148b58"/>
+      <g className="fidan-highlights" fill="none" stroke="#c8f8ae" strokeWidth="4" strokeLinecap="round" opacity=".38"><path d="M173 193c14-6 28-6 41 0"/><path d="M262 179c12 2 22 7 30 16"/><path d="M207 158c13 2 24 8 31 18"/></g>
+    </g>
+  </g>
   const treeScale = 0.72 + index * .045
   return <g className="tree-stage" transform={`translate(${228 - 228 * treeScale} ${300 - 300 * treeScale}) scale(${treeScale})`} filter={`url(#${uid}-shadow)`}>
     <path d="M226 298C217 264 222 231 216 202C211 174 222 143 228 116C240 151 245 177 239 204C232 237 242 270 238 298Z" fill={`url(#${uid}-trunk)`}/>

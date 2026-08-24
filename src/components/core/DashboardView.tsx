@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { useMemo } from 'react'
 import GrowthTree from './GrowthTree'
+import PurposeEquation from './PurposeEquation'
 import { AppIcon } from '@/components/ui/AppIcon'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -60,7 +61,10 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
       </motion.section>}
 
       <div className="dashboard-hero-grid">
-        <GrowthTree xp={store.xp} trigger={store.xpOrbTrigger} lastAmount={store.lastXPAmount} />
+        <div className="dashboard-growth-stack">
+          <GrowthTree xp={store.xp} trigger={store.xpOrbTrigger} lastAmount={store.lastXPAmount} />
+          <PurposeEquation />
+        </div>
 
         <aside className="surface-card today-card" aria-labelledby="today-actions-title">
           <div className="card-heading"><div><span className="eyebrow">BUGÜN</span><h2 id="today-actions-title">Neye alan açacaksın?</h2></div><span className="quiet-chip">1 adım yeter</span></div>

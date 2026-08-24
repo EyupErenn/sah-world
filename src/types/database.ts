@@ -83,12 +83,17 @@ export type GeographyRow = 'filistin' | 'dogu_turkistan';
 export type RegionalAwarenessContentRow = {
   id: string;
   geography: GeographyRow;
-  section: 'overview' | 'heritage' | 'today';
+  section: 'history' | 'displacement' | 'today' | 'detention' | 'culture' | 'solidarity';
   title: string;
   body: string;
   source_label: string;
   source_url: string;
   order_index: number;
+  section_title: string;
+  content_body: string;
+  source_name: string;
+  display_order: number;
+  action_cue: string;
   is_published: boolean;
   created_at: string;
   updated_at: string;
@@ -115,6 +120,17 @@ export type UserQuizAttemptRow = {
   score: number;
   xh_awarded: number;
   completed_at: string;
+};
+
+export type AwarenessEngagementRow = {
+  id: string;
+  user_id: string;
+  geography: GeographyRow;
+  content_id: string;
+  event_type: 'section_read' | 'action_opened' | 'quiz_completed';
+  metadata: Json;
+  created_at: string;
+  updated_at: string;
 };
 
 export type FeedbackType = 'suggestion' | 'bug' | 'usability' | 'content' | 'performance' | 'other';
@@ -163,6 +179,7 @@ export interface Database {
       regional_awareness_content: RowTable<RegionalAwarenessContentRow>;
       awareness_quiz_questions: RowTable<AwarenessQuizQuestionRow>;
       user_quiz_attempts: RowTable<UserQuizAttemptRow>;
+      awareness_engagement_log: RowTable<AwarenessEngagementRow>;
     };
     Views: {
       public_profile_summary: { Row: Pick<ProfileRow, 'id' | 'display_name' | 'avatar_url' | 'xp' | 'streak_current' | 'badges'>; Relationships: [] };
