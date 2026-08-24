@@ -72,6 +72,7 @@ interface JourneyState {
   updateStreak: () => void;
 
   addJournal: (entry: JournalEntry) => void;
+  upsertJournalLocal: (entry: JournalEntry) => void;
   deleteJournal: (id: string) => void;
 
   addQuranNote: (note: QuranNote) => void;
@@ -282,6 +283,19 @@ export const useJourneyStore = create<JourneyState>()(
               if (error) notifySyncError(error, 'addJournal');
             });
           }
+        });
+      },
+      // Server-side RPCs (for example Mescidim → Günlük) already persist the
+      // record. This action mirrors their result in the client store without
+      // issuing a duplicate database write.
+      upsertJournalLocal: (entry) => {
+        const validEntry: JournalEntry = { ...entry, id: ensureUUID(entry.id) };
+        set((state) => {
+          const existingIndex = state.journal.findIndex((item) => item.id === validEntry.id || item.date === validEntry.date);
+          if (existingIndex === -1) return { journal: [validEntry, ...state.journal] };
+          const next = [...state.journal];
+          next[existingIndex] = { ...next[existingIndex], ...validEntry };
+          return { journal: next };
         });
       },
       deleteJournal: (id) => {

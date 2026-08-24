@@ -5,7 +5,7 @@ import { useJourneyStore } from '@/store/useJourneyStore';
 import { recordXpEvent } from '@/lib/xp';
 import { AppIcon } from '@/components/ui/AppIcon';
 import type { EisenhowerState } from '@/types';
-import PrayerTimes from './PrayerTimes';
+import MescidimView from './MescidimView';
 
 export type SectionKey = 'journal' | 'quran' | 'hadis' | 'matrix' | 'lessons' | 'sukur' | 'mescidim' | 'depot';
 
@@ -43,7 +43,7 @@ export default function SectionView({ section, onNavigate }: { section: SectionK
   };
 
   return <div className="view-stack"><header className="page-heading section-heading"><div><span className="eyebrow">{info.eyebrow}</span><h1><i><AppIcon name={info.icon}/></i> {info.title}</h1><p>{info.description}</p></div>{notice && <span className="success-toast"><AppIcon name="check"/> {notice}</span>}</header>
-    {section === 'matrix' ? <Matrix reward={reward} /> : section === 'mescidim' ? <PrayerTimes reward={reward} /> : section === 'depot' ? <Depot /> : <EntrySection section={section} onSubmit={submit} onNavigate={onNavigate} />}
+    {section === 'matrix' ? <Matrix reward={reward} /> : section === 'mescidim' ? <MescidimView reward={reward} /> : section === 'depot' ? <Depot /> : <EntrySection section={section} onSubmit={submit} onNavigate={onNavigate} />}
   </div>;
 }
 
