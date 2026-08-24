@@ -73,7 +73,7 @@ export default function DailyWisdomWheel() {
     store.addXP(10)
     store.checkBadges()
     void recordXpEvent({ sourceType: mode === 'verse' ? 'quran' : 'hadis', sourceId: id, label: mode === 'verse' ? 'Günün ayeti' : 'Günün hadisi', amount: 10 })
-    setNotice(`${mode === 'verse' ? 'Ayet' : 'Hadis'} alanına kaydedildi · +10 XP`)
+    setNotice(`${mode === 'verse' ? 'Ayet' : 'Hadis'} alanına kaydedildi · +10 XH`)
   }
 
   return (

@@ -24,8 +24,9 @@ const CommunityView = dynamic(() => import('./CommunityView'), { loading: () => 
 const DailyWisdomWheel = dynamic(() => import('./DailyWisdomWheel'), { loading: () => <ViewSkeleton /> })
 const SectionView = dynamic(() => import('./SectionView'), { loading: () => <ViewSkeleton /> })
 const FocusTimerView = dynamic(() => import('./FocusTimerView'), { loading: () => <ViewSkeleton /> })
+const AwarenessView = dynamic(() => import('./AwarenessView'), { loading: () => <ViewSkeleton /> })
 
-type ViewKey = 'dashboard' | 'community' | 'reports' | 'daily-wheel' | 'focus' | SectionKey
+type ViewKey = 'dashboard' | 'community' | 'reports' | 'daily-wheel' | 'focus' | 'awareness' | SectionKey
 type NavigationItem = { id: ViewKey; label: string; icon: string }
 
 const navigationGroups: Array<{ label: string; items: NavigationItem[] }> = [
@@ -41,6 +42,9 @@ const navigationGroups: Array<{ label: string; items: NavigationItem[] }> = [
     { id: 'sukur', label: 'Şükür', icon: 'sparkles' },
     { id: 'lessons', label: 'Hatalar ve Dersler', icon: 'history' },
     { id: 'mescidim', label: 'Mescidim', icon: 'building-mosque' },
+  ] },
+  { label: 'Farkındalık', items: [
+    { id: 'awareness', label: 'Mazlum Coğrafyalar', icon: 'world-heart' },
   ] },
   { label: 'Planlama ve gelişim', items: [
     { id: 'matrix', label: 'Matris', icon: 'layout-grid' },
@@ -218,7 +222,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
             <button className="header-feedback" onClick={() => openPage('/feedback')}><AppIcon name="message-heart" /><span>Görüş bırak</span></button>
             <button className="profile-button" onClick={() => setProfileOpen((value) => !value)} aria-expanded={profileOpen} aria-haspopup="menu">
               <img src={avatarUrl} alt="" />
-              <span><strong>{activeProfile?.display_name || 'Yolcu'}</strong><small>{level.name} · {store.xp} XP</small></span>
+              <span><strong>{activeProfile?.display_name || 'Yolcu'}</strong><small>{level.name} · {store.xp} XH</small></span>
               <AppIcon name="chevron-down" />
             </button>
             {profileOpen && <div className="profile-popover" role="menu">
@@ -235,7 +239,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
 
         <main className="app-main" id="main-content">
           <AnimatePresence mode="wait" initial={false}><motion.div key={view} className="view-motion-shell" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: .2, ease: [0.22, 1, 0.36, 1] }}>
-            {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel /> : view === 'focus' ? <FocusTimerView onExit={() => navigate('dashboard')} /> : <SectionView section={view} onNavigate={navigate} />}
+            {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel /> : view === 'focus' ? <FocusTimerView onExit={() => navigate('dashboard')} /> : view === 'awareness' ? <AwarenessView onNavigate={navigate} /> : <SectionView section={view} onNavigate={navigate} />}
           </motion.div></AnimatePresence>
         </main>
       </div>

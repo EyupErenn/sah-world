@@ -26,7 +26,7 @@ export default function SectionView({ section, onNavigate }: { section: SectionK
   const info = meta[section];
 
   const reward = (amount: number, label: string, sourceType: string, sourceId: string) => {
-    store.addXP(amount); store.updateStreak(); store.checkBadges(); setNotice(`${label} kaydedildi · +${amount} XP`);
+    store.addXP(amount); store.updateStreak(); store.checkBadges(); setNotice(`${label} kaydedildi · +${amount} XH`);
     void recordXpEvent({ sourceType, sourceId, label, amount });
     window.setTimeout(() => setNotice(''), 3200);
   };
@@ -88,4 +88,4 @@ function Matrix({ reward }: { reward: (a:number,l:string,s:string,id:string)=>vo
   return <div className="matrix-grid">{quadrants.map(([q,title,hint],i)=><section className={`surface-card quadrant q${i+1}`} key={q}><div className="card-heading"><div><span className="eyebrow">{hint}</span><h2>{title}</h2></div><span className="quiet-chip">{store.eisenhower[q].length}</span></div><form onSubmit={(e)=>add(e,q)} className="inline-form"><input name="task" placeholder="Yeni görev..."/><button type="submit">+</button></form><div className="task-list">{store.eisenhower[q].map(task=><label key={task.id}><input type="checkbox" checked={task.done} onChange={()=>{store.toggleTask(q,task.id); if(!task.done)reward(25,'Görev tamamlandı','matrix',task.id)}}/><span>{task.text}</span></label>)}</div></section>)}</div>;
 }
 
-function Depot(){const s=useJourneyStore();const total=s.journal.length+s.quranNotes.length+s.hadisNotes.length+s.lessons.length+s.sukurList.length+Object.values(s.eisenhower).flat().length;return <section className="surface-card depot-card"><div><span className="eyebrow">BÜTÜN YOLCULUK</span><h2>Biriken küçük adımların</h2><p>Buradaki sayılar yalnızca uygulamadaki kayıt ve istikrar özetidir.</p></div><div className="depot-metrics"><article><strong>{s.xp.toLocaleString('tr-TR')}</strong><span>Toplam XP</span></article><article><strong>{total}</strong><span>Toplam kayıt</span></article><article><strong>{s.streak.current}</strong><span>Günlük seri</span></article><article><strong>{s.badges.length}</strong><span>Kazanılan rozet</span></article></div></section>}
+function Depot(){const s=useJourneyStore();const total=s.journal.length+s.quranNotes.length+s.hadisNotes.length+s.lessons.length+s.sukurList.length+Object.values(s.eisenhower).flat().length;return <section className="surface-card depot-card"><div><span className="eyebrow">BÜTÜN YOLCULUK</span><h2>Biriken küçük adımların</h2><p>Buradaki sayılar yalnızca uygulamadaki kayıt ve istikrar özetidir.</p></div><div className="depot-metrics"><article><strong>{s.xp.toLocaleString('tr-TR')}</strong><span>Toplam XH</span></article><article><strong>{total}</strong><span>Toplam kayıt</span></article><article><strong>{s.streak.current}</strong><span>Günlük seri</span></article><article><strong>{s.badges.length}</strong><span>Kazanılan rozet</span></article></div></section>}

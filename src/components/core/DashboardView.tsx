@@ -74,10 +74,16 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
         </aside>
       </div>
 
+      <button className="awareness-invitation" onClick={() => onNavigate('awareness')}>
+        <span className="invitation-symbol"><AppIcon name="world-heart" /></span>
+        <span><small>YENİ FARKINDALIK ALANI</small><strong>Mazlum Coğrafyaları kültürleri ve kaynaklarıyla tanı</strong><em>Filistin ve Doğu Türkistan için kaynaklı anlatılar, güvenilir eylem rehberi ve 10’ar soruluk bilgi testleri.</em></span>
+        <b>Alanı keşfet <AppIcon name="arrow-right" /></b>
+      </button>
+
       <section className="dashboard-metrics" aria-label="Bugünkü gelişim özeti">
         <Metric icon="flame" value={store.streak.current} label="Günlük seri" detail="İstikrar günün" tone="amber" />
         <Metric icon="calendar-check" value={activeDays} suffix="/7" label="Bu hafta aktif" detail="Son yedi gün" tone="green" />
-        <Metric icon="sparkles" value={store.xp} label="Toplam XP" detail={`${level.name} seviyesi`} tone="indigo" />
+        <Metric icon="sparkles" value={store.xp} label="Toplam XH" detail={`${level.name} seviyesi`} tone="indigo" />
         <Metric icon="circle-check" value={done} suffix={`/${tasks.length}`} label="Tamamlanan görev" detail="Tüm matris" tone="blue" />
       </section>
 
@@ -90,7 +96,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
                 <button className="activity-row" onClick={() => onNavigate(event.category)} aria-label={`${event.label} kaydını ${meta.label} bölümünde aç`}>
                   <span className="activity-icon" style={{ color: meta.color, background: `${meta.color}12` }}><AppIcon name={meta.icon} /></span>
                   <span className="activity-content"><small className="activity-category" style={{ color: meta.color }}>{meta.label}</small><strong>{event.label}</strong><small>{event.detail}</small></span>
-                  <span className="activity-meta"><b>+{event.xp} XP</b><time dateTime={event.createdAt}>{relativeTime(event.createdAt)}</time></span><AppIcon name="chevron-right" />
+                  <span className="activity-meta"><b>+{event.xp} XH</b><time dateTime={event.createdAt}>{relativeTime(event.createdAt)}</time></span><AppIcon name="chevron-right" />
                 </button>
               </motion.li> })}
             </motion.ol>
@@ -103,7 +109,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
           <h2>{activeDays > 0 ? `Bu hafta en çok ${CATEGORY_META[weeklyCategory].label} alanına döndün.` : 'Bu haftanın ilk adımı seni bekliyor.'}</h2>
           <p>{activeDays > 0 ? `${weekEvents.length} küçük hareket, ${activeDays} farklı güne yayıldı. Ritminin hangi alanlarda güçlendiğini raporlarında görebilirsin.` : 'Uzun bir başlangıca ihtiyacın yok. Tek bir şükür veya günlük notuyla başlayabilirsin.'}</p>
           <button className="ghost-button" onClick={() => onNavigate('reports')}>Haftayı incele <AppIcon name="chart-line" /></button>
-          <p className="ethics-note"><AppIcon name="info-circle" /> XP, yalnızca uygulamadaki düzenli katılımı gösterir; manevi değer veya üstünlük ölçüsü değildir.</p>
+          <p className="ethics-note"><AppIcon name="info-circle" /> XH, yalnızca uygulamadaki düzenli katılımı gösterir; manevi değer veya üstünlük ölçüsü değildir.</p>
         </section>
       </div>
     </div>

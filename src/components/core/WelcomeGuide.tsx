@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 
 const steps = [
   { icon: '✦', eyebrow: '1 / 3 · Alanın', title: 'SAH senin kişisel alanın', text: 'Günlük, hedef, şükür ve manevi notlarını tek bir sakin düzende tutarsın.' },
-  { icon: '↗', eyebrow: '2 / 3 · İlerlemen', title: 'Her kayıt gelişime dönüşür', text: 'Tutarlılığın XP, seviye ve seri olarak görünür; Evren kartın seninle birlikte büyür.' },
+  { icon: '↗', eyebrow: '2 / 3 · İlerlemen', title: 'Her kayıt gelişime dönüşür', text: 'Tutarlılığın XH, seviye ve seri olarak görünür; Evren kartın seninle birlikte büyür.' },
   { icon: '◎', eyebrow: '3 / 3 · İlk adım', title: 'Küçük bir kayıtla başla', text: 'Bugün aklında kalan bir cümleyi günlüğüne yaz. Kusursuz olmasına gerek yok.' },
 ]
 

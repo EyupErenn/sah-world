@@ -148,7 +148,7 @@ export default function LoginScreen() {
         </div>
         <div className="login-orbit" aria-hidden><span className="orbit-core">✦</span><i /><i /><i /></div>
         <ul className="login-trust-list" aria-label="Platform özellikleri">
-          <li><span>✓</span> Sekiz yaşam alanı</li><li><span>✓</span> XP ve gelişim raporları</li><li><span>✓</span> Verilerin sana özel</li>
+          <li><span>✓</span> Sekiz yaşam alanı</li><li><span>✓</span> XH ve gelişim raporları</li><li><span>✓</span> Verilerin sana özel</li>
         </ul>
       </section>
 

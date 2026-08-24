@@ -36,7 +36,7 @@ export default function GrowthDebugPanel({
             onChange={event => onVillageTierChange(event.target.value === 'auto' ? null : Number(event.target.value) as VillageTier)}
             className="mt-2 w-full rounded-lg bg-slate-900 px-3 py-2 text-sm ring-1 ring-white/10"
           >
-            <option value="auto">Otomatik (gerçek XP)</option>
+            <option value="auto">Otomatik (gerçek XH)</option>
             {[1, 2, 3, 4, 5].map(tier => <option key={tier} value={tier}>Tier {tier}</option>)}
           </select>
         </label>
