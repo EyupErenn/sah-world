@@ -5,6 +5,7 @@ import { useJourneyStore } from '@/store/useJourneyStore';
 import { recordXpEvent } from '@/lib/xp';
 import { AppIcon } from '@/components/ui/AppIcon';
 import type { EisenhowerState } from '@/types';
+import PrayerTimes from './PrayerTimes';
 
 export type SectionKey = 'journal' | 'quran' | 'hadis' | 'matrix' | 'lessons' | 'sukur' | 'mescidim' | 'depot';
 
@@ -42,7 +43,7 @@ export default function SectionView({ section, onNavigate }: { section: SectionK
   };
 
   return <div className="view-stack"><header className="page-heading section-heading"><div><span className="eyebrow">{info.eyebrow}</span><h1><i><AppIcon name={info.icon}/></i> {info.title}</h1><p>{info.description}</p></div>{notice && <span className="success-toast"><AppIcon name="check"/> {notice}</span>}</header>
-    {section === 'matrix' ? <Matrix reward={reward} /> : section === 'mescidim' ? <Mescid reward={reward} /> : section === 'depot' ? <Depot /> : <EntrySection section={section} onSubmit={submit} onNavigate={onNavigate} />}
+    {section === 'matrix' ? <Matrix reward={reward} /> : section === 'mescidim' ? <PrayerTimes reward={reward} /> : section === 'depot' ? <Depot /> : <EntrySection section={section} onSubmit={submit} onNavigate={onNavigate} />}
   </div>;
 }
 
@@ -86,7 +87,5 @@ function Matrix({ reward }: { reward: (a:number,l:string,s:string,id:string)=>vo
   const add = (event: React.FormEvent<HTMLFormElement>, q: keyof EisenhowerState) => { event.preventDefault(); const form=event.currentTarget; const text=String(new FormData(form).get('task')).trim(); if(!text)return; store.addTask(q,{id:crypto.randomUUID(),text,done:false,createdAt:new Date().toISOString()}); form.reset(); };
   return <div className="matrix-grid">{quadrants.map(([q,title,hint],i)=><section className={`surface-card quadrant q${i+1}`} key={q}><div className="card-heading"><div><span className="eyebrow">{hint}</span><h2>{title}</h2></div><span className="quiet-chip">{store.eisenhower[q].length}</span></div><form onSubmit={(e)=>add(e,q)} className="inline-form"><input name="task" placeholder="Yeni görev..."/><button type="submit">+</button></form><div className="task-list">{store.eisenhower[q].map(task=><label key={task.id}><input type="checkbox" checked={task.done} onChange={()=>{store.toggleTask(q,task.id); if(!task.done)reward(25,'Görev tamamlandı','matrix',task.id)}}/><span>{task.text}</span></label>)}</div></section>)}</div>;
 }
-
-function Mescid({ reward }: { reward:(a:number,l:string,s:string,id:string)=>void }) { const store=useJourneyStore(); const target=33; const tap=()=>{store.incrementTespih(); if(store.currentTespih+1>=target){const id=crypto.randomUUID();store.resetTespih();reward(30,'33 zikir tamamlandı','mescidim',id)}}; return <div className="workspace-grid"><section className="surface-card tespih-card"><span className="eyebrow">SAKİN BİR RİTİM</span><div className="tespih-ring"><button onClick={tap} aria-label="Zikir sayacını artır"><strong>{store.currentTespih}</strong><span>/ {target}</span></button></div><p>Her dokunuşu acele etmeden, farkındalıkla yap.</p><button className="ghost-button" onClick={store.resetTespih}>Sayacı sıfırla</button></section><section className="surface-card reflection-card"><span className="eyebrow">BUGÜNÜN HATIRLATMASI</span><h2>Az da olsa devamlı olan</h2><blockquote>“Amellerin en sevimlisi, az da olsa devamlı olanıdır.”</blockquote><p>Bu alan bir ibadet ölçümü değildir; yalnızca kişisel takibine yardımcı olan sade bir sayaçtır.</p><div className="metric-row"><span>Toplam sayaç</span><strong>{store.totalZikir.toLocaleString('tr-TR')}</strong></div></section></div> }
 
 function Depot(){const s=useJourneyStore();const total=s.journal.length+s.quranNotes.length+s.hadisNotes.length+s.lessons.length+s.sukurList.length+Object.values(s.eisenhower).flat().length;return <section className="surface-card depot-card"><div><span className="eyebrow">BÜTÜN YOLCULUK</span><h2>Biriken küçük adımların</h2><p>Buradaki sayılar yalnızca uygulamadaki kayıt ve istikrar özetidir.</p></div><div className="depot-metrics"><article><strong>{s.xp.toLocaleString('tr-TR')}</strong><span>Toplam XP</span></article><article><strong>{total}</strong><span>Toplam kayıt</span></article><article><strong>{s.streak.current}</strong><span>Günlük seri</span></article><article><strong>{s.badges.length}</strong><span>Kazanılan rozet</span></article></div></section>}

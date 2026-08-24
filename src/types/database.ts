@@ -17,6 +17,10 @@ export type ProfileRow = {
   streak_last_date: string;
   badges: string[];
   total_zikir: number;
+  location_city: string | null;
+  location_country: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
   created_at: string;
   updated_at: string;
 };

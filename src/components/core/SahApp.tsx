@@ -9,6 +9,7 @@ import LoginScreen from '@/components/auth/LoginScreen'
 import { AppIcon } from '@/components/ui/AppIcon'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useJourneyStore } from '@/store/useJourneyStore'
+import { useFocusTimerStore } from '@/store/useFocusTimerStore'
 import { getLevelForXP } from '@/lib/constants'
 import { supabase } from '@/lib/supabase'
 import type { Profile } from '@/lib/supabase'
@@ -74,6 +75,35 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
     if (new URLSearchParams(window.location.search).get('focus') === '1') {
       const timer = window.setTimeout(() => setView('focus'), 0)
       return () => window.clearTimeout(timer)
+    }
+  }, [])
+
+  useEffect(() => {
+    const openFocus = () => {
+      setView('focus')
+      setMoreOpen(false)
+      setProfileOpen(false)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    window.addEventListener('sah:open-focus', openFocus)
+    return () => window.removeEventListener('sah:open-focus', openFocus)
+  }, [])
+
+  useEffect(() => {
+    const showFocus = () => {
+      setView('focus')
+      setMoreOpen(false)
+      setProfileOpen(false)
+    }
+    const initialSync = window.setTimeout(() => {
+      if (useFocusTimerStore.getState().isFullscreen) showFocus()
+    }, 0)
+    const unsubscribe = useFocusTimerStore.subscribe((state, previous) => {
+      if (state.isFullscreen && !previous.isFullscreen) showFocus()
+    })
+    return () => {
+      window.clearTimeout(initialSync)
+      unsubscribe()
     }
   }, [])
 

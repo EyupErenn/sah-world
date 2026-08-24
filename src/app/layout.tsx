@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import Script from 'next/script';
+import FocusTimerFloatingWidget from '@/components/core/FocusTimerRoot';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="antialiased overflow-x-hidden">
         {children}
+        <FocusTimerFloatingWidget />
         {/* Canvas Confetti */}
         <Script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js" strategy="lazyOnload" />
       </body>

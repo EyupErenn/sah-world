@@ -200,7 +200,7 @@ function DevelopmentGuestButton() {
     const mockUser = { id: 'guest-user-123', email: 'guest@sah.world' }
     useAuthStore.getState().setSession({ user: mockUser, access_token: 'mock-token', expires_in: 3600, token_type: 'bearer' } as never)
     useAuthStore.getState().setUser(mockUser as never)
-    useAuthStore.getState().setProfile({ id: mockUser.id, display_name: 'Geliştirme Misafiri', avatar_url: null, vehicle_type: 'car', xp: 240, streak_current: 3, streak_last_date: new Date().toISOString().slice(0, 10), total_zikir: 99, badges: ['first_step'], created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    useAuthStore.getState().setProfile({ id: mockUser.id, display_name: 'Geliştirme Misafiri', avatar_url: null, vehicle_type: 'car', xp: 240, streak_current: 3, streak_last_date: new Date().toISOString().slice(0, 10), total_zikir: 99, badges: ['first_step'], location_city: null, location_country: null, location_lat: null, location_lng: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     useAuthStore.getState().setIsAuthLoading(false)
   }}>DEV: Misafir görünümü</button>
 }
