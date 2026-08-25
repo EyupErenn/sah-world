@@ -18,6 +18,7 @@ import WelcomeGuide from './WelcomeGuide'
 import CommandPalette from './CommandPalette'
 import MilestoneCelebration, { type Milestone } from './MilestoneCelebration'
 import AwarenessProfileSummary from './AwarenessProfileSummary'
+import ProfessionProfileSummary from './ProfessionProfileSummary'
 
 const DashboardView = dynamic(() => import('./DashboardView'), { loading: () => <ViewSkeleton /> })
 const ReportsView = dynamic(() => import('./ReportsView'), { loading: () => <ViewSkeleton /> })
@@ -26,8 +27,9 @@ const DailyWisdomWheel = dynamic(() => import('./DailyWisdomWheel'), { loading: 
 const SectionView = dynamic(() => import('./SectionView'), { loading: () => <ViewSkeleton /> })
 const FocusTimerView = dynamic(() => import('./FocusTimerView'), { loading: () => <ViewSkeleton /> })
 const AwarenessView = dynamic(() => import('./AwarenessView'), { loading: () => <ViewSkeleton /> })
+const ProfessionSchoolView = dynamic(() => import('./ProfessionSchoolView'), { loading: () => <ViewSkeleton /> })
 
-type ViewKey = 'dashboard' | 'community' | 'reports' | 'daily-wheel' | 'focus' | 'awareness' | SectionKey
+type ViewKey = 'dashboard' | 'community' | 'reports' | 'daily-wheel' | 'focus' | 'awareness' | 'profession-school' | SectionKey
 type NavigationItem = { id: ViewKey; label: string; icon: string }
 
 const navigationGroups: Array<{ label: string; items: NavigationItem[] }> = [
@@ -46,6 +48,9 @@ const navigationGroups: Array<{ label: string; items: NavigationItem[] }> = [
   ] },
   { label: 'Farkındalık', items: [
     { id: 'awareness', label: 'Mazlum Coğrafyalar', icon: 'world-heart' },
+  ] },
+  { label: 'İlmi ve mesleki gelişim', items: [
+    { id: 'profession-school', label: 'Meslek ve Ahlak Okulu', icon: 'certificate' },
   ] },
   { label: 'Planlama ve gelişim', items: [
     { id: 'matrix', label: 'Matris', icon: 'layout-grid' },
@@ -229,6 +234,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
             {profileOpen && <div className="profile-popover" role="menu">
               <div className="profile-summary"><img src={avatarUrl} alt="" /><span><strong>{activeProfile?.display_name || 'Yolcu'}</strong><small>{store.streak.current} günlük seri · {level.name}</small></span></div>
               <AwarenessProfileSummary onOpen={() => navigate('awareness')} />
+              <ProfessionProfileSummary onOpen={() => navigate('profession-school')} />
               <button role="menuitem" onClick={() => navigate('reports')}><AppIcon name="chart-histogram" /> Gelişim raporlarım</button>
               <button role="menuitem" onClick={() => navigate('community')}><AppIcon name="users-group" /> Topluluklarım</button>
               <button role="menuitem" onClick={toggleTheme}><AppIcon name={theme === 'light' ? 'moon' : 'sun'} /> {theme === 'light' ? 'Gece görünümü' : 'Aydınlık görünüm'}</button>
@@ -241,7 +247,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
 
         <main className="app-main" id="main-content">
           <AnimatePresence mode="wait" initial={false}><motion.div key={view} className="view-motion-shell" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: .2, ease: [0.22, 1, 0.36, 1] }}>
-            {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel /> : view === 'focus' ? <FocusTimerView onExit={() => navigate('dashboard')} /> : view === 'awareness' ? <AwarenessView onNavigate={navigate} /> : <SectionView section={view} onNavigate={navigate} />}
+            {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel /> : view === 'focus' ? <FocusTimerView onExit={() => navigate('dashboard')} /> : view === 'awareness' ? <AwarenessView onNavigate={navigate} /> : view === 'profession-school' ? <ProfessionSchoolView /> : <SectionView section={view} onNavigate={navigate} />}
           </motion.div></AnimatePresence>
         </main>
       </div>
