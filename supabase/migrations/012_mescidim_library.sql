@@ -87,9 +87,12 @@ GRANT SELECT ON public.journal_spiritual_links TO authenticated;
 -- offline-safe canonical copy. The same dataset is inserted below so database
 -- clients and future server components receive identical, auditable content.
 INSERT INTO public.asma_ul_husna (order_number, arabic_text, transliteration_turkish, meaning_turkish, brief_reflection)
-SELECT item.ordinality::smallint, item.arabic, item.name, item.meaning,
-       item.name || ' ismi, Allah''ın “' || lower(item.meaning) || '” oluşunu hatırlatır. Bugün bu anlamın güzel ahlâk olarak nasıl karşılık bulabileceğini düşün.'
-FROM jsonb_to_recordset($asma$
+SELECT item.ordinality::smallint,
+       item.value->>'arabic',
+       item.value->>'name',
+       item.value->>'meaning',
+       (item.value->>'name') || ' ismi, Allah''ın “' || lower(item.value->>'meaning') || '” oluşunu hatırlatır. Bugün bu anlamın güzel ahlâk olarak nasıl karşılık bulabileceğini düşün.'
+FROM jsonb_array_elements($asma$
 [
  {"arabic":"اللّٰه","name":"Allah","meaning":"Bütün kemal sıfatlarını kendinde toplayan yüce Zât’ın özel ismi"},
  {"arabic":"الرَّحْمٰنُ","name":"er-Rahmân","meaning":"Rahmeti bütün varlığı kuşatan"},
@@ -191,7 +194,7 @@ FROM jsonb_to_recordset($asma$
  {"arabic":"الرَّشِيدُ","name":"er-Reşîd","meaning":"Doğru yolu gösteren"},
  {"arabic":"الصَّبُورُ","name":"es-Sabûr","meaning":"Cezada acele etmeyen, sabrı sınırsız olan"}
 ]
-$asma$::jsonb) WITH ORDINALITY AS item(arabic text, name text, meaning text, ordinality bigint)
+$asma$::jsonb) WITH ORDINALITY AS item(value, ordinality)
 ON CONFLICT (order_number) DO UPDATE SET
   arabic_text = excluded.arabic_text,
   transliteration_turkish = excluded.transliteration_turkish,
