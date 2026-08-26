@@ -49,13 +49,13 @@ function useSpiritualState() {
       setFavoriteAsma(cached.asma || [])
       setFavoriteDuas(cached.duas || [])
       setReflections(cached.reflections || {})
-      setLoggedToday(cached.loggedDate === new Date().toISOString().slice(0, 10) ? cached.logged || [] : [])
+      setLoggedToday(cached.loggedDate === new Date().toLocaleDateString('en-CA') ? cached.logged || [] : [])
 
       if (!user || !isValidUUID(user.id)) return
       void Promise.all([
         supabase.from('user_asma_reflections').select('asma_order_number,is_favorite,reflection_note').eq('user_id', user.id),
         supabase.from('user_dua_favorites').select('dua_id').eq('user_id', user.id),
-        supabase.from('journal_spiritual_links').select('entry_kind,reference_id').eq('user_id', user.id).eq('entry_date', new Date().toISOString().slice(0, 10)),
+        supabase.from('journal_spiritual_links').select('entry_kind,reference_id').eq('user_id', user.id).eq('entry_date', new Date().toLocaleDateString('en-CA')),
       ]).then(([asmaResult, duaResult, logResult]) => {
         if (!asmaResult.error) {
           const rows = asmaResult.data || []
@@ -70,7 +70,7 @@ function useSpiritualState() {
   }, [user])
 
   const saveLocal = (next?: { asma?: number[]; duas?: string[]; reflections?: Record<number, string>; logged?: string[] }) => {
-    const payload = { asma: next?.asma ?? favoriteAsma, duas: next?.duas ?? favoriteDuas, reflections: next?.reflections ?? reflections, logged: next?.logged ?? loggedToday, loggedDate: new Date().toISOString().slice(0, 10) }
+    const payload = { asma: next?.asma ?? favoriteAsma, duas: next?.duas ?? favoriteDuas, reflections: next?.reflections ?? reflections, logged: next?.logged ?? loggedToday, loggedDate: new Date().toLocaleDateString('en-CA') }
     window.localStorage.setItem(LOCAL_FAVORITES_KEY, JSON.stringify(payload))
   }
 
@@ -105,13 +105,21 @@ function useSpiritualState() {
       if (error || !data?.[0]) { setNotice('Günlüğe eklenemedi. Lütfen tekrar dene.'); return }
       result = data[0]
     } else {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = new Date().toLocaleDateString('en-CA')
       const current = journey.journal.find((entry) => entry.date === today)
       const xpCount = loggedToday.length
       const line = `🕌 ${label}${reflection ? ` — ${reflection}` : ''}`
       result = { journal_entry_id: current?.id || crypto.randomUUID(), journal_content: [current?.content, line].filter(Boolean).join('\n\n'), xp_awarded: xpCount < DAILY_LIMIT ? 10 : 0, daily_xp_count: Math.min(DAILY_LIMIT, xpCount + 1) }
     }
-    journey.upsertJournalLocal({ id: result.journal_entry_id, date: new Date().toISOString().slice(0, 10), mood: 3, energy: 7, stress: 3, content: result.journal_content, tags: ['mescidim'], createdAt: new Date().toISOString() })
+    const today = new Date().toLocaleDateString('en-CA')
+    const current = journey.journal.find((entry) => entry.id === result.journal_entry_id || entry.date === today)
+    journey.upsertJournalLocal({
+      id: result.journal_entry_id, date: today,
+      mood: current?.mood ?? 3, energy: current?.energy ?? 7, stress: current?.stress ?? 3, sleep: current?.sleep,
+      content: result.journal_content, moments: current?.moments ?? [], selfNote: current?.selfNote ?? '',
+      tags: [...new Set([...(current?.tags ?? []), 'mescidim'])], createdAt: current?.createdAt ?? new Date().toISOString(),
+    })
+    window.dispatchEvent(new Event('sah:activity-changed'))
     if (result.xp_awarded) journey.addXP(result.xp_awarded)
     const next = [...loggedToday, key]
     setLoggedToday(next); saveLocal({ logged: next })

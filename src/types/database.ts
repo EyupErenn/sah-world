@@ -214,6 +214,16 @@ export type JournalSpiritualLinkRow = {
   created_at: string;
 };
 
+export type IntegratedActivityRow = {
+  id: string;
+  category: string;
+  label: string;
+  detail: string;
+  xp_amount: number;
+  occurred_at: string;
+  source_view: string;
+};
+
 export type FeedbackType = 'suggestion' | 'bug' | 'usability' | 'content' | 'performance' | 'other';
 export type FeedbackStatus = 'received' | 'reviewing' | 'planned' | 'completed' | 'closed';
 export type FeedbackRow = {
@@ -243,12 +253,12 @@ export interface Database {
   public: {
     Tables: {
       profiles: RowTable<ProfileRow>;
-      journal_entries: RowTable<{ id: string; user_id: string; date: string; mood: number | null; energy: number | null; stress: number | null; sleep: number | null; content: string; tags: string[]; created_at: string }>;
+      journal_entries: RowTable<{ id: string; user_id: string; date: string; mood: number | null; energy: number | null; stress: number | null; sleep: number | null; content: string; moments: string[]; self_note: string; tags: string[]; created_at: string; updated_at: string }>;
       quran_notes: RowTable<{ id: string; user_id: string; date: string; sure: string; ayet: string; tefsir: string; ders: string; created_at: string }>;
       hadis_notes: RowTable<{ id: string; user_id: string; date: string; metin: string; kaynak: string; konu: string; uygulama: string; created_at: string }>;
       lesson_entries: RowTable<{ id: string; user_id: string; date: string; title: string; wrong: string; learned: string; severity: number | null; created_at: string }>;
       sukur_entries: RowTable<{ id: string; user_id: string; date: string; text: string; nimet1: string; nimet2: string; nimet3: string; created_at: string }>;
-      eisenhower_tasks: RowTable<{ id: string; user_id: string; quadrant: 'q1' | 'q2' | 'q3' | 'q4'; text: string; done: boolean; created_at: string }>;
+      eisenhower_tasks: RowTable<{ id: string; user_id: string; quadrant: 'q1' | 'q2' | 'q3' | 'q4'; text: string; done: boolean; completed_at: string | null; created_at: string }>;
       tespih_log: RowTable<{ id: string; user_id: string; date: string; count: number }>;
       friendships: RowTable<{ id: string; user_id: string; friend_id: string; status: 'pending' | 'accepted'; created_at: string }>;
       chat_messages: RowTable<ChatMessageRow>;
@@ -290,6 +300,7 @@ export interface Database {
       admin_update_feedback: { Args: { target_id: string; next_status: FeedbackStatus; response_text?: string | null; archive_item?: boolean }; Returns: undefined };
       complete_profession_lesson: { Args: { target_lesson_id: string; reflection_text?: string | null }; Returns: Array<{ awarded: boolean; xp_awarded: number; track_completed: boolean }> };
       log_spiritual_to_journal: { Args: { target_kind: 'asma' | 'dua'; target_reference_id: string; reflection_text?: string | null }; Returns: Array<{ journal_entry_id: string; journal_content: string; xp_awarded: number; daily_xp_count: number }> };
+      get_my_activity_log: { Args: { from_date?: string | null; to_date?: string | null }; Returns: IntegratedActivityRow[] };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

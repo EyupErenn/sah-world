@@ -8,8 +8,9 @@ import { AppIcon } from '@/components/ui/AppIcon'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useJourneyStore } from '@/store/useJourneyStore'
-import { buildActivityFeed, CATEGORY_META, dayKey, getCategoryCounts, relativeTime, type ActivityCategory } from '@/lib/activity'
+import { buildActivityFeed, CATEGORY_META, dayKey, getCategoryCounts, mapIntegratedActivities, relativeTime, type ActivityCategory } from '@/lib/activity'
 import { getLevelForXP } from '@/lib/constants'
+import { useActivityLog } from '@/hooks/useActivityLog'
 
 const quickActions = [
   { id: 'focus', icon: 'target-arrow', title: 'Odaklan', note: 'Kesintisiz bir çalışma alanı aç' },
@@ -24,7 +25,8 @@ const quickActions = [
 export default function DashboardView({ onNavigate }: { onNavigate: (view: string) => void }) {
   const store = useJourneyStore()
   const profile = useAuthStore((state) => state.profile)
-  const events = buildActivityFeed(store)
+  const remoteActivity = useActivityLog()
+  const events = remoteActivity.items.length ? mapIntegratedActivities(remoteActivity.items) : buildActivityFeed(store)
   const counts = getCategoryCounts(store)
   const tasks = Object.values(store.eisenhower).flat()
   const done = tasks.filter((task) => task.done).length
@@ -32,7 +34,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
   const weekStart = new Date()
   weekStart.setHours(0, 0, 0, 0)
   weekStart.setDate(weekStart.getDate() - 6)
-  const activeDays = new Set(events.filter((event) => new Date(event.createdAt) >= weekStart).map((event) => new Date(event.createdAt).toISOString().slice(0, 10))).size
+  const activeDays = new Set(events.filter((event) => new Date(event.createdAt) >= weekStart).map((event) => dayKey(event.createdAt))).size
   const weekEvents = events.filter((event) => new Date(event.createdAt) >= weekStart)
   const weeklyCategory = (Object.entries(weekEvents.reduce<Record<string, number>>((result, event) => ({ ...result, [event.category]: (result[event.category] ?? 0) + 1 }), {})).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'journal') as ActivityCategory
   const firstName = profile?.display_name?.trim().split(/\s+/)[0] || 'Yolcu'
@@ -97,7 +99,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
           {events.length === 0 ? <Empty /> : (
             <motion.ol className="activity-list" initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: .045 } } }}>
               {events.slice(0, 7).map((event) => { const meta = CATEGORY_META[event.category]; return <motion.li key={`${event.category}-${event.id}`} variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}>
-                <button className="activity-row" onClick={() => onNavigate(event.category)} aria-label={`${event.label} kaydını ${meta.label} bölümünde aç`}>
+                <button className="activity-row" onClick={() => onNavigate(event.category === 'profession' ? 'profession-school' : event.category)} aria-label={`${event.label} kaydını ${meta.label} bölümünde aç`}>
                   <span className="activity-icon" style={{ color: meta.color, background: `${meta.color}12` }}><AppIcon name={meta.icon} /></span>
                   <span className="activity-content"><small className="activity-category" style={{ color: meta.color }}>{meta.label}</small><strong>{event.label}</strong><small>{event.detail}</small></span>
                   <span className="activity-meta"><b>+{event.xp} XH</b><time dateTime={event.createdAt}>{relativeTime(event.createdAt)}</time></span><AppIcon name="chevron-right" />
