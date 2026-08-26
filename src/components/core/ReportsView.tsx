@@ -2,20 +2,23 @@
 
 import { useMemo, useState } from 'react';
 import { useJourneyStore } from '@/store/useJourneyStore';
-import { buildActivityFeed, CATEGORY_META, dayKey, getCategoryCounts, getDailyActivity, type ActivityCategory } from '@/lib/activity';
+import { buildActivityFeed, CATEGORY_META, dayKey, getCategoryCounts, getDailyActivity, mapIntegratedActivities, type ActivityCategory } from '@/lib/activity';
 import { AppIcon } from '@/components/ui/AppIcon';
 import FocusTimeline from './FocusTimeline';
 import { formatFocusDuration, isSameLocalDay, totalFocusSeconds } from '@/lib/focus';
 import type { FocusSession } from '@/types';
+import { useActivityLog } from '@/hooks/useActivityLog';
 
 export default function ReportsView() {
   const store = useJourneyStore();
   const [heatRange, setHeatRange] = useState<'month'|'year'>('month');
   const [trendRange, setTrendRange] = useState<30|90>(30);
   const [focusRange, setFocusRange] = useState<7|30>(7);
-  const events = buildActivityFeed(store);
+  const remoteActivity = useActivityLog();
+  const events = remoteActivity.items.length ? mapIntegratedActivities(remoteActivity.items) : buildActivityFeed(store);
   const daily = useMemo(() => getDailyActivity(events), [events]);
-  const counts = getCategoryCounts(store);
+  const localCounts = getCategoryCounts(store);
+  const counts = useMemo(() => events.length ? events.reduce<Record<ActivityCategory, number>>((result, event) => ({ ...result, [event.category]: result[event.category] + 1 }), { journal: 0, quran: 0, hadis: 0, matrix: 0, lessons: 0, sukur: 0, mescidim: 0, focus: 0, profession: 0, awareness: 0 }) : localCounts, [events, localCounts]);
   const tasks = Object.values(store.eisenhower).flat();
   const now = new Date(); const today = dayKey(now); const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);

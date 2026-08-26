@@ -16,6 +16,8 @@ import type {
 } from '@/types';
 import { VEHICLE_DEFS } from '@/lib/constants';
 
+const localDateKey = (date = new Date()) => date.toLocaleDateString('en-CA');
+
 // ============================================================
 // STORE STATE SHAPE
 // ============================================================
@@ -72,6 +74,7 @@ interface JourneyState {
   updateStreak: () => void;
 
   addJournal: (entry: JournalEntry) => void;
+  saveJournal: (entry: JournalEntry) => void;
   upsertJournalLocal: (entry: JournalEntry) => void;
   deleteJournal: (id: string) => void;
 
@@ -89,6 +92,7 @@ interface JourneyState {
   deleteLesson: (id: string) => void;
 
   addSukur: (entry: SukurEntry) => void;
+  upsertSukur: (entry: SukurEntry) => void;
   deleteSukur: (id: string) => void;
 
   addFocusSession: (session: FocusSession) => void;
@@ -166,7 +170,7 @@ export const useJourneyStore = create<JourneyState>()(
       vehicleChosen: false,
       xp: 0,
       badges: [],
-      streak: { current: 1, lastDate: new Date().toISOString().split('T')[0] },
+      streak: { current: 1, lastDate: localDateKey() },
       journal: [],
       quranNotes: [],
       hadisNotes: [],
@@ -236,9 +240,9 @@ export const useJourneyStore = create<JourneyState>()(
 
       // Streak
       updateStreak: () => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = localDateKey();
         const { streak } = get();
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        const yesterday = localDateKey(new Date(Date.now() - 86400000));
         if (streak.lastDate === today) return;
 
         let nextStreak = streak;
@@ -277,12 +281,36 @@ export const useJourneyStore = create<JourneyState>()(
               stress: validEntry.stress ?? 3,
               sleep: validEntry.sleep ?? null,
               content: validEntry.content,
+              moments: validEntry.moments ?? [],
+              self_note: validEntry.selfNote ?? '',
               tags: validEntry.tags ?? [],
               created_at: validEntry.createdAt
             }).then(({ error }) => {
               if (error) notifySyncError(error, 'addJournal');
             });
           }
+        });
+      },
+      saveJournal: (entry) => {
+        const validEntry: JournalEntry = { ...entry, id: ensureUUID(entry.id) };
+        set((state) => {
+          const exists = state.journal.some((item) => item.id === validEntry.id || item.date === validEntry.date);
+          return { journal: exists
+            ? state.journal.map((item) => item.id === validEntry.id || item.date === validEntry.date ? validEntry : item)
+            : [validEntry, ...state.journal] };
+        });
+        getAuthenticatedUserId().then((uid) => {
+          if (!uid) return;
+          supabase.from('journal_entries').upsert({
+            id: validEntry.id, user_id: uid, date: validEntry.date,
+            mood: validEntry.mood, energy: validEntry.energy, stress: validEntry.stress,
+            sleep: validEntry.sleep ?? null, content: validEntry.content,
+            moments: validEntry.moments ?? [], self_note: validEntry.selfNote ?? '',
+            tags: validEntry.tags ?? [], created_at: validEntry.createdAt,
+          }, { onConflict: 'id' }).then(({ error }) => {
+            if (error) notifySyncError(error, 'saveJournal');
+            else if (typeof window !== 'undefined') window.dispatchEvent(new Event('sah:activity-changed'));
+          });
         });
       },
       // Server-side RPCs (for example Mescidim → Günlük) already persist the
@@ -299,6 +327,9 @@ export const useJourneyStore = create<JourneyState>()(
         });
       },
       deleteJournal: (id) => {
+        const entry = get().journal.find((item) => item.id === id);
+        const today = new Date().toLocaleDateString('en-CA');
+        if (!entry || entry.date !== today) return;
         set((s) => ({ journal: s.journal.filter(j => j.id !== id) }));
         getAuthenticatedUserId().then((uid) => {
           if (uid && isValidUUID(id)) {
@@ -408,7 +439,7 @@ export const useJourneyStore = create<JourneyState>()(
             [qKey]: s.eisenhower[qKey].map(t => {
               if (t.id === id) {
                 newDoneState = !t.done;
-                return { ...t, done: newDoneState };
+                return { ...t, done: newDoneState, completedAt: newDoneState ? new Date().toISOString() : undefined };
               }
               return t;
             })
@@ -416,7 +447,7 @@ export const useJourneyStore = create<JourneyState>()(
         }));
         getAuthenticatedUserId().then((uid) => {
           if (uid && isValidUUID(id)) {
-            supabase.from('eisenhower_tasks').update({ done: newDoneState }).eq('id', id).eq('user_id', uid)
+            supabase.from('eisenhower_tasks').update({ done: newDoneState, completed_at: newDoneState ? new Date().toISOString() : null }).eq('id', id).eq('user_id', uid)
               .then(({ error }) => { if (error) notifySyncError(error, 'toggleTask'); });
           }
         });
@@ -491,6 +522,26 @@ export const useJourneyStore = create<JourneyState>()(
           }
         });
       },
+      upsertSukur: (entry) => {
+        const validEntry: SukurEntry = { ...entry, id: ensureUUID(entry.id) };
+        set((state) => {
+          const exists = state.sukurList.some((item) => item.id === validEntry.id || item.date === validEntry.date);
+          return { sukurList: exists
+            ? state.sukurList.map((item) => item.id === validEntry.id || item.date === validEntry.date ? validEntry : item)
+            : [validEntry, ...state.sukurList] };
+        });
+        getAuthenticatedUserId().then((uid) => {
+          if (!uid) return;
+          supabase.from('sukur_entries').upsert({
+            id: validEntry.id, user_id: uid, date: validEntry.date, text: validEntry.text,
+            nimet1: validEntry.nimets[0] ?? '', nimet2: validEntry.nimets[1] ?? '', nimet3: validEntry.nimets[2] ?? '',
+            created_at: validEntry.createdAt,
+          }, { onConflict: 'id' }).then(({ error }) => {
+            if (error) notifySyncError(error, 'upsertSukur');
+            else if (typeof window !== 'undefined') window.dispatchEvent(new Event('sah:activity-changed'));
+          });
+        });
+      },
       deleteSukur: (id) => {
         set((s) => ({ sukurList: s.sukurList.filter(e => e.id !== id) }));
         getAuthenticatedUserId().then((uid) => {
@@ -525,7 +576,7 @@ export const useJourneyStore = create<JourneyState>()(
         });
       },
       logFocusToJournal: (sessionId, note) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = localDateKey();
         const existing = get().journal.find((entry) => entry.date === today);
         const journalId = existing?.id ?? ensureUUID();
         const createdAt = existing?.createdAt ?? new Date().toISOString();
@@ -541,6 +592,7 @@ export const useJourneyStore = create<JourneyState>()(
           void supabase.from('journal_entries').upsert({
             id: entry.id, user_id: uid, date: entry.date, mood: entry.mood, energy: entry.energy,
             stress: entry.stress, sleep: entry.sleep ?? null, content: entry.content, tags: entry.tags,
+            moments: entry.moments ?? [], self_note: entry.selfNote ?? '',
             created_at: entry.createdAt,
           }, { onConflict: 'id' }).then(({ error }) => { if (error) notifySyncError(error, 'logFocusToJournal'); });
           void supabase.from('focus_sessions').update({ linked_journal_entry_id: journalId }).eq('id', sessionId).eq('user_id', uid)
@@ -571,7 +623,7 @@ export const useJourneyStore = create<JourneyState>()(
         vehicleChosen: false,
         xp: 0,
         badges: [],
-        streak: { current: 1, lastDate: new Date().toISOString().split('T')[0] },
+        streak: { current: 1, lastDate: localDateKey() },
         journal: [],
         quranNotes: [],
         hadisNotes: [],
@@ -590,7 +642,7 @@ export const useJourneyStore = create<JourneyState>()(
         xp: data.xp ?? 0,
         vehicle: data.vehicle ?? VEHICLE_DEFS.car,
         badges: data.badges ?? [],
-        streak: data.streak ?? { current: 1, lastDate: new Date().toISOString().split('T')[0] },
+        streak: data.streak ?? { current: 1, lastDate: localDateKey() },
         journal: data.journal ?? [],
         quranNotes: data.quranNotes ?? [],
         hadisNotes: data.hadisNotes ?? [],

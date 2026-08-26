@@ -47,8 +47,11 @@ export interface JournalEntry {
   stress: number;     // 1-10
   sleep?: number;
   content: string;
+  moments?: string[];
+  selfNote?: string;
   tags: string[];
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface QuranNote {
@@ -76,6 +79,19 @@ export interface EisenhowerTask {
   text: string;
   done: boolean;
   createdAt: string;
+  completedAt?: string;
+}
+
+export type IntegratedActivityCategory = 'journal' | 'quran' | 'hadis' | 'matrix' | 'lessons' | 'sukur' | 'mescidim' | 'focus' | 'profession' | 'awareness';
+
+export interface IntegratedActivity {
+  id: string;
+  category: IntegratedActivityCategory;
+  label: string;
+  detail: string;
+  xp: number;
+  occurredAt: string;
+  sourceView: string;
 }
 
 export interface EisenhowerState {

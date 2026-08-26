@@ -17,7 +17,7 @@ const isLessonContent = (value: Json): value is ProfessionLessonContent => Boole
   && typeof value.explanation === 'string' && typeof value.action === 'string',
 )
 
-export default function ProfessionSchoolView() {
+export default function ProfessionSchoolView({ onNavigate }: { onNavigate: (view: string) => void }) {
   const user = useAuthStore((state) => state.user)
   const journey = useJourneyStore()
   const [tracks, setTracks] = useState<ProfessionTrack[]>(PROFESSION_TRACKS)
@@ -93,6 +93,7 @@ export default function ProfessionSchoolView() {
     }
     const completedAt = new Date().toISOString()
     setProgress((current) => new Map(current).set(activeLesson.id, { lessonId: activeLesson.id, reflectionNote: reflection.trim() || null, completedAt }))
+    window.dispatchEvent(new Event('sah:activity-changed'))
     if (awarded) {
       journey.addXP(activeLesson.xpReward); journey.updateStreak()
     }
@@ -132,6 +133,8 @@ export default function ProfessionSchoolView() {
         </motion.button>
       })}</div>
     </section> : <section className="profession-empty"><AppIcon name="route" /><h2>İlk öğrenme yolunu seç</h2><p>Yukarıdaki meslek kartlarından birini eklediğinde sekiz adımlı ders yolu burada açılacak.</p></section>}
+
+    <div className="context-links"><span><AppIcon name="link" /> Öğrendiğini günlük hayata taşı</span><div><button type="button" onClick={() => onNavigate('journal')}><AppIcon name="notebook" /> Ders üzerine günlük notu yaz<AppIcon name="arrow-right" /></button><button type="button" onClick={() => onNavigate('matrix')}><AppIcon name="layout-grid" /> Uygulama adımını planla<AppIcon name="arrow-right" /></button></div></div>
 
     <AnimatePresence>{activeLesson && <motion.div className="lesson-reader-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => event.target === event.currentTarget && setActiveLesson(null)}>
       <motion.article className="lesson-reader" role="dialog" aria-modal="true" aria-labelledby="lesson-reader-title" initial={{ opacity: 0, y: 22, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: .99 }}>

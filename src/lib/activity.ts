@@ -1,6 +1,6 @@
-import type { EisenhowerState, FocusSession, HadisNote, JournalEntry, LessonEntry, QuranNote, SukurEntry } from '@/types';
+import type { EisenhowerState, FocusSession, HadisNote, IntegratedActivity, JournalEntry, LessonEntry, QuranNote, SukurEntry } from '@/types';
 
-export type ActivityCategory = 'journal' | 'quran' | 'hadis' | 'matrix' | 'lessons' | 'sukur' | 'mescidim' | 'focus';
+export type ActivityCategory = IntegratedActivity['category'];
 
 export type ActivityEvent = {
   id: string;
@@ -31,7 +31,20 @@ export const CATEGORY_META: Record<ActivityCategory, { label: string; icon: stri
   sukur: { label: 'Şükür', icon: 'sparkles', color: '#059669' },
   mescidim: { label: 'Mescidim', icon: 'building-mosque', color: '#7c3aed' },
   focus: { label: 'Odak', icon: 'target-arrow', color: '#0d9488' },
+  profession: { label: 'Meslek ve Ahlak', icon: 'certificate', color: '#7c3aed' },
+  awareness: { label: 'Farkındalık', icon: 'world-heart', color: '#db2777' },
 };
+
+export function mapIntegratedActivities(items: IntegratedActivity[]): ActivityEvent[] {
+  return items.map((item) => ({
+    id: item.id,
+    category: item.category,
+    label: item.label,
+    detail: item.detail,
+    xp: item.xp,
+    createdAt: item.occurredAt,
+  }));
+}
 
 export type SearchResult = { id: string; category: ActivityCategory; view: string; title: string; preview: string; searchable: string; icon: string; color: string };
 
@@ -57,7 +70,7 @@ export function buildActivityFeed(source: ActivitySource): ActivityEvent[] {
     ...source.journal.map((item) => ({ id: item.id, category: 'journal' as const, label: 'Günlük kaydı', detail: 'Günün kısa muhasebesi tamamlandı', xp: 25, createdAt: item.createdAt })),
     ...source.quranNotes.map((item) => ({ id: item.id, category: 'quran' as const, label: 'Kuran notu', detail: item.sure ? `${item.sure} üzerine tefekkür` : 'Tefekkür notu eklendi', xp: 35, createdAt: item.createdAt })),
     ...source.hadisNotes.map((item) => ({ id: item.id, category: 'hadis' as const, label: 'Hadis notu', detail: item.kaynak || 'Yeni ders kaydedildi', xp: 30, createdAt: item.createdAt })),
-    ...tasks.filter((item) => item.done).map((item) => ({ id: item.id, category: 'matrix' as const, label: 'Görev tamamlandı', detail: item.text, xp: 25, createdAt: item.createdAt })),
+    ...tasks.filter((item) => item.done).map((item) => ({ id: item.id, category: 'matrix' as const, label: 'Görev tamamlandı', detail: item.text, xp: 25, createdAt: item.completedAt ?? item.createdAt })),
     ...source.lessons.map((item) => ({ id: item.id, category: 'lessons' as const, label: 'Ders kaydı', detail: item.title || 'Deneyimden öğrenilen ders', xp: 25, createdAt: item.createdAt })),
     ...source.sukurList.map((item) => ({ id: item.id, category: 'sukur' as const, label: 'Şükür kaydı', detail: item.text || 'Yeni bir nimet fark edildi', xp: 20, createdAt: item.createdAt })),
     ...source.focusSessions.map((item) => ({ id: item.id, category: 'focus' as const, label: 'Odak oturumu', detail: `${item.taskLabel} · ${Math.round(item.actualDurationSeconds / 60)} dakika`, xp: item.xpAwarded, createdAt: item.endedAt })),
@@ -92,6 +105,8 @@ export function getCategoryCounts(source: ActivitySource): Record<ActivityCatego
     sukur: source.sukurList.length,
     mescidim: Math.floor(source.totalZikir / 33),
     focus: source.focusSessions.length,
+    profession: 0,
+    awareness: 0,
   };
 }
 

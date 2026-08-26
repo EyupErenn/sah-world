@@ -6,6 +6,8 @@ import { recordXpEvent } from '@/lib/xp';
 import { AppIcon } from '@/components/ui/AppIcon';
 import type { EisenhowerState } from '@/types';
 import MescidimView from './MescidimView';
+import JournalNotebook from './JournalNotebook';
+import { dayKey } from '@/lib/activity';
 
 export type SectionKey = 'journal' | 'quran' | 'hadis' | 'matrix' | 'lessons' | 'sukur' | 'mescidim' | 'depot';
 
@@ -33,7 +35,7 @@ export default function SectionView({ section, onNavigate }: { section: SectionK
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault(); const form = event.currentTarget; const fd = new FormData(form); const id = crypto.randomUUID(); const now = new Date();
-    const createdAt = now.toISOString(); const date = createdAt.slice(0, 10);
+    const createdAt = now.toISOString(); const date = dayKey(now);
     if (section === 'journal') { store.addJournal({ id, date, mood: Number(fd.get('mood')), energy: Number(fd.get('energy')), stress: Number(fd.get('stress')), content: String(fd.get('content')), tags: [], createdAt }); reward(25, 'Günlük kaydı', 'journal', id); }
     if (section === 'quran') { store.addQuranNote({ id, date, sure: String(fd.get('sure')), ayet: String(fd.get('ayet')), tefsir: String(fd.get('tefsir')), ders: String(fd.get('ders')), createdAt }); reward(35, 'Kuran notu', 'quran', id); }
     if (section === 'hadis') { store.addHadisNote({ id, date, metin: String(fd.get('metin')), kaynak: String(fd.get('kaynak')), konu: String(fd.get('konu')), uygulama: String(fd.get('uygulama')), createdAt }); reward(30, 'Hadis notu', 'hadis', id); }
@@ -42,8 +44,8 @@ export default function SectionView({ section, onNavigate }: { section: SectionK
     form.reset();
   };
 
-  return <div className="view-stack"><header className="page-heading section-heading"><div><span className="eyebrow">{info.eyebrow}</span><h1><i><AppIcon name={info.icon}/></i> {info.title}</h1><p>{info.description}</p></div>{notice && <span className="success-toast"><AppIcon name="check"/> {notice}</span>}</header>
-    {section === 'matrix' ? <Matrix reward={reward} /> : section === 'mescidim' ? <MescidimView reward={reward} /> : section === 'depot' ? <Depot /> : <EntrySection section={section} onSubmit={submit} onNavigate={onNavigate} />}
+  return <div className="view-stack">{section !== 'journal' && <header className="page-heading section-heading"><div><span className="eyebrow">{info.eyebrow}</span><h1><i><AppIcon name={info.icon}/></i> {info.title}</h1><p>{info.description}</p></div>{notice && <span className="success-toast"><AppIcon name="check"/> {notice}</span>}</header>}
+    {section === 'journal' ? <JournalNotebook onNavigate={onNavigate} /> : section === 'matrix' ? <Matrix reward={reward} onNavigate={onNavigate} /> : section === 'mescidim' ? <><MescidimView reward={reward} /><ContextLinks section="mescidim" onNavigate={onNavigate} /></> : section === 'depot' ? <Depot /> : <EntrySection section={section} onSubmit={submit} onNavigate={onNavigate} />}
   </div>;
 }
 
@@ -70,22 +72,30 @@ function EntrySection({ section, onSubmit, onNavigate }: { section: Exclude<Sect
     <section className="surface-card recent-card"><div className="card-heading"><div><span className="eyebrow">ARŞİV</span><h2>Son kayıtlar</h2></div><span className="quiet-chip">{items.length} toplam</span></div>{items.length === 0 ? <div className="empty-state"><i><AppIcon name="notes"/></i><strong>Bu sayfa ilk izini bekliyor</strong><p>Bugünden kalan tek bir cümle, zamanla anlamlı bir yolculuğa dönüşebilir.</p></div> : <div className="simple-records">{items.slice(0,8).map((item) => <article key={item.id}><strong>{new Intl.DateTimeFormat('tr-TR',{day:'numeric',month:'long'}).format(new Date(item.createdAt))}</strong><p>{'content' in item ? item.content : 'ders' in item ? item.ders : 'uygulama' in item ? item.uygulama : 'learned' in item ? item.learned : item.text}</p></article>)}</div>}</section></div>;
 }
 
-function ContextLinks({ section, onNavigate }: { section: Exclude<SectionKey, 'matrix'|'mescidim'|'depot'>; onNavigate: (view: string) => void }) {
+function ContextLinks({ section, onNavigate }: { section: Exclude<SectionKey, 'depot'>; onNavigate: (view: string) => void }) {
   const links = section === 'journal'
     ? [{ view: 'quran', icon: 'book-2', label: 'İlgili Kur’an notu ekle' }, { view: 'hadis', icon: 'quote', label: 'İlgili hadis notu ekle' }]
     : section === 'lessons'
-      ? [{ view: 'matrix', icon: 'layout-grid', label: 'Bununla ilgili bir hedef oluştur' }]
-      : ['quran', 'hadis'].includes(section)
-        ? [{ view: 'journal', icon: 'notebook', label: 'Bunu günlüğüme yansıt' }]
-        : [];
+      ? [{ view: 'journal', icon: 'notebook', label: 'Dersi günlüğümde düşün' }, { view: 'mescidim', icon: 'building-mosque', label: 'İlgili bir Esmâ ara' }]
+      : section === 'quran'
+        ? [{ view: 'journal', icon: 'notebook', label: 'Bunu günlüğüme yansıt' }, { view: 'mescidim', icon: 'building-mosque', label: 'Dua ile derinleştir' }]
+        : section === 'hadis'
+          ? [{ view: 'journal', icon: 'notebook', label: 'Uygulama niyetini günlüğe yaz' }, { view: 'lessons', icon: 'history', label: 'Hayata geçen dersi kaydet' }]
+          : section === 'sukur'
+            ? [{ view: 'journal', icon: 'notebook', label: 'Bugünün tam sayfasını aç' }, { view: 'mescidim', icon: 'building-mosque', label: 'Şükür duasına geç' }]
+            : section === 'matrix'
+              ? [{ view: 'focus', icon: 'target-arrow', label: 'Seçtiğim göreve odaklan' }, { view: 'journal', icon: 'notebook', label: 'Gün sonunda değerlendireceğim' }]
+              : section === 'mescidim'
+                ? [{ view: 'journal', icon: 'notebook', label: 'Bugünün manevi izlerini gör' }, { view: 'lessons', icon: 'history', label: 'Tefekkürden bir ders çıkar' }]
+                : [];
   if (!links.length) return null;
   return <div className="context-links"><span><AppIcon name="link" /> İstersen bu kaydı başka bir alanla derinleştir</span><div>{links.map((link) => <button type="button" key={link.view} onClick={() => onNavigate(link.view)}><AppIcon name={link.icon} /> {link.label}<AppIcon name="arrow-right" /></button>)}</div></div>;
 }
 
-function Matrix({ reward }: { reward: (a:number,l:string,s:string,id:string)=>void }) {
+function Matrix({ reward, onNavigate }: { reward: (a:number,l:string,s:string,id:string)=>void; onNavigate: (view: string) => void }) {
   const store = useJourneyStore(); const quadrants: Array<[keyof EisenhowerState,string,string]> = [['q1','Acil + Önemli','Şimdi yap'],['q2','Önemli + Acil değil','Planla'],['q3','Acil + Önemli değil','Sadeleştir'],['q4','Acil değil + Önemli değil','Ele']];
   const add = (event: React.FormEvent<HTMLFormElement>, q: keyof EisenhowerState) => { event.preventDefault(); const form=event.currentTarget; const text=String(new FormData(form).get('task')).trim(); if(!text)return; store.addTask(q,{id:crypto.randomUUID(),text,done:false,createdAt:new Date().toISOString()}); form.reset(); };
-  return <div className="matrix-grid">{quadrants.map(([q,title,hint],i)=><section className={`surface-card quadrant q${i+1}`} key={q}><div className="card-heading"><div><span className="eyebrow">{hint}</span><h2>{title}</h2></div><span className="quiet-chip">{store.eisenhower[q].length}</span></div><form onSubmit={(e)=>add(e,q)} className="inline-form"><input name="task" placeholder="Yeni görev..."/><button type="submit">+</button></form><div className="task-list">{store.eisenhower[q].map(task=><label key={task.id}><input type="checkbox" checked={task.done} onChange={()=>{store.toggleTask(q,task.id); if(!task.done)reward(25,'Görev tamamlandı','matrix',task.id)}}/><span>{task.text}</span></label>)}</div></section>)}</div>;
+  return <><div className="matrix-grid">{quadrants.map(([q,title,hint],i)=><section className={`surface-card quadrant q${i+1}`} key={q}><div className="card-heading"><div><span className="eyebrow">{hint}</span><h2>{title}</h2></div><span className="quiet-chip">{store.eisenhower[q].length}</span></div><form onSubmit={(e)=>add(e,q)} className="inline-form"><input name="task" placeholder="Yeni görev..."/><button type="submit">+</button></form><div className="task-list">{store.eisenhower[q].map(task=><label key={task.id}><input type="checkbox" checked={task.done} onChange={()=>{store.toggleTask(q,task.id); if(!task.done)reward(25,'Görev tamamlandı','matrix',task.id)}}/><span>{task.text}</span></label>)}</div></section>)}</div><ContextLinks section="matrix" onNavigate={onNavigate} /></>;
 }
 
 function Depot(){const s=useJourneyStore();const total=s.journal.length+s.quranNotes.length+s.hadisNotes.length+s.lessons.length+s.sukurList.length+Object.values(s.eisenhower).flat().length;return <section className="surface-card depot-card"><div><span className="eyebrow">BÜTÜN YOLCULUK</span><h2>Biriken küçük adımların</h2><p>Buradaki sayılar yalnızca uygulamadaki kayıt ve istikrar özetidir.</p></div><div className="depot-metrics"><article><strong>{s.xp.toLocaleString('tr-TR')}</strong><span>Toplam XH</span></article><article><strong>{total}</strong><span>Toplam kayıt</span></article><article><strong>{s.streak.current}</strong><span>Günlük seri</span></article><article><strong>{s.badges.length}</strong><span>Kazanılan rozet</span></article></div></section>}

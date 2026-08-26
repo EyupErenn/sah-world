@@ -114,6 +114,8 @@ export default function AwarenessView({ onNavigate }: { onNavigate: (view: strin
       </motion.div></AnimatePresence>
     </section>
 
+    <div className="context-links"><span><AppIcon name="link" /> Bilgiyi iç muhasebeye dönüştür</span><div><button type="button" onClick={() => onNavigate('journal')}><AppIcon name="notebook" /> Bugün öğrendiğimi günlüğe yaz<AppIcon name="arrow-right" /></button><button type="button" onClick={() => onNavigate('mescidim')}><AppIcon name="building-mosque" /> Dua ve tefekküre geç<AppIcon name="arrow-right" /></button></div></div>
+
     <footer className="awareness-editorial-note"><AppIcon name="shield-check" /><div><strong>Kaynak ve dil ilkesi</strong><p>Faktüel özetler yalnızca Dijital Hafıza ve TRT Haber’de erişilen sayfalara dayanır. Her iddianın kaynağı hemen altında görünür; tanık ve kurum açıklamaları kendi sahiplerine açıkça atfedilir. Grafik görüntü kullanılmaz.</p></div></footer>
   </div>
 }

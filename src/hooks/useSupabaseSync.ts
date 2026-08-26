@@ -50,6 +50,8 @@ async function migrateLocalStorageToSupabase(userId: string) {
           stress: j.stress ?? 3,
           sleep: j.sleep ?? null,
           content: j.content,
+          moments: j.moments ?? [],
+          self_note: j.selfNote ?? '',
           tags: j.tags ?? [],
           created_at: j.createdAt || new Date().toISOString(),
         })),
@@ -135,6 +137,7 @@ async function migrateLocalStorageToSupabase(userId: string) {
           quadrant: t.quadrant,
           text: t.text,
           done: t.done,
+          completed_at: t.completedAt ?? (t.done ? t.createdAt : null),
           created_at: t.createdAt || new Date().toISOString(),
         })),
         { onConflict: 'id' }
@@ -215,8 +218,11 @@ export function useSupabaseSync() {
           stress: j.stress ?? 3,
           sleep: j.sleep ?? undefined,
           content: j.content,
+          moments: j.moments ?? [],
+          selfNote: j.self_note ?? '',
           tags: j.tags,
           createdAt: j.created_at,
+          updatedAt: j.updated_at,
         }));
 
         const quranNotes: QuranNote[] = (quranData || []).map((n) => ({
@@ -259,7 +265,7 @@ export function useSupabaseSync() {
 
         const eisenhower = { q1: [] as EisenhowerTask[], q2: [] as EisenhowerTask[], q3: [] as EisenhowerTask[], q4: [] as EisenhowerTask[] };
         (eisenhowerData || []).forEach((t) => {
-          const task = { id: t.id, text: t.text, done: t.done, createdAt: t.created_at };
+          const task = { id: t.id, text: t.text, done: t.done, createdAt: t.created_at, completedAt: t.completed_at ?? undefined };
           if (t.quadrant === 'q1') eisenhower.q1.push(task);
           else if (t.quadrant === 'q2') eisenhower.q2.push(task);
           else if (t.quadrant === 'q3') eisenhower.q3.push(task);
