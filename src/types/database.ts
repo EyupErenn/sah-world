@@ -290,6 +290,10 @@ export interface Database {
       join_group_by_code: { Args: { join_code: string }; Returns: string };
       get_my_groups: { Args: Record<string, never>; Returns: GroupRow[] };
       get_group_roster: { Args: { target_group_id: string }; Returns: Array<{ user_id: string; display_name: string; avatar_url: string | null; xp: number; streak_current: number; badges: string[]; role: 'owner' | 'member'; joined_at: string }> };
+      leave_group: { Args: { target_group_id: string }; Returns: boolean };
+      delete_group: { Args: { target_group_id: string }; Returns: boolean };
+      rotate_group_code: { Args: { target_group_id: string }; Returns: string };
+      send_group_message: { Args: { target_group_id: string; message_content: string }; Returns: ChatMessageRow };
       get_friends_with_last_message: { Args: { requesting_user: string }; Returns: Array<{ friend_id: string; display_name: string; avatar_url: string | null; xp: number; streak_current: number; friendship_id: string; last_message: string | null; last_message_at: string | null; unread_count: number }> };
       search_users_by_name: { Args: { search_term: string; requesting_user: string }; Returns: Array<{ id: string; display_name: string; avatar_url: string | null; xp: number; streak_current: number }> };
       is_app_admin: { Args: Record<string, never>; Returns: boolean };
