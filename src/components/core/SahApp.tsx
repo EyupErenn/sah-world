@@ -19,6 +19,7 @@ import CommandPalette from './CommandPalette'
 import MilestoneCelebration, { type Milestone } from './MilestoneCelebration'
 import AwarenessProfileSummary from './AwarenessProfileSummary'
 import ProfessionProfileSummary from './ProfessionProfileSummary'
+import type { WisdomEntry } from './DailyWisdomWheel'
 
 const DashboardView = dynamic(() => import('./DashboardView'), { loading: () => <ViewSkeleton /> })
 const ReportsView = dynamic(() => import('./ReportsView'), { loading: () => <ViewSkeleton /> })
@@ -37,11 +38,9 @@ const navigationGroups: Array<{ label: string; items: NavigationItem[] }> = [
     { id: 'dashboard', label: 'Evrenim', icon: 'home-2' },
     { id: 'focus', label: 'Odaklanma Zamanlayıcısı', icon: 'target-arrow' },
     { id: 'journal', label: 'Günlük', icon: 'notebook' },
-    { id: 'daily-wheel', label: 'Bugünün Çarkı', icon: 'refresh' },
   ] },
   { label: 'Manevi kayıtlar', items: [
-    { id: 'quran', label: 'Kur’an', icon: 'book-2' },
-    { id: 'hadis', label: 'Hadis', icon: 'quote' },
+    { id: 'daily-wheel', label: 'Bugünün Çarkı', icon: 'refresh' },
     { id: 'sukur', label: 'Şükür', icon: 'sparkles' },
     { id: 'lessons', label: 'Hatalar ve Dersler', icon: 'history' },
     { id: 'mescidim', label: 'Mescidim', icon: 'building-mosque' },
@@ -71,6 +70,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
   const [moreOpen, setMoreOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [wisdomEntry, setWisdomEntry] = useState<WisdomEntry>({ tab: 'verse', nonce: 0 })
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [milestone, setMilestone] = useState<Milestone>(null)
   const milestoneArmed = useRef(false)
@@ -172,7 +172,13 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
   if (!session && !activeUser) return <LoginScreen />
 
   const navigate = (next: string) => {
-    setView(next as ViewKey)
+    if (next === 'quran' || next === 'hadis') {
+      setWisdomEntry({ tab: 'archive', archiveKind: next === 'quran' ? 'verse' : 'hadith', nonce: Date.now() })
+      setView('daily-wheel')
+    } else {
+      if (next === 'daily-wheel') setWisdomEntry({ tab: 'verse', nonce: Date.now() })
+      setView(next as ViewKey)
+    }
     setMoreOpen(false)
     setProfileOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -247,7 +253,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
 
         <main className="app-main" id="main-content">
           <AnimatePresence mode="wait" initial={false}><motion.div key={view} className="view-motion-shell" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: .2, ease: [0.22, 1, 0.36, 1] }}>
-            {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel /> : view === 'focus' ? <FocusTimerView onExit={() => navigate('dashboard')} /> : view === 'awareness' ? <AwarenessView onNavigate={navigate} /> : view === 'profession-school' ? <ProfessionSchoolView onNavigate={navigate} /> : <SectionView section={view} onNavigate={navigate} />}
+            {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel key={wisdomEntry.nonce} entry={wisdomEntry} /> : view === 'focus' ? <FocusTimerView onExit={() => navigate('dashboard')} /> : view === 'awareness' ? <AwarenessView onNavigate={navigate} /> : view === 'profession-school' ? <ProfessionSchoolView onNavigate={navigate} /> : <SectionView section={view} onNavigate={navigate} />}
           </motion.div></AnimatePresence>
         </main>
       </div>
