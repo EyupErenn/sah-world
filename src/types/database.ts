@@ -280,6 +280,7 @@ export interface Database {
       dua_library: RowTable<DuaLibraryRow>;
       user_dua_favorites: RowTable<{ id: string; user_id: string; dua_id: string; created_at: string }>;
       journal_spiritual_links: RowTable<JournalSpiritualLinkRow>;
+      wheel_history: RowTable<{ id: string; user_id: string; content_type: 'verse' | 'hadith'; content_id: string; reveal_date: string; is_daily: boolean; shown_at: string }>;
     };
     Views: {
       public_profile_summary: { Row: Pick<ProfileRow, 'id' | 'display_name' | 'avatar_url' | 'xp' | 'streak_current' | 'badges'>; Relationships: [] };
@@ -305,6 +306,7 @@ export interface Database {
       complete_profession_lesson: { Args: { target_lesson_id: string; reflection_text?: string | null }; Returns: Array<{ awarded: boolean; xp_awarded: number; track_completed: boolean }> };
       log_spiritual_to_journal: { Args: { target_kind: 'asma' | 'dua'; target_reference_id: string; reflection_text?: string | null }; Returns: Array<{ journal_entry_id: string; journal_content: string; xp_awarded: number; daily_xp_count: number }> };
       get_my_activity_log: { Args: { from_date?: string | null; to_date?: string | null }; Returns: IntegratedActivityRow[] };
+      record_wheel_reveal: { Args: { requested_type: 'verse' | 'hadith'; requested_content_id: string; daily_reveal?: boolean }; Returns: Array<{ content_id: string; shown_at: string }> };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

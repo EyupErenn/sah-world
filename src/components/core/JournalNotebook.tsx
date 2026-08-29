@@ -170,8 +170,8 @@ export default function JournalNotebook({ onNavigate }: { onNavigate: (view: str
 
     <nav className="journal-connections" aria-label="Günlüğü diğer alanlarla derinleştir">
       <span><AppIcon name="route" /><strong>Bugünün izini derinleştir</strong><small>Defterin, diğer alanlarınla birlikte anlam kazanır.</small></span>
-      <button onClick={() => onNavigate('quran')}><AppIcon name="book-2" /> Kur’an notu</button>
-      <button onClick={() => onNavigate('hadis')}><AppIcon name="quote" /> Hadis notu</button>
+      <button onClick={() => onNavigate('quran')}><AppIcon name="book-2" /> Kayıtlı Kur’an notlarım</button>
+      <button onClick={() => onNavigate('hadis')}><AppIcon name="quote" /> Kayıtlı hadis notlarım</button>
       <button onClick={() => onNavigate('sukur')}><AppIcon name="sparkles" /> Şükür alanı</button>
     </nav>
 
