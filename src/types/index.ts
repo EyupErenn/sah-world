@@ -52,6 +52,12 @@ export interface JournalEntry {
   tags: string[];
   createdAt: string;
   updatedAt?: string;
+  ritualType?: 'sabah' | 'aksam' | null;
+  entryMode?: 'quick' | 'full';
+  intentionText?: string;
+  expectedChallengeText?: string;
+  gratitudeText?: string;
+  xpAwarded?: number;
 }
 
 export interface QuranNote {

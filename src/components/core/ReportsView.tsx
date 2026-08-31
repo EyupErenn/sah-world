@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useJourneyStore } from '@/store/useJourneyStore';
 import { buildActivityFeed, CATEGORY_META, dayKey, getCategoryCounts, getDailyActivity, mapIntegratedActivities, type ActivityCategory } from '@/lib/activity';
 import { AppIcon } from '@/components/ui/AppIcon';
@@ -8,38 +8,41 @@ import FocusTimeline from './FocusTimeline';
 import { formatFocusDuration, isSameLocalDay, totalFocusSeconds } from '@/lib/focus';
 import type { FocusSession } from '@/types';
 import { useActivityLog } from '@/hooks/useActivityLog';
+import { supabase } from '@/lib/supabase';
+import { buildWeeklyInsights } from '@/lib/weeklyInsights';
 
 export default function ReportsView() {
   const store = useJourneyStore();
   const [heatRange, setHeatRange] = useState<'month'|'year'>('month');
   const [trendRange, setTrendRange] = useState<30|90>(30);
   const [focusRange, setFocusRange] = useState<7|30>(7);
+  const [weeklyInsights, setWeeklyInsights] = useState<string[]>([]);
   const remoteActivity = useActivityLog();
   const events = remoteActivity.items.length ? mapIntegratedActivities(remoteActivity.items) : buildActivityFeed(store);
   const daily = useMemo(() => getDailyActivity(events), [events]);
   const localCounts = getCategoryCounts(store);
   const counts = useMemo(() => events.length ? events.reduce<Record<ActivityCategory, number>>((result, event) => ({ ...result, [event.category]: result[event.category] + 1 }), { journal: 0, quran: 0, hadis: 0, matrix: 0, lessons: 0, sukur: 0, mescidim: 0, focus: 0, profession: 0, awareness: 0 }) : localCounts, [events, localCounts]);
   const tasks = Object.values(store.eisenhower).flat();
-  const now = new Date(); const today = dayKey(now); const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6);
+  const now = useMemo(()=>new Date(),[]); const today = dayKey(now); const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const weekCount = events.filter(e => new Date(e.createdAt) >= weekStart).length;
-  const weekEvents = events.filter(e => new Date(e.createdAt) >= weekStart);
-  const weekActive = new Set(weekEvents.map(event => dayKey(event.createdAt))).size;
   const monthActive = [...daily.keys()].filter(k => new Date(`${k}T12:00:00`) >= monthStart).length;
   const total = Object.values(counts).reduce((a,b)=>a+b,0);
   const bestStreak = bestRun([...daily.keys()]);
-  const topWeekCategory = (Object.entries(weekEvents.reduce<Record<string,number>>((acc,event)=>({...acc,[event.category]:(acc[event.category]??0)+1}),{})).sort((a,b)=>b[1]-a[1])[0]?.[0] ?? 'journal') as ActivityCategory;
-  const recentMood = store.journal.filter(item=>new Date(item.createdAt)>=weekStart).map(item=>item.mood);
-  const moodAverage = recentMood.length ? recentMood.reduce((sum,value)=>sum+value,0)/recentMood.length : 0;
   const focusToday = store.focusSessions.filter(session=>isSameLocalDay(session.startedAt,now)).reduce((sum,session)=>sum+session.actualDurationSeconds,0);
   const focusWeek = totalFocusSeconds(store.focusSessions,weekStart);
   const focusTotal = totalFocusSeconds(store.focusSessions);
+  const weekJournal = store.journal.filter(item=>new Date(`${item.date}T12:00:00`)>=weekStart);
+  const ritualStats = { morning: weekJournal.filter(item=>item.ritualType==='sabah').length, evening: weekJournal.filter(item=>item.ritualType==='aksam'||!item.ritualType).length, quick: weekJournal.filter(item=>item.entryMode==='quick').length };
+  const localWeeklyInsights = buildWeeklyInsights(store.journal,events,now);
+
+  useEffect(()=>{let active=true;void supabase.rpc('generate_weekly_insights',{target_week_start:null}).then(({data,error})=>{if(!active||error)return;const row=Array.isArray(data)?data[0]:data;if(row?.insight_text_array)setWeeklyInsights(row.insight_text_array)});return()=>{active=false}},[store.journal.length,events.length]);
 
   return <div className="view-stack reports-view"><header className="page-heading"><div><span className="eyebrow">GELİŞİM İÇGÖRÜLERİ</span><h1>Raporlarım</h1><p>Rakamları yargı için değil, ritmini anlamak ve dengen için kullan.</p></div><span className="quiet-chip">Son güncelleme · şimdi</span></header>
     <div className="stat-grid report-stats">
       <ReportStat icon="sparkles" label="Toplam XH" value={store.xp.toLocaleString('tr-TR')}/><ReportStat icon="calendar-week" label="Bu hafta kayıt" value={weekCount}/><ReportStat icon="calendar-check" label="Bugünün kaydı" value={daily.get(today)??0}/><ReportStat icon="notes" label="Toplam kayıt" value={total}/><ReportStat icon="flame" label="En iyi seri" value={`${bestStreak} gün`}/><ReportStat icon="calendar-stats" label="Bu ay aktif gün" value={monthActive}/>
     </div>
-    <section className="surface-card weekly-digest-card"><div className="digest-symbol"><AppIcon name="wand" /></div><div><span className="eyebrow">BU HAFTANIN ÖZETİ</span><h2>{weekCount ? `Ritmin bu hafta ${CATEGORY_META[topWeekCategory].label} alanında güçlendi.` : 'Bu haftanın hikâyesi ilk kaydını bekliyor.'}</h2><p>{weekCount ? `${weekCount} kayıt ${weekActive || 1} aktif güne yayıldı.${moodAverage ? ` Günlüklerindeki ortalama ruh hali ${moodAverage.toFixed(1)}/5.` : ''} Tek bir güne yüklenmek yerine küçük adımları yayman, sürdürülebilir bir ritim kurduğunu gösterir.` : 'Kendine uzun bir rapor borçlu değilsin. Bugünden tek bir cümle bıraktığında burası sana anlamlı bir içgörü sunmaya başlayacak.'}</p></div><span className="digest-chip"><AppIcon name="calendar-week" /> Son 7 gün</span></section>
+    <section className="surface-card weekly-digest-card narrative"><div className="digest-symbol"><AppIcon name="wand" /></div><div><span className="eyebrow">BU HAFTANIN ÖZETİ</span><h2>Verilerin bu haftanın hikâyesini anlatıyor.</h2><ul>{(weeklyInsights.length?weeklyInsights:localWeeklyInsights).map((text,index)=><li key={index}>{text}</li>)}</ul><div className="ritual-report-chips"><span>🌅 {ritualStats.morning} sabah</span><span>🌙 {ritualStats.evening} akşam</span><span>⚡ {ritualStats.quick} hızlı</span></div></div><span className="digest-chip"><AppIcon name="calendar-week" /> Son 7 gün</span></section>
     <section className="surface-card focus-report-card"><div className="card-heading"><div><span className="eyebrow">DERİN ÇALIŞMA</span><h2>Odaklanma ritmi</h2></div><Segment value={String(focusRange)} onChange={v=>setFocusRange(Number(v) as 7|30)} options={[["7","7 Gün"],["30","30 Gün"]]}/></div><div className="focus-report-stats"><article><span><AppIcon name="sun" /></span><div><small>Bugün</small><strong>{formatFocusDuration(focusToday)}</strong></div></article><article><span><AppIcon name="calendar-week" /></span><div><small>Bu hafta</small><strong>{formatFocusDuration(focusWeek)}</strong></div></article><article><span><AppIcon name="infinity" /></span><div><small>Tüm zamanlar</small><strong>{formatFocusDuration(focusTotal)}</strong></div></article></div><div className="focus-report-grid"><FocusTrend sessions={store.focusSessions} days={focusRange}/><FocusTimeline sessions={store.focusSessions} compact /></div></section>
     <section className="surface-card heatmap-card"><div className="card-heading"><div><span className="eyebrow">DÜZENLİLİK</span><h2>Aktivite takvimi</h2></div><Segment value={heatRange} onChange={v=>setHeatRange(v as 'month'|'year')} options={[['month','Bu Ay'],['year','Bu Yıl']]}/></div><Heatmap daily={daily} range={heatRange}/><div className="heat-legend"><span>Daha az</span>{[0,1,2,3,4].map(i=><i key={i} className={`heat-${i}`}/>)}<span>Daha çok</span></div></section>
     <div className="reports-grid">
