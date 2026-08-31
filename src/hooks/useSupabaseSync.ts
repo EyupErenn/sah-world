@@ -287,6 +287,7 @@ export function useSupabaseSync() {
         const focusSessions: FocusSession[] = (focusData || []).map((session) => ({
           id: session.id,
           taskLabel: session.task_label,
+          intentionText: session.intention_text || undefined,
           timerType: session.timer_type,
           plannedDurationSeconds: session.planned_duration_seconds,
           actualDurationSeconds: session.actual_duration_seconds,
@@ -295,6 +296,10 @@ export function useSupabaseSync() {
           completed: session.completed,
           linkedJournalEntryId: session.linked_journal_entry_id ?? undefined,
           xpAwarded: session.xp_awarded,
+          interruptionCount: session.interruption_count ?? 0,
+          totalAwaySeconds: session.total_away_seconds ?? 0,
+          focusQualityRating: session.focus_quality_rating ?? undefined,
+          postSessionNote: session.post_session_note || undefined,
         }));
 
         // 3. Zustand store'a DB verilerini yükle (importAll)

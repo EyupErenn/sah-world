@@ -13,15 +13,29 @@ export type PersistedFocusTimer = {
   phase: 'running' | 'paused'
 }
 
+export function calculateAwayReturn(awayStartedAt: number | null, at: number, interruptionCount: number, totalAwaySeconds: number) {
+  if (awayStartedAt === null) return { awaySeconds: 0, interruptionCount, totalAwaySeconds }
+  const awaySeconds = Math.max(0, Math.round((at - awayStartedAt) / 1000))
+  return {
+    awaySeconds,
+    interruptionCount: Math.min(10000, interruptionCount + (awaySeconds >= 2 ? 1 : 0)),
+    totalAwaySeconds: Math.min(43200, totalAwaySeconds + awaySeconds),
+  }
+}
+
 /**
  * Completed countdown: 0.8 XP/minute, 10–60 XP.
  * Intentional stopwatch finish: same formula after 5 minutes.
  * Early countdown stop: 2 XP per five focused minutes, capped at 12 XP.
  */
-export function calculateFocusXP(actualSeconds: number, completed: boolean, timerType: FocusTimerType): number {
+export function calculateFocusXP(actualSeconds: number, completed: boolean, timerType: FocusTimerType, interruptionCount = 0, totalAwaySeconds = 0): number {
   const safeSeconds = Math.max(0, Math.min(actualSeconds, 12 * 60 * 60))
   if (completed || (timerType === 'stopwatch' && safeSeconds >= 5 * 60)) {
-    return Math.min(60, Math.max(10, Math.round(safeSeconds / 75)))
+    const fullReward = Math.min(60, Math.max(10, Math.round(safeSeconds / 75)))
+    const awayRatio = safeSeconds ? Math.min(.5, totalAwaySeconds / safeSeconds) : 0
+    const focusBonusFactor = Math.max(.2, 1 - (interruptionCount * .08) - (awayRatio * .7))
+    const protectedBase = Math.max(1, Math.round(fullReward * .6))
+    return Math.max(1, Math.round(protectedBase + ((fullReward - protectedBase) * focusBonusFactor)))
   }
   if (safeSeconds < 5 * 60) return 0
   return Math.min(12, Math.floor(safeSeconds / (5 * 60)) * 2)

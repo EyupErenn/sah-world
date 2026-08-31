@@ -60,7 +60,7 @@ export function buildSearchIndex(source: ActivitySource): SearchResult[] {
     ...Object.values(source.eisenhower).flat().map((item) => make('matrix', item.id, item.done ? 'Tamamlanan görev' : 'Görev', item.text)),
     ...source.lessons.map((item) => make('lessons', item.id, item.title || 'Hatalar ve Dersler', `${item.wrong} ${item.learned}`)),
     ...source.sukurList.map((item) => make('sukur', item.id, 'Şükür kaydı', `${item.text} ${item.nimets.join(' ')}`)),
-    ...source.focusSessions.map((item) => make('focus', item.id, 'Odak oturumu', `${item.taskLabel} ${Math.round(item.actualDurationSeconds / 60)} dakika`)),
+    ...source.focusSessions.filter((item) => item.completed || item.actualDurationSeconds >= 600).map((item) => make('focus', item.id, 'Odak oturumu', `${item.taskLabel} · ${Math.round(item.actualDurationSeconds / 60)} dakika${item.focusQualityRating ? ` · ${item.focusQualityRating}/5 kalite` : ''}${item.interruptionCount ? ` · ${item.interruptionCount} kesinti` : ''}`)),
   ].sort((a, b) => a.title.localeCompare(b.title, 'tr'));
 }
 
@@ -75,7 +75,7 @@ export function buildActivityFeed(source: ActivitySource): ActivityEvent[] {
     ...tasks.filter((item) => item.done).map((item) => ({ id: item.id, category: 'matrix' as const, label: 'Görev tamamlandı', detail: item.text, xp: 25, createdAt: item.completedAt ?? item.createdAt })),
     ...source.lessons.map((item) => ({ id: item.id, category: 'lessons' as const, label: 'Ders kaydı', detail: item.title || 'Deneyimden öğrenilen ders', xp: 25, createdAt: item.createdAt })),
     ...source.sukurList.map((item) => ({ id: item.id, category: 'sukur' as const, label: 'Şükür kaydı', detail: item.text || 'Yeni bir nimet fark edildi', xp: 20, createdAt: item.createdAt })),
-    ...source.focusSessions.map((item) => ({ id: item.id, category: 'focus' as const, label: 'Odak oturumu', detail: `${item.taskLabel} · ${Math.round(item.actualDurationSeconds / 60)} dakika`, xp: item.xpAwarded, createdAt: item.endedAt })),
+    ...source.focusSessions.filter((item) => item.completed || item.actualDurationSeconds >= 600).map((item) => ({ id: item.id, category: 'focus' as const, label: 'Odak oturumu', detail: `${item.taskLabel} · ${Math.round(item.actualDurationSeconds / 60)} dakika${item.focusQualityRating ? ` · ${item.focusQualityRating}/5 kalite` : ''}`, xp: item.xpAwarded, createdAt: item.endedAt })),
   ].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 

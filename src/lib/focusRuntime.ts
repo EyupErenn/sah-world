@@ -9,9 +9,13 @@ import type { FocusSession } from '@/types'
 let finishing = false
 
 export function finalizeFocusSession(naturalCompletion: boolean): FocusSession | null {
-  const timer = useFocusTimerStore.getState()
+  let timer = useFocusTimerStore.getState()
   if (finishing || !timer.isActive || timer.sessionStartedAt === null) return null
+  const sessionStartedAt = timer.sessionStartedAt
   finishing = true
+
+  timer.returnFromAway(Date.now())
+  timer = useFocusTimerStore.getState()
 
   const elapsed = getFocusElapsedSeconds(timer)
   const actualDurationSeconds = Math.min(
@@ -19,17 +23,20 @@ export function finalizeFocusSession(naturalCompletion: boolean): FocusSession |
     Math.max(1, Math.floor(naturalCompletion && timer.timerType === 'countdown' ? timer.plannedDurationSeconds : elapsed)),
   )
   const completed = timer.timerType === 'countdown' ? naturalCompletion : actualDurationSeconds >= 5 * 60
-  const xpAwarded = calculateFocusXP(actualDurationSeconds, completed, timer.timerType)
+  const xpAwarded = calculateFocusXP(actualDurationSeconds, completed, timer.timerType, timer.interruptionCount, timer.totalAwaySeconds)
   const session: FocusSession = {
     id: ensureUUID(),
     taskLabel: timer.taskLabel.trim() || 'Odak oturumu',
+    intentionText: timer.intentionText.trim() || undefined,
     timerType: timer.timerType,
     plannedDurationSeconds: timer.timerType === 'countdown' ? timer.plannedDurationSeconds : 0,
     actualDurationSeconds,
-    startedAt: new Date(timer.sessionStartedAt).toISOString(),
+    startedAt: new Date(sessionStartedAt).toISOString(),
     endedAt: new Date().toISOString(),
     completed,
     xpAwarded,
+    interruptionCount: timer.interruptionCount,
+    totalAwaySeconds: timer.totalAwaySeconds,
   }
 
   const journey = useJourneyStore.getState()

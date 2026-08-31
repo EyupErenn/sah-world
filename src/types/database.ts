@@ -68,6 +68,7 @@ export type FocusSessionRow = {
   id: string;
   user_id: string;
   task_label: string;
+  intention_text: string;
   timer_type: 'countdown' | 'stopwatch';
   planned_duration_seconds: number;
   actual_duration_seconds: number;
@@ -76,6 +77,10 @@ export type FocusSessionRow = {
   completed: boolean;
   linked_journal_entry_id: string | null;
   xp_awarded: number;
+  interruption_count: number;
+  total_away_seconds: number;
+  focus_quality_rating: number | null;
+  post_session_note: string;
   created_at: string;
 };
 

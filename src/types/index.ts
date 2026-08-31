@@ -130,6 +130,7 @@ export type FocusTimerType = 'countdown' | 'stopwatch';
 export interface FocusSession {
   id: string;
   taskLabel: string;
+  intentionText?: string;
   timerType: FocusTimerType;
   plannedDurationSeconds: number;
   actualDurationSeconds: number;
@@ -138,6 +139,10 @@ export interface FocusSession {
   completed: boolean;
   linkedJournalEntryId?: string;
   xpAwarded: number;
+  interruptionCount: number;
+  totalAwaySeconds: number;
+  focusQualityRating?: number;
+  postSessionNote?: string;
 }
 
 export interface StreakData {
