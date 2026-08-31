@@ -67,7 +67,9 @@ export function buildSearchIndex(source: ActivitySource): SearchResult[] {
 export function buildActivityFeed(source: ActivitySource): ActivityEvent[] {
   const tasks = Object.values(source.eisenhower).flat();
   return [
-    ...source.journal.map((item) => ({ id: item.id, category: 'journal' as const, label: 'Günlük kaydı', detail: 'Günün kısa muhasebesi tamamlandı', xp: 25, createdAt: item.createdAt })),
+    ...source.journal.map((item) => ({ id: item.id, category: 'journal' as const,
+      label: item.entryMode === 'quick' ? '⚡ Hızlı kayıt' : item.ritualType === 'sabah' ? '🌅 Sabah Niyeti' : item.ritualType === 'aksam' ? '🌙 Akşam Muhasebesi' : 'Günlük kaydı',
+      detail: item.content || item.intentionText || 'Günün kısa muhasebesi tamamlandı', xp: item.xpAwarded ?? 25, createdAt: item.createdAt })),
     ...source.quranNotes.map((item) => ({ id: item.id, category: 'quran' as const, label: 'Kuran notu', detail: item.sure ? `${item.sure} üzerine tefekkür` : 'Tefekkür notu eklendi', xp: 35, createdAt: item.createdAt })),
     ...source.hadisNotes.map((item) => ({ id: item.id, category: 'hadis' as const, label: 'Hadis notu', detail: item.kaynak || 'Yeni ders kaydedildi', xp: 30, createdAt: item.createdAt })),
     ...tasks.filter((item) => item.done).map((item) => ({ id: item.id, category: 'matrix' as const, label: 'Görev tamamlandı', detail: item.text, xp: 25, createdAt: item.completedAt ?? item.createdAt })),

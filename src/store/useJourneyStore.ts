@@ -283,6 +283,12 @@ export const useJourneyStore = create<JourneyState>()(
               content: validEntry.content,
               moments: validEntry.moments ?? [],
               self_note: validEntry.selfNote ?? '',
+              ritual_type: validEntry.ritualType ?? null,
+              entry_mode: validEntry.entryMode ?? 'full',
+              niyet_text: validEntry.intentionText ?? '',
+              beklenen_zorluk_text: validEntry.expectedChallengeText ?? '',
+              gratitude_text: validEntry.gratitudeText ?? '',
+              xp_awarded: validEntry.xpAwarded ?? 0,
               tags: validEntry.tags ?? [],
               created_at: validEntry.createdAt
             }).then(({ error }) => {
@@ -294,9 +300,9 @@ export const useJourneyStore = create<JourneyState>()(
       saveJournal: (entry) => {
         const validEntry: JournalEntry = { ...entry, id: ensureUUID(entry.id) };
         set((state) => {
-          const exists = state.journal.some((item) => item.id === validEntry.id || item.date === validEntry.date);
+          const exists = state.journal.some((item) => item.id === validEntry.id || (item.date === validEntry.date && item.ritualType === validEntry.ritualType));
           return { journal: exists
-            ? state.journal.map((item) => item.id === validEntry.id || item.date === validEntry.date ? validEntry : item)
+            ? state.journal.map((item) => item.id === validEntry.id || (item.date === validEntry.date && item.ritualType === validEntry.ritualType) ? validEntry : item)
             : [validEntry, ...state.journal] };
         });
         getAuthenticatedUserId().then((uid) => {
@@ -306,6 +312,9 @@ export const useJourneyStore = create<JourneyState>()(
             mood: validEntry.mood, energy: validEntry.energy, stress: validEntry.stress,
             sleep: validEntry.sleep ?? null, content: validEntry.content,
             moments: validEntry.moments ?? [], self_note: validEntry.selfNote ?? '',
+            ritual_type: validEntry.ritualType ?? null, entry_mode: validEntry.entryMode ?? 'full',
+            niyet_text: validEntry.intentionText ?? '', beklenen_zorluk_text: validEntry.expectedChallengeText ?? '',
+            gratitude_text: validEntry.gratitudeText ?? '', xp_awarded: validEntry.xpAwarded ?? 0,
             tags: validEntry.tags ?? [], created_at: validEntry.createdAt,
           }, { onConflict: 'id' }).then(({ error }) => {
             if (error) notifySyncError(error, 'saveJournal');
@@ -319,7 +328,7 @@ export const useJourneyStore = create<JourneyState>()(
       upsertJournalLocal: (entry) => {
         const validEntry: JournalEntry = { ...entry, id: ensureUUID(entry.id) };
         set((state) => {
-          const existingIndex = state.journal.findIndex((item) => item.id === validEntry.id || item.date === validEntry.date);
+          const existingIndex = state.journal.findIndex((item) => item.id === validEntry.id || (item.date === validEntry.date && item.ritualType === validEntry.ritualType));
           if (existingIndex === -1) return { journal: [validEntry, ...state.journal] };
           const next = [...state.journal];
           next[existingIndex] = { ...next[existingIndex], ...validEntry };
@@ -577,12 +586,13 @@ export const useJourneyStore = create<JourneyState>()(
       },
       logFocusToJournal: (sessionId, note) => {
         const today = localDateKey();
-        const existing = get().journal.find((entry) => entry.date === today);
+        const existing = get().journal.find((entry) => entry.date === today && entry.ritualType === 'aksam')
+          ?? get().journal.find((entry) => entry.date === today && !entry.ritualType);
         const journalId = existing?.id ?? ensureUUID();
         const createdAt = existing?.createdAt ?? new Date().toISOString();
         const entry: JournalEntry = existing
           ? { ...existing, content: `${existing.content.trim()}\n\n${note}`.trim(), tags: [...new Set([...(existing.tags ?? []), 'odak'])] }
-          : { id: journalId, date: today, mood: 3, energy: 5, stress: 3, content: note, tags: ['odak'], createdAt };
+          : { id: journalId, date: today, mood: 3, energy: 5, stress: 3, content: note, tags: ['odak'], ritualType: 'aksam', entryMode: 'full', xpAwarded: 0, createdAt };
         set((state) => ({
           journal: existing ? state.journal.map((item) => item.id === journalId ? entry : item) : [entry, ...state.journal],
           focusSessions: state.focusSessions.map((item) => item.id === sessionId ? { ...item, linkedJournalEntryId: journalId } : item),
@@ -593,6 +603,9 @@ export const useJourneyStore = create<JourneyState>()(
             id: entry.id, user_id: uid, date: entry.date, mood: entry.mood, energy: entry.energy,
             stress: entry.stress, sleep: entry.sleep ?? null, content: entry.content, tags: entry.tags,
             moments: entry.moments ?? [], self_note: entry.selfNote ?? '',
+            ritual_type: entry.ritualType ?? null, entry_mode: entry.entryMode ?? 'full',
+            niyet_text: entry.intentionText ?? '', beklenen_zorluk_text: entry.expectedChallengeText ?? '',
+            gratitude_text: entry.gratitudeText ?? '', xp_awarded: entry.xpAwarded ?? 0,
             created_at: entry.createdAt,
           }, { onConflict: 'id' }).then(({ error }) => { if (error) notifySyncError(error, 'logFocusToJournal'); });
           void supabase.from('focus_sessions').update({ linked_journal_entry_id: journalId }).eq('id', sessionId).eq('user_id', uid)

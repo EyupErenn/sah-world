@@ -79,6 +79,36 @@ export type FocusSessionRow = {
   created_at: string;
 };
 
+export type JournalEntryRow = {
+  id: string;
+  user_id: string;
+  date: string;
+  mood: number | null;
+  energy: number | null;
+  stress: number | null;
+  sleep: number | null;
+  content: string;
+  moments: string[];
+  self_note: string;
+  tags: string[];
+  ritual_type: 'sabah' | 'aksam' | null;
+  entry_mode: 'quick' | 'full';
+  niyet_text: string;
+  beklenen_zorluk_text: string;
+  gratitude_text: string;
+  xp_awarded: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WeeklyInsightRow = {
+  id: string;
+  user_id: string;
+  week_start_date: string;
+  insight_text_array: string[];
+  generated_at: string;
+};
+
 export type GeographyRow = 'filistin' | 'dogu_turkistan';
 export type RegionalAwarenessContentRow = {
   id: string;
@@ -253,7 +283,8 @@ export interface Database {
   public: {
     Tables: {
       profiles: RowTable<ProfileRow>;
-      journal_entries: RowTable<{ id: string; user_id: string; date: string; mood: number | null; energy: number | null; stress: number | null; sleep: number | null; content: string; moments: string[]; self_note: string; tags: string[]; created_at: string; updated_at: string }>;
+      journal_entries: RowTable<JournalEntryRow>;
+      weekly_insights: RowTable<WeeklyInsightRow>;
       quran_notes: RowTable<{ id: string; user_id: string; date: string; sure: string; ayet: string; tefsir: string; ders: string; created_at: string }>;
       hadis_notes: RowTable<{ id: string; user_id: string; date: string; metin: string; kaynak: string; konu: string; uygulama: string; created_at: string }>;
       lesson_entries: RowTable<{ id: string; user_id: string; date: string; title: string; wrong: string; learned: string; severity: number | null; created_at: string }>;
@@ -306,6 +337,7 @@ export interface Database {
       complete_profession_lesson: { Args: { target_lesson_id: string; reflection_text?: string | null }; Returns: Array<{ awarded: boolean; xp_awarded: number; track_completed: boolean }> };
       log_spiritual_to_journal: { Args: { target_kind: 'asma' | 'dua'; target_reference_id: string; reflection_text?: string | null }; Returns: Array<{ journal_entry_id: string; journal_content: string; xp_awarded: number; daily_xp_count: number }> };
       get_my_activity_log: { Args: { from_date?: string | null; to_date?: string | null }; Returns: IntegratedActivityRow[] };
+      generate_weekly_insights: { Args: { target_week_start?: string | null }; Returns: WeeklyInsightRow[] };
       record_wheel_reveal: { Args: { requested_type: 'verse' | 'hadith'; requested_content_id: string; daily_reveal?: boolean }; Returns: Array<{ content_id: string; shown_at: string }> };
     };
     Enums: Record<string, never>;
