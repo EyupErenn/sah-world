@@ -203,7 +203,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
       <aside className="app-sidebar" aria-label="Ana navigasyon">
         <button className="brand sidebar-brand" onClick={() => navigate('dashboard')} aria-label="SAH ana sayfa">
           <span className="brand-mark">S</span>
-          <span><strong>SAH</strong><small>Kişisel gelişim alanı</small></span>
+          <span><strong>SAH</strong></span>
         </button>
 
         <nav className="sidebar-nav">
