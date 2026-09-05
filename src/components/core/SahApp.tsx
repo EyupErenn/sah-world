@@ -29,8 +29,9 @@ const SectionView = dynamic(() => import('./SectionView'), { loading: () => <Vie
 const FocusTimerView = dynamic(() => import('./FocusTimerView'), { loading: () => <ViewSkeleton /> })
 const AwarenessView = dynamic(() => import('./AwarenessView'), { loading: () => <ViewSkeleton /> })
 const ProfessionSchoolView = dynamic(() => import('./ProfessionSchoolView'), { loading: () => <ViewSkeleton /> })
+const QuranCompanionView = dynamic(() => import('./QuranCompanionView'), { loading: () => <ViewSkeleton /> })
 
-type ViewKey = 'dashboard' | 'community' | 'reports' | 'daily-wheel' | 'focus' | 'awareness' | 'profession-school' | SectionKey
+type ViewKey = 'dashboard' | 'community' | 'reports' | 'daily-wheel' | 'focus' | 'awareness' | 'profession-school' | 'quran-companion' | SectionKey
 type NavigationItem = { id: ViewKey; label: string; icon: string }
 
 const navigationGroups: Array<{ label: string; items: NavigationItem[] }> = [
@@ -40,6 +41,7 @@ const navigationGroups: Array<{ label: string; items: NavigationItem[] }> = [
     { id: 'journal', label: 'Günlük', icon: 'notebook' },
   ] },
   { label: 'Manevi kayıtlar', items: [
+    { id: 'quran-companion', label: 'Kur’an-ı Kerim Kardeşim', icon: 'book-2' },
     { id: 'daily-wheel', label: 'Bugünün Çarkı', icon: 'refresh' },
     { id: 'sukur', label: 'Şükür', icon: 'sparkles' },
     { id: 'lessons', label: 'Hatalar ve Dersler', icon: 'history' },
@@ -253,7 +255,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
 
         <main className="app-main" id="main-content">
           <AnimatePresence mode="wait" initial={false}><motion.div key={view} className="view-motion-shell" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: .2, ease: [0.22, 1, 0.36, 1] }}>
-            {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel key={wisdomEntry.nonce} entry={wisdomEntry} /> : view === 'focus' ? <FocusTimerView onExit={() => navigate('dashboard')} onNavigate={navigate} /> : view === 'awareness' ? <AwarenessView onNavigate={navigate} /> : view === 'profession-school' ? <ProfessionSchoolView onNavigate={navigate} /> : <SectionView section={view} onNavigate={navigate} />}
+            {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'quran-companion' ? <QuranCompanionView onNavigate={navigate} /> : view === 'daily-wheel' ? <DailyWisdomWheel key={wisdomEntry.nonce} entry={wisdomEntry} /> : view === 'focus' ? <FocusTimerView onExit={() => navigate('dashboard')} onNavigate={navigate} /> : view === 'awareness' ? <AwarenessView onNavigate={navigate} /> : view === 'profession-school' ? <ProfessionSchoolView onNavigate={navigate} /> : <SectionView section={view} onNavigate={navigate} />}
           </motion.div></AnimatePresence>
         </main>
       </div>
