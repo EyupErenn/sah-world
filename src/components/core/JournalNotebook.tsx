@@ -36,6 +36,7 @@ export default function JournalNotebook({onNavigate}:{onNavigate:(view:string)=>
   const entry=dayEntries.find(item=>item.ritualType===ritual)??(ritual==='aksam'?dayEntries.find(item=>!item.ritualType):undefined)
   const gratitudeEntry=store.sukurList.find(item=>item.date===selectedDate)
   const activityQuery=useActivityLog(selectedDate,selectedDate)
+  useEffect(()=>{const requested=window.localStorage.getItem('sah-journal-open-date');if(!requested)return;window.localStorage.removeItem('sah-journal-open-date');const timer=window.setTimeout(()=>setSelectedDate(requested),0);return()=>window.clearTimeout(timer)},[])
   const memoryDates=useMemo(()=>[
     {label:'1 hafta önce',date:offsetDate('day',7)},{label:'1 ay önce',date:offsetDate('month',1)},{label:'3 ay önce',date:offsetDate('month',3)},
     {label:'6 ay önce',date:offsetDate('month',6)},{label:'1 yıl önce',date:offsetDate('year',1)},

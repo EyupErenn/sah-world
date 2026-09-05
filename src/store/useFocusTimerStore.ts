@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import type { FocusSession, FocusTimerType } from '@/types'
 import type { FocusSoundId } from '@/lib/focusAudio'
+import { calculateAwayReturn } from '@/lib/focus'
 
 export type FocusWidgetPosition = { x: number; y: number }
 
@@ -17,17 +18,24 @@ export interface FocusTimerState {
   plannedDurationSeconds: number
   timerType: FocusTimerType
   taskLabel: string
+  intentionText: string
+  interruptionCount: number
+  totalAwaySeconds: number
+  awayStartedAt: number | null
   position: FocusWidgetPosition
   positionInitialized: boolean
   sound: FocusSoundId
   volume: number
   completedSession: FocusSession | null
   setTaskLabel: (taskLabel: string) => void
+  setIntentionText: (intentionText: string) => void
   configure: (input: { timerType: FocusTimerType; plannedDurationSeconds: number }) => void
   setSound: (sound: FocusSoundId, volume: number) => void
   start: () => void
   pause: (at?: number) => void
   resume: (at?: number) => void
+  markAway: (at?: number) => void
+  returnFromAway: (at?: number) => number
   setFullscreen: (isFullscreen: boolean) => void
   setPosition: (position: FocusWidgetPosition) => void
   initialisePosition: (position: FocusWidgetPosition) => void
@@ -51,7 +59,7 @@ export function getFocusElapsedSeconds(state: Pick<FocusTimerState, 'isActive' |
 }
 
 export function getFocusDisplaySeconds(state: Pick<FocusTimerState, 'timerType' | 'plannedDurationSeconds' | 'isActive' | 'isPaused' | 'startedAt' | 'pausedElapsedSeconds'>, now = Date.now()): number {
-  const elapsed = getFocusElapsedSeconds(state, now)
+  const elapsed = state.isActive ? getFocusElapsedSeconds(state, now) : 0
   return state.timerType === 'countdown' ? Math.max(0, state.plannedDurationSeconds - elapsed) : elapsed
 }
 
@@ -65,6 +73,10 @@ const initialState = {
   plannedDurationSeconds: 50 * 60,
   timerType: 'countdown' as FocusTimerType,
   taskLabel: '',
+  intentionText: '',
+  interruptionCount: 0,
+  totalAwaySeconds: 0,
+  awayStartedAt: null,
   position: { x: 24, y: 96 },
   positionInitialized: false,
   sound: 'none' as FocusSoundId,
@@ -77,6 +89,7 @@ export const useFocusTimerStore = create<FocusTimerState>()(
     (set, get) => ({
       ...initialState,
       setTaskLabel: (taskLabel) => set({ taskLabel: taskLabel.trim().slice(0, 120) }),
+      setIntentionText: (intentionText) => set({ intentionText: intentionText.slice(0, 280) }),
       configure: ({ timerType, plannedDurationSeconds }) => {
         if (get().isActive) return
         set({
@@ -91,7 +104,7 @@ export const useFocusTimerStore = create<FocusTimerState>()(
         const taskLabel = get().taskLabel.trim()
         if (!taskLabel || get().isActive) return
         const now = Date.now()
-        set({ isActive: true, isPaused: false, startedAt: now, sessionStartedAt: now, pausedElapsedSeconds: 0, completedSession: null })
+        set({ isActive: true, isPaused: false, startedAt: now, sessionStartedAt: now, pausedElapsedSeconds: 0, interruptionCount: 0, totalAwaySeconds: 0, awayStartedAt: null, completedSession: null })
       },
       pause: (at = Date.now()) => {
         const state = get()
@@ -102,6 +115,22 @@ export const useFocusTimerStore = create<FocusTimerState>()(
         const state = get()
         if (!state.isActive || !state.isPaused) return
         set({ isPaused: false, startedAt: at })
+      },
+      markAway: (at = Date.now()) => {
+        const state = get()
+        if (!state.isActive || state.isPaused || state.awayStartedAt !== null) return
+        set({ awayStartedAt: at })
+      },
+      returnFromAway: (at = Date.now()) => {
+        const state = get()
+        if (state.awayStartedAt === null) return 0
+        const result = calculateAwayReturn(state.awayStartedAt, at, state.interruptionCount, state.totalAwaySeconds)
+        set({
+          awayStartedAt: null,
+          interruptionCount: result.interruptionCount,
+          totalAwaySeconds: result.totalAwaySeconds,
+        })
+        return result.awaySeconds
       },
       setFullscreen: (isFullscreen) => set({ isFullscreen }),
       setPosition: (position) => set({ position, positionInitialized: true }),
@@ -115,15 +144,19 @@ export const useFocusTimerStore = create<FocusTimerState>()(
         startedAt: null,
         sessionStartedAt: null,
         pausedElapsedSeconds: session.actualDurationSeconds,
+        awayStartedAt: null,
         completedSession: session,
       }),
-      dismissCompletion: () => set({ completedSession: null }),
+      dismissCompletion: () => set({ completedSession: null, pausedElapsedSeconds: 0 }),
       reset: () => set({
         isActive: false,
         isPaused: false,
         startedAt: null,
         sessionStartedAt: null,
         pausedElapsedSeconds: 0,
+        interruptionCount: 0,
+        totalAwaySeconds: 0,
+        awayStartedAt: null,
         completedSession: null,
       }),
       restoreLegacy: (input) => set({
@@ -136,6 +169,9 @@ export const useFocusTimerStore = create<FocusTimerState>()(
         plannedDurationSeconds: input.plannedDurationSeconds,
         timerType: input.timerType,
         taskLabel: input.taskLabel,
+        interruptionCount: 0,
+        totalAwaySeconds: 0,
+        awayStartedAt: null,
         completedSession: null,
       }),
     }),
@@ -153,6 +189,10 @@ export const useFocusTimerStore = create<FocusTimerState>()(
         plannedDurationSeconds: state.plannedDurationSeconds,
         timerType: state.timerType,
         taskLabel: state.taskLabel,
+        intentionText: state.intentionText,
+        interruptionCount: state.interruptionCount,
+        totalAwaySeconds: state.totalAwaySeconds,
+        awayStartedAt: state.awayStartedAt,
         position: state.position,
         positionInitialized: state.positionInitialized,
         sound: state.sound,

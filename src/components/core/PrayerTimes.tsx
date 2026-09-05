@@ -24,6 +24,12 @@ import { useJourneyStore } from '@/store/useJourneyStore'
 type CalendarView = 'today' | 'week' | 'month'
 const LOCATION_BACKUP_KEY = 'sah-prayer-location-v1'
 const NOTIFICATION_KEY = 'sah-prayer-notifications-v1'
+const MOSQUE_DEFAULT_LOCATION: PrayerLocation = {
+  city: 'Bursa',
+  country: 'Türkiye',
+  latitude: null,
+  longitude: null,
+}
 
 export default function PrayerTimes({ reward }: { reward: (amount: number, label: string, sourceType: string, sourceId: string) => void }) {
   const { user, profile, patchProfile } = useAuthStore()
@@ -48,8 +54,8 @@ export default function PrayerTimes({ reward }: { reward: (amount: number, label
     let backup: PrayerLocation | null = null
     try { backup = JSON.parse(window.localStorage.getItem(LOCATION_BACKUP_KEY) || 'null') as PrayerLocation | null } catch {}
     const timer = window.setTimeout(() => {
-      setLocation(profileLocation || backup)
-      setSelectingLocation(!profileLocation && !backup)
+      setLocation(profileLocation || backup || MOSQUE_DEFAULT_LOCATION)
+      setSelectingLocation(false)
       setNotificationsEnabled(window.localStorage.getItem(NOTIFICATION_KEY) === '1')
     }, 0)
     return () => window.clearTimeout(timer)

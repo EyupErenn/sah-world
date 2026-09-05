@@ -13,6 +13,10 @@ export default function FocusTimerFloatingWidget() {
   const timer = useFocusTimerStore()
   const journey = useJourneyStore()
   const [now, setNow] = useState(0)
+  const [completionStep, setCompletionStep] = useState<'reflection' | 'journal'>('reflection')
+  const [qualityRating, setQualityRating] = useState(0)
+  const [reflectionNote, setReflectionNote] = useState('')
+  const [welcomeBack, setWelcomeBack] = useState(false)
   const completionHandled = useRef(false)
   const audioRef = useRef<FocusAudioEngine | null>(null)
 
@@ -53,6 +57,36 @@ export default function FocusTimerFloatingWidget() {
     if (!timer.isActive) completionHandled.current = false
   }, [timer.isActive])
 
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      const current = useFocusTimerStore.getState()
+      if (!current.isActive) return
+      if (document.visibilityState === 'hidden') {
+        if (!current.isPaused) current.markAway(Date.now())
+      }
+      else {
+        const awaySeconds = current.returnFromAway(Date.now())
+        if (awaySeconds >= 2) {
+          setWelcomeBack(true)
+          window.setTimeout(() => setWelcomeBack(false), 5200)
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [])
+
+  useEffect(() => {
+    const completed = timer.completedSession
+    if (!completed) return
+    const reset = window.setTimeout(() => {
+      setCompletionStep('reflection')
+      setQualityRating(completed.focusQualityRating ?? 0)
+      setReflectionNote(completed.postSessionNote ?? '')
+    }, 0)
+    return () => window.clearTimeout(reset)
+  }, [timer.completedSession])
+
   const clockNow = now || timer.startedAt || timer.sessionStartedAt || 0
   const elapsedSeconds = getFocusElapsedSeconds(timer, clockNow)
   useEffect(() => {
@@ -74,23 +108,48 @@ export default function FocusTimerFloatingWidget() {
   const logToJournal = () => {
     const session = timer.completedSession
     if (!session) return
-    const note = `🎯 ${Math.max(1, Math.round(session.actualDurationSeconds / 60))} dakika odaklanıldı: ${session.taskLabel}`
+    const details = [
+      `🎯 ${Math.max(1, Math.round(session.actualDurationSeconds / 60))} dakika odaklanıldı: ${session.taskLabel}`,
+      session.intentionText ? `Niyet: ${session.intentionText}` : '',
+      qualityRating ? `Odak kalitesi: ${qualityRating}/5` : '',
+      session.interruptionCount ? `Kesinti: ${session.interruptionCount} kez · ${Math.round(session.totalAwaySeconds / 60)} dk uzakta` : 'Kesintisiz tamamlandı',
+      reflectionNote.trim() ? `Oturum notu: ${reflectionNote.trim()}` : '',
+    ].filter(Boolean)
+    const note = details.join('\n')
     journey.logFocusToJournal(session.id, note)
     timer.dismissCompletion()
   }
 
+  const saveReflection = () => {
+    const session = timer.completedSession
+    if (!session) return
+    journey.updateFocusSessionReflection(session.id, qualityRating || undefined, reflectionNote)
+    setCompletionStep('journal')
+  }
+
   return <>
     <FocusTimerWidgetCard now={clockNow} />
+    <AnimateWelcomeBack visible={welcomeBack} />
     {timer.completedSession && <div className="focus-global-modal-backdrop" role="presentation">
       <section className="focus-global-modal" role="dialog" aria-modal="true" aria-labelledby="focus-global-complete-title">
         <span className="focus-global-success"><AppIcon name="sparkles" /></span>
-        <div><span className="eyebrow">ODAK TAMAMLANDI</span><h2 id="focus-global-complete-title">Emeğin gününde bir iz bıraktı.</h2></div>
+        <div><span className="eyebrow">{completionStep === 'reflection' ? 'KISA YANSIMA' : 'ODAK TAMAMLANDI'}</span><h2 id="focus-global-complete-title">{completionStep === 'reflection' ? 'Bu oturum sana nasıl geldi?' : 'Emeğin gününde bir iz bıraktı.'}</h2></div>
         <div className="focus-complete-summary"><span><AppIcon name="target-arrow" /></span><div><strong>{timer.completedSession.taskLabel}</strong><p>{formatFocusDuration(timer.completedSession.actualDurationSeconds)} odak · +{timer.completedSession.xpAwarded} XH</p></div></div>
-        <p className="journal-offer-copy">Bu oturumu bugünün Günlük kaydına eklemek ister misin?</p>
-        <footer><button onClick={timer.dismissCompletion}>Şimdi değil</button><button onClick={logToJournal}>Günlüğe ekle</button></footer>
+        {completionStep === 'reflection' ? <>
+          <div className="focus-reflection-form"><span>Odak kaliten</span><div role="radiogroup" aria-label="Odak kalitesi">{[1, 2, 3, 4, 5].map((rating) => <button key={rating} className={qualityRating === rating ? 'selected' : ''} onClick={() => setQualityRating(rating)} aria-label={`${rating} üzerinden 5`}>{rating}<small>{['Dağınık', 'Zor', 'Dengeli', 'İyi', 'Derin'][rating - 1]}</small></button>)}</div><textarea value={reflectionNote} onChange={(event) => setReflectionNote(event.target.value)} maxLength={600} rows={3} placeholder="Ne iyi gitti, bir sonraki oturumda neyi değiştirmek istersin? (isteğe bağlı)" /></div>
+          <footer><button onClick={() => setCompletionStep('journal')}>Atla</button><button onClick={saveReflection}>Yansımayı kaydet</button></footer>
+        </> : <>
+          <p className="journal-offer-copy">Bu oturumu bugünün Günlük kaydına eklemek ister misin?</p>
+          <footer><button onClick={timer.dismissCompletion}>Şimdi değil</button><button onClick={logToJournal}>Bugünün günlüğüne ekle</button></footer>
+        </>}
       </section>
     </div>}
   </>
+}
+
+function AnimateWelcomeBack({ visible }: { visible: boolean }) {
+  if (!visible) return null
+  return <div className="focus-welcome-back" role="status"><span><AppIcon name="heart-handshake" /></span><div><strong>Tekrar hoş geldin, devam edelim mi?</strong><small>Oturumun ve kalan süren güvende.</small></div></div>
 }
 
 function FocusTimerWidgetCard({ now }: { now: number }) {
@@ -107,9 +166,21 @@ function FocusTimerWidgetCard({ now }: { now: number }) {
   const circumference = 2 * Math.PI * 22
 
   useEffect(() => {
-    if (!timer.isActive || timer.positionInitialized) return
-    timer.initialisePosition({ x: Math.max(16, window.innerWidth - 260), y: 96 })
-  }, [timer])
+    if (!timer.isActive) return
+    const clampPosition = () => {
+      const current = useFocusTimerStore.getState()
+      const width = window.innerWidth <= 620 ? 220 : 236
+      const next = {
+        x: Math.min(Math.max(8, current.position.x), Math.max(8, window.innerWidth - width - 8)),
+        y: Math.min(Math.max(8, current.position.y), Math.max(8, window.innerHeight - 148 - 8)),
+      }
+      if (!current.positionInitialized) current.initialisePosition({ x: Math.max(8, window.innerWidth - width - 16), y: 96 })
+      else if (next.x !== current.position.x || next.y !== current.position.y) current.setPosition(next)
+    }
+    clampPosition()
+    window.addEventListener('resize', clampPosition)
+    return () => window.removeEventListener('resize', clampPosition)
+  }, [timer.isActive])
 
   const openFullscreen = () => {
     if (window.location.pathname !== '/') {

@@ -203,7 +203,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
       <aside className="app-sidebar" aria-label="Ana navigasyon">
         <button className="brand sidebar-brand" onClick={() => navigate('dashboard')} aria-label="SAH ana sayfa">
           <span className="brand-mark">S</span>
-          <span><strong>SAH</strong><small>Kişisel gelişim alanı</small></span>
+          <span><strong>SAH</strong></span>
         </button>
 
         <nav className="sidebar-nav">
@@ -253,7 +253,7 @@ export default function SahApp({ initialUser, initialProfile }: { initialUser: U
 
         <main className="app-main" id="main-content">
           <AnimatePresence mode="wait" initial={false}><motion.div key={view} className="view-motion-shell" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: .2, ease: [0.22, 1, 0.36, 1] }}>
-            {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel key={wisdomEntry.nonce} entry={wisdomEntry} /> : view === 'focus' ? <FocusTimerView onExit={() => navigate('dashboard')} /> : view === 'awareness' ? <AwarenessView onNavigate={navigate} /> : view === 'profession-school' ? <ProfessionSchoolView onNavigate={navigate} /> : <SectionView section={view} onNavigate={navigate} />}
+            {view === 'dashboard' ? <DashboardView onNavigate={navigate} /> : view === 'reports' ? <ReportsView /> : view === 'community' ? <CommunityView /> : view === 'daily-wheel' ? <DailyWisdomWheel key={wisdomEntry.nonce} entry={wisdomEntry} /> : view === 'focus' ? <FocusTimerView onExit={() => navigate('dashboard')} onNavigate={navigate} /> : view === 'awareness' ? <AwarenessView onNavigate={navigate} /> : view === 'profession-school' ? <ProfessionSchoolView onNavigate={navigate} /> : <SectionView section={view} onNavigate={navigate} />}
           </motion.div></AnimatePresence>
         </main>
       </div>

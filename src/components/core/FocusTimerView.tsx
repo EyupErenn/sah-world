@@ -3,17 +3,19 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import FocusTimeline from './FocusTimeline'
+import FocusHistoryDashboard from './FocusHistoryDashboard'
 import { AppIcon } from '@/components/ui/AppIcon'
 import { useJourneyStore } from '@/store/useJourneyStore'
 import { getFocusDisplaySeconds, getFocusElapsedSeconds, useFocusTimerStore } from '@/store/useFocusTimerStore'
 import { formatFocusDuration, formatTimer } from '@/lib/focus'
 import { FocusAudioEngine, FOCUS_SOUNDS, type FocusSoundId } from '@/lib/focusAudio'
 import { finalizeFocusSession } from '@/lib/focusRuntime'
+import { getAdaptiveFocusSuggestion } from '@/lib/focusInsights'
 import type { FocusTimerType } from '@/types'
 
 type Modal = 'timer-type' | 'sound' | 'stop' | null
 
-export default function FocusTimerView({ onExit }: { onExit: () => void }) {
+export default function FocusTimerView({ onExit, onNavigate }: { onExit: () => void; onNavigate: (view: string) => void }) {
   const journey = useJourneyStore()
   const timer = useFocusTimerStore()
   const [taskDraft, setTaskDraft] = useState('')
@@ -24,6 +26,8 @@ export default function FocusTimerView({ onExit }: { onExit: () => void }) {
   const [draftSound, setDraftSound] = useState<FocusSoundId>(timer.sound)
   const [draftVolume, setDraftVolume] = useState(timer.volume)
   const [timelineOpen, setTimelineOpen] = useState(true)
+  const [focusView, setFocusView] = useState<'timer' | 'history'>('timer')
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false)
   const lastBeepSecondRef = useRef<number | null>(null)
   const audioRef = useRef<FocusAudioEngine | null>(null)
   const clockNow = now || timer.startedAt || timer.sessionStartedAt || 0
@@ -114,20 +118,29 @@ export default function FocusTimerView({ onExit }: { onExit: () => void }) {
   const soundLabel = FOCUS_SOUNDS.find((item) => item.id === timer.sound)?.label ?? 'Hiçbiri'
   const dialLabel = phase === 'finished' ? 'Oturum tamamlandı' : phase === 'running' ? 'Derin odak' : phase === 'paused' ? 'Kısa bir nefes' : durationLabel
   const tickMarks = useMemo(() => Array.from({ length: 60 }, (_, index) => index), [])
+  const adaptiveSuggestion = useMemo(() => getAdaptiveFocusSuggestion(journey.focusSessions), [journey.focusSessions])
+  const openJournalDay = (date: string) => {
+    window.localStorage.setItem('sah-journal-open-date', date)
+    timer.setFullscreen(false)
+    onNavigate('journal')
+  }
 
-  return <div className={`focus-shell ${timelineOpen ? 'with-timeline' : ''}`}>
+  return <div className={`focus-shell ${focusView === 'timer' && timelineOpen ? 'with-timeline' : ''} ${focusView === 'history' ? 'focus-history-mode' : ''}`}>
     <div className="focus-background" aria-hidden />
     <main className="focus-stage">
       <header className="focus-topbar">
         <div className="focus-window-actions"><button onClick={minimise} aria-label="Odak ekranını küçült"><AppIcon name="chevron-down" /></button><button onClick={popOut} aria-label="Odak ekranını ayrı pencerede aç"><AppIcon name="external-link" /></button></div>
-        <div className="focus-task-slot">
+        <div className="focus-top-center"><nav className="focus-view-tabs" aria-label="Odak bölümü"><button className={focusView === 'timer' ? 'active' : ''} onClick={() => setFocusView('timer')}><AppIcon name="hourglass" /> Oturum</button><button className={focusView === 'history' ? 'active' : ''} onClick={() => setFocusView('history')}><AppIcon name="chart-histogram" /> Geçmişim</button></nav>{focusView === 'timer' && <div className="focus-task-slot">
           {timer.taskLabel ? <span className="focus-task-chip"><i /><strong>{timer.taskLabel}</strong>{timer.isActive && <b aria-label="Oturum etkin" />} {!timer.isActive && <button onClick={() => timer.setTaskLabel('')} aria-label="Görevi ayır">×</button>}</span> : <form onSubmit={(event) => { event.preventDefault(); attachTask() }}><span><AppIcon name="target-arrow" /></span><input value={taskDraft} onChange={(event) => setTaskDraft(event.target.value)} maxLength={120} placeholder="Şu an neye odaklanacaksın?" aria-label="Odak görevi" /><button type="submit">Ekle</button></form>}
-        </div>
-        <button className="focus-timeline-toggle" onClick={() => setTimelineOpen((value) => !value)} aria-expanded={timelineOpen} aria-label="Bugünün kayıtlarını aç veya kapat"><AppIcon name={timelineOpen ? 'layout-sidebar-right-collapse' : 'layout-sidebar-right-expand'} /></button>
+        </div>}</div>
+        {focusView === 'timer' ? <button className="focus-timeline-toggle" onClick={() => setTimelineOpen((value) => !value)} aria-expanded={timelineOpen} aria-label="Bugünün kayıtlarını aç veya kapat"><AppIcon name={timelineOpen ? 'layout-sidebar-right-collapse' : 'layout-sidebar-right-expand'} /></button> : <span />}
       </header>
 
-      <section className="focus-center" aria-live="polite">
+      {focusView === 'timer' ? <><section className="focus-center" aria-live="polite">
         <span className="focus-mode-eyebrow"><i className={phase === 'running' ? 'live' : ''} /> {dialLabel}</span>
+        {timer.taskLabel && !timer.isActive && <label className="focus-intention"><span><AppIcon name="flag" /> Oturum niyeti <small>isteğe bağlı</small></span><textarea value={timer.intentionText} onChange={(event) => timer.setIntentionText(event.target.value)} maxLength={280} rows={2} placeholder="Bu oturumda neyi başarmayı hedefliyorsun?" /></label>}
+        {timer.isActive && timer.intentionText && <p className="focus-active-intention"><AppIcon name="flag" /> {timer.intentionText}</p>}
+        {!timer.isActive && adaptiveSuggestion && !suggestionDismissed && <aside className="focus-adaptive-suggestion"><AppIcon name="bulb" /><div><strong>Sana uygun bir ritim önerisi</strong><p>{adaptiveSuggestion.message}</p></div><button onClick={() => { timer.configure({ timerType: 'countdown', plannedDurationSeconds: adaptiveSuggestion.minutes * 60 }); setSuggestionDismissed(true) }}>{adaptiveSuggestion.minutes} dk ayarla</button><button onClick={() => setSuggestionDismissed(true)} aria-label="Öneriyi kapat"><AppIcon name="x" /></button></aside>}
         <div className="focus-dial" aria-label={timer.timerType === 'countdown' ? `${formatTimer(displaySeconds)} kaldı` : `${formatTimer(displaySeconds)} geçti`}>
           <svg viewBox="0 0 360 360" aria-hidden>
             <g className="focus-ticks">{tickMarks.map((tick) => <line key={tick} x1="180" y1={tick % 5 === 0 ? 10 : 15} x2="180" y2={tick % 5 === 0 ? 23 : 20} transform={`rotate(${tick * 6} 180 180)`} />)}</g>
@@ -152,13 +165,14 @@ export default function FocusTimerView({ onExit }: { onExit: () => void }) {
           <button onClick={openSoundModal}><span><AppIcon name="headphones" /></span><strong>Arka Plan Sesi</strong><small>{soundLabel}</small></button>
         </nav>
       </section>
-      <p className="focus-privacy"><AppIcon name="shield-lock" /> Oturumun kök uygulamada yaşar; sayfa değiştirsen veya yenilesen de gerçek zamanla devam eder.</p>
+      <p className="focus-privacy"><AppIcon name="shield-lock" /> Oturumun kök uygulamada yaşar; sayfa değiştirsen veya yenilesen de gerçek zamanla devam eder.</p></> : <div className="focus-history-stage"><FocusHistoryDashboard sessions={journey.focusSessions} onOpenJournal={openJournalDay} /></div>}
     </main>
 
-    <AnimatePresence>{timelineOpen && <motion.aside className="focus-side-panel" initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 40, opacity: 0 }}><FocusTimeline sessions={journey.focusSessions} /><button className="focus-side-close" onClick={() => setTimelineOpen(false)} aria-label="Kayıt panelini kapat"><AppIcon name="chevron-right" /></button></motion.aside>}</AnimatePresence>
+    <AnimatePresence>{focusView === 'timer' && timelineOpen && <motion.aside className="focus-side-panel" initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 40, opacity: 0 }}><FocusTimeline sessions={journey.focusSessions} /><button className="focus-side-close" onClick={() => setTimelineOpen(false)} aria-label="Kayıt panelini kapat"><AppIcon name="chevron-right" /></button></motion.aside>}</AnimatePresence>
 
     <AnimatePresence>
       {modal === 'timer-type' && <FocusModal title="Zamanlayıcı Türü" onClose={() => setModal(null)}>
+        {adaptiveSuggestion && <div className="focus-modal-suggestion"><AppIcon name="bulb" /><span><strong>Kişisel öneri: {adaptiveSuggestion.minutes} dakika</strong><small>{adaptiveSuggestion.message}</small></span><button onClick={() => { setDraftTimerType('countdown'); setDraftDurationSeconds(adaptiveSuggestion.minutes * 60) }}>Uygula</button></div>}
         <div className="timer-type-options">
           <button className={draftTimerType === 'countdown' ? 'selected' : ''} onClick={() => setDraftTimerType('countdown')}><span><strong>{formatTimer(draftDurationSeconds)} → 00:00</strong><small>Seçtiğin süreden zamanın sonuna kadar geri sayım.</small></span><AppIcon name={draftTimerType === 'countdown' ? 'circle-check-filled' : 'circle'} /></button>
           {draftTimerType === 'countdown' && <div className="duration-picker"><span>Tercih edilen süre</span><div>{[25, 50].map((minutes) => <button key={minutes} className={draftDurationSeconds === minutes * 60 ? 'active' : ''} onClick={() => setDraftDurationSeconds(minutes * 60)}>{minutes} dk</button>)}<label><input type="number" min="1" max="180" value={Math.max(1, Math.round(draftDurationSeconds / 60))} onChange={(event) => setDraftDurationSeconds(Math.min(180, Math.max(1, Number(event.target.value) || 1)) * 60)} /><span>dk</span></label>{process.env.NODE_ENV === 'development' && <button className={draftDurationSeconds === 15 ? 'active' : ''} onClick={() => setDraftDurationSeconds(15)}>15 sn test</button>}</div></div>}

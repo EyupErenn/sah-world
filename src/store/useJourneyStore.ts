@@ -96,6 +96,7 @@ interface JourneyState {
   deleteSukur: (id: string) => void;
 
   addFocusSession: (session: FocusSession) => void;
+  updateFocusSessionReflection: (sessionId: string, rating?: number, note?: string) => void;
   logFocusToJournal: (sessionId: string, note: string) => string;
 
   incrementTespih: () => void;
@@ -563,7 +564,12 @@ export const useJourneyStore = create<JourneyState>()(
 
       // Focus sessions
       addFocusSession: (session) => {
-        const validSession: FocusSession = { ...session, id: ensureUUID(session.id) };
+        const validSession: FocusSession = {
+          ...session,
+          id: ensureUUID(session.id),
+          interruptionCount: Math.max(0, session.interruptionCount ?? 0),
+          totalAwaySeconds: Math.max(0, session.totalAwaySeconds ?? 0),
+        };
         set((state) => ({ focusSessions: [validSession, ...state.focusSessions.filter((item) => item.id !== validSession.id)] }));
         getAuthenticatedUserId().then((uid) => {
           if (!uid) return;
@@ -571,6 +577,7 @@ export const useJourneyStore = create<JourneyState>()(
             id: validSession.id,
             user_id: uid,
             task_label: validSession.taskLabel,
+            intention_text: validSession.intentionText ?? '',
             timer_type: validSession.timerType,
             planned_duration_seconds: validSession.plannedDurationSeconds,
             actual_duration_seconds: validSession.actualDurationSeconds,
@@ -579,8 +586,30 @@ export const useJourneyStore = create<JourneyState>()(
             completed: validSession.completed,
             linked_journal_entry_id: validSession.linkedJournalEntryId ?? null,
             xp_awarded: validSession.xpAwarded,
+            interruption_count: validSession.interruptionCount,
+            total_away_seconds: validSession.totalAwaySeconds,
+            focus_quality_rating: validSession.focusQualityRating ?? null,
+            post_session_note: validSession.postSessionNote ?? '',
           }, { onConflict: 'id' }).then(({ error }) => {
             if (error && error.code !== '42P01') notifySyncError(error, 'addFocusSession');
+          });
+        });
+      },
+      updateFocusSessionReflection: (sessionId, rating, note) => {
+        const safeRating = rating && rating >= 1 && rating <= 5 ? Math.round(rating) : undefined;
+        const safeNote = note?.trim().slice(0, 600) || undefined;
+        set((state) => ({
+          focusSessions: state.focusSessions.map((item) => item.id === sessionId
+            ? { ...item, focusQualityRating: safeRating, postSessionNote: safeNote }
+            : item),
+        }));
+        getAuthenticatedUserId().then((uid) => {
+          if (!uid) return;
+          void supabase.from('focus_sessions').update({
+            focus_quality_rating: safeRating ?? null,
+            post_session_note: safeNote ?? '',
+          }).eq('id', sessionId).eq('user_id', uid).then(({ error }) => {
+            if (error && error.code !== '42P01' && error.code !== '42703') notifySyncError(error, 'updateFocusSessionReflection');
           });
         });
       },
@@ -663,7 +692,11 @@ export const useJourneyStore = create<JourneyState>()(
         lessons: data.lessons ?? [],
         sukurList: data.sukurList ?? [],
         totalZikir: data.totalZikir ?? 0,
-        focusSessions: data.focusSessions ?? [],
+        focusSessions: (data.focusSessions ?? []).map((session) => ({
+          ...session,
+          interruptionCount: session.interruptionCount ?? 0,
+          totalAwaySeconds: session.totalAwaySeconds ?? 0,
+        })),
       }),
 
       exportAll: () => {

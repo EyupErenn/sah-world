@@ -11,6 +11,7 @@ export type ProfileRow = {
   id: string;
   display_name: string;
   avatar_url: string | null;
+  role: 'user' | 'admin';
   vehicle_type: string;
   xp: number;
   streak_current: number;
@@ -68,6 +69,7 @@ export type FocusSessionRow = {
   id: string;
   user_id: string;
   task_label: string;
+  intention_text: string;
   timer_type: 'countdown' | 'stopwatch';
   planned_duration_seconds: number;
   actual_duration_seconds: number;
@@ -76,7 +78,25 @@ export type FocusSessionRow = {
   completed: boolean;
   linked_journal_entry_id: string | null;
   xp_awarded: number;
+  interruption_count: number;
+  total_away_seconds: number;
+  focus_quality_rating: number | null;
+  post_session_note: string;
   created_at: string;
+};
+
+export type MosqueEventCategory = 'sohbet' | 'egitim' | 'yardim' | 'genclik' | 'ozel';
+export type MosqueEventRow = {
+  id: string;
+  title: string;
+  description: string;
+  event_date: string;
+  category: MosqueEventCategory;
+  cover_image_url: string | null;
+  gallery_image_urls: string[];
+  created_by: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type JournalEntryRow = {
@@ -297,6 +317,7 @@ export interface Database {
       group_members: RowTable<GroupMemberRow>;
       xp_events: RowTable<XpEventRow>;
       focus_sessions: RowTable<FocusSessionRow>;
+      mosque_events: RowTable<MosqueEventRow>;
       feedback: RowTable<FeedbackRow>;
       regional_awareness_content: RowTable<RegionalAwarenessContentRow>;
       awareness_quiz_questions: RowTable<AwarenessQuizQuestionRow>;
