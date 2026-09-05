@@ -11,7 +11,8 @@ export type ProfileRow = {
   id: string;
   display_name: string;
   avatar_url: string | null;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'hoca';
+  quran_level: QuranLevel | null;
   vehicle_type: string;
   xp: number;
   streak_current: number;
@@ -22,6 +23,70 @@ export type ProfileRow = {
   location_country: string | null;
   location_lat: number | null;
   location_lng: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type QuranLevel = 'beginner' | 'alphabet' | 'fluent' | 'helper';
+export type HocaProfileRow = {
+  id: string;
+  user_id: string | null;
+  display_name: string;
+  title: string;
+  bio: string;
+  specialties: string[];
+  photo_url: string | null;
+  is_active: boolean;
+  is_placeholder: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export type HocaAvailabilityRow = {
+  id: string;
+  hoca_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  slot_duration_minutes: number;
+  is_recurring: boolean;
+  specific_date: string | null;
+  created_at: string;
+};
+export type HocaTimeOffRow = {
+  id: string;
+  hoca_id: string;
+  start_datetime: string;
+  end_datetime: string;
+  reason: string | null;
+  created_at: string;
+};
+export type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+export type AppointmentRow = {
+  id: string;
+  hoca_id: string;
+  student_id: string;
+  scheduled_start: string;
+  scheduled_end: string;
+  status: AppointmentStatus;
+  topic_notes: string;
+  created_at: string;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
+};
+export type QuranPeerMatchRow = {
+  id: string;
+  requester_id: string;
+  helper_id: string;
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  message: string;
+  created_at: string;
+  responded_at: string | null;
+};
+export type QuranStudyGoalRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  progress_percent: number;
   created_at: string;
   updated_at: string;
 };
@@ -318,6 +383,12 @@ export interface Database {
       xp_events: RowTable<XpEventRow>;
       focus_sessions: RowTable<FocusSessionRow>;
       mosque_events: RowTable<MosqueEventRow>;
+      hoca_profiles: RowTable<HocaProfileRow>;
+      hoca_availability: RowTable<HocaAvailabilityRow>;
+      hoca_time_off: RowTable<HocaTimeOffRow>;
+      appointments: RowTable<AppointmentRow>;
+      quran_peer_matches: RowTable<QuranPeerMatchRow>;
+      quran_study_goals: RowTable<QuranStudyGoalRow>;
       feedback: RowTable<FeedbackRow>;
       regional_awareness_content: RowTable<RegionalAwarenessContentRow>;
       awareness_quiz_questions: RowTable<AwarenessQuizQuestionRow>;
@@ -360,6 +431,17 @@ export interface Database {
       get_my_activity_log: { Args: { from_date?: string | null; to_date?: string | null }; Returns: IntegratedActivityRow[] };
       generate_weekly_insights: { Args: { target_week_start?: string | null }; Returns: WeeklyInsightRow[] };
       record_wheel_reveal: { Args: { requested_type: 'verse' | 'hadith'; requested_content_id: string; daily_reveal?: boolean }; Returns: Array<{ content_id: string; shown_at: string }> };
+      admin_search_quran_users: { Args: { search_text: string }; Returns: Array<{ id: string; display_name: string; email: string; avatar_url: string | null; role: 'user' | 'admin' | 'hoca' }> };
+      admin_set_quran_role: { Args: { target_user_id: string; next_role: 'user' | 'hoca' }; Returns: string };
+      get_hoca_available_slots: { Args: { target_hoca_id: string; target_date: string }; Returns: Array<{ slot_start: string; slot_end: string }> };
+      get_hoca_available_days: { Args: { target_hoca_id: string; month_date: string }; Returns: Array<{ available_date: string; slot_count: number }> };
+      book_hoca_appointment: { Args: { target_hoca_id: string; target_start: string; notes?: string }; Returns: AppointmentRow };
+      cancel_hoca_appointment: { Args: { target_appointment_id: string; reason?: string }; Returns: AppointmentRow };
+      get_my_quran_appointments: { Args: Record<string, never>; Returns: Array<AppointmentRow & { hoca_name: string; hoca_title: string; hoca_photo: string | null; student_name: string; student_avatar: string | null }> };
+      browse_quran_helpers: { Args: Record<string, never>; Returns: Array<{ id: string; display_name: string; avatar_url: string | null; xp: number; quran_level: QuranLevel }> };
+      send_quran_peer_request: { Args: { target_helper_id: string; request_message?: string }; Returns: QuranPeerMatchRow };
+      respond_quran_peer_match: { Args: { target_match_id: string; accept_request: boolean }; Returns: QuranPeerMatchRow };
+      get_my_quran_peer_matches: { Args: Record<string, never>; Returns: Array<{ id: string; partner_id: string; partner_name: string; partner_avatar: string | null; direction: 'sent' | 'received'; status: QuranPeerMatchRow['status']; message: string; created_at: string }> };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
