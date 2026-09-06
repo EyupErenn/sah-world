@@ -1,7 +1,7 @@
 'use client'
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AppIcon } from '@/components/ui/AppIcon'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -110,6 +110,7 @@ export default function QuranCompanionView({ onNavigate }: { onNavigate: (view: 
 
   return <div className="quran-companion">
     {notice && <div className="quran-toast" role="status"><AppIcon name="circle-check" /> {notice}</div>}
+    <QuranInvitationVideo />
     <section className="quran-companion-hero">
       <div className="quran-hero-mark" aria-hidden="true"><span>اقْرَأْ</span><i/><i/></div>
       <div><span className="eyebrow">KUR’AN-I KERİM KARDEŞİM</span><h1>Öğrenirken yalnız değilsin.</h1><p>Güvenilir bir hocayla buluş, bir kardeşinle birlikte çalış ve Kur’an yolculuğunu küçük, istikrarlı adımlarla sürdür.</p><div className="quran-hero-actions"><button onClick={() => setTab('teachers')}><AppIcon name="calendar-user" /> Hoca ile randevu al</button><button onClick={() => setTab('study')}><AppIcon name="notebook" /> Çalışma alanıma git</button></div></div>
@@ -126,6 +127,58 @@ export default function QuranCompanionView({ onNavigate }: { onNavigate: (view: 
     {!profile?.quran_level && <LevelOnboarding onSelect={(level) => void saveLevel(level)} />}
     {loading ? <CompanionSkeleton /> : tab === 'home' ? <CompanionHome upcoming={upcoming} goal={goal} noteCount={journey.quranNotes.length} onTab={setTab} /> : tab === 'teachers' ? <TeacherDiscovery teachers={teachers} onBooked={async () => { await load(); setTab('appointments'); flash('Randevun onaylandı ve takvimine eklendi.') }} realUser={isRealUser} /> : tab === 'appointments' ? <AppointmentsView appointments={appointments} userId={userId} onReload={load} onReminders={() => void enableReminders()} /> : tab === 'peers' ? <PeerMatching helpers={helpers} matches={matches} level={profile?.quran_level || null} userId={userId} realUser={isRealUser} onReload={load} /> : tab === 'study' ? <StudyWorkspace goal={goal} notes={journey.quranNotes} appointments={appointments} userId={userId} realUser={isRealUser} onNavigate={onNavigate} onSaved={async () => { await load(); flash('Çalışma hedefin güncellendi.') }} /> : <HocaManagement teachers={teachers} ownedHoca={ownedHoca} appointments={appointments} isAdmin={isAdmin} onReload={load} />}
   </div>
+}
+
+function QuranInvitationVideo() {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [playing, setPlaying] = useState(true)
+
+  useEffect(() => {
+    const video = videoRef.current
+    const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)')
+    if (!video) return
+    const syncMotionPreference = () => {
+      if (motionPreference.matches) video.pause()
+      else void video.play().catch(() => undefined)
+    }
+    syncMotionPreference()
+    motionPreference.addEventListener('change', syncMotionPreference)
+    return () => motionPreference.removeEventListener('change', syncMotionPreference)
+  }, [])
+
+  const togglePlayback = () => {
+    const video = videoRef.current
+    if (!video) return
+    if (video.paused) void video.play().catch(() => undefined)
+    else video.pause()
+  }
+
+  return <section className="quran-invitation-video" aria-labelledby="quran-invitation-title">
+    <video
+      ref={videoRef}
+      src="/videos/davet.mp4"
+      poster="/images/quran-invitation-poster.svg"
+      aria-label="Kur’an tutan bir imamdan camiye yükselen kısa davet filmi"
+      autoPlay
+      muted
+      loop
+      playsInline
+      preload="metadata"
+      onPlaying={() => setPlaying(true)}
+      onPause={() => setPlaying(false)}
+    />
+    <div className="quran-invitation-shade" aria-hidden="true" />
+    <div className="quran-invitation-copy">
+      <span><i /> KUR’AN’A YOLCULUK</span>
+      <h2 id="quran-invitation-title">Genç Gel,<br /><em>Geç Gelme.</em></h2>
+      <p>Birlikte öğrenmek, güzel okumak ve Kur’an’la bağını istikrarlı adımlarla güçlendirmek için.</p>
+    </div>
+    <button className="quran-video-control" type="button" onClick={togglePlayback} aria-label={playing ? 'Davet videosunu duraklat' : 'Davet videosunu oynat'}>
+      <AppIcon name={playing ? 'player-pause' : 'player-play'} />
+      <span>{playing ? 'Duraklat' : 'Oynat'}</span>
+    </button>
+    <div className="quran-video-duration" aria-hidden="true"><AppIcon name="clock" /> 8 sn</div>
+  </section>
 }
 
 function LevelOnboarding({ onSelect }: { onSelect: (level: QuranLevel) => void }) {
