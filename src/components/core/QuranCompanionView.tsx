@@ -164,10 +164,6 @@ export default function QuranCompanionView({
   const isAdmin = profile?.role === "admin";
   const isHoca = profile?.role === "hoca";
 
-  useEffect(() => {
-    if (wheelEntry) setTab("wheel");
-  }, [wheelEntry]);
-
   const flash = (message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 3500);
