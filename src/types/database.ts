@@ -1,4 +1,10 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
 
 type RowTable<Row, Insert = Partial<Row>, Update = Partial<Insert>> = {
   Row: Row;
@@ -11,7 +17,7 @@ export type ProfileRow = {
   id: string;
   display_name: string;
   avatar_url: string | null;
-  role: 'user' | 'admin' | 'hoca';
+  role: "user" | "admin" | "hoca";
   quran_level: QuranLevel | null;
   vehicle_type: string;
   xp: number;
@@ -23,11 +29,12 @@ export type ProfileRow = {
   location_country: string | null;
   location_lat: number | null;
   location_lng: number | null;
+  onboarding_completed: boolean;
   created_at: string;
   updated_at: string;
 };
 
-export type QuranLevel = 'beginner' | 'alphabet' | 'fluent' | 'helper';
+export type QuranLevel = "beginner" | "alphabet" | "fluent" | "helper";
 export type HocaProfileRow = {
   id: string;
   user_id: string | null;
@@ -60,7 +67,12 @@ export type HocaTimeOffRow = {
   reason: string | null;
   created_at: string;
 };
-export type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+export type AppointmentStatus =
+  | "pending"
+  | "confirmed"
+  | "completed"
+  | "cancelled"
+  | "no_show";
 export type AppointmentRow = {
   id: string;
   hoca_id: string;
@@ -77,7 +89,7 @@ export type QuranPeerMatchRow = {
   id: string;
   requester_id: string;
   helper_id: string;
-  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  status: "pending" | "accepted" | "declined" | "cancelled";
   message: string;
   created_at: string;
   responded_at: string | null;
@@ -107,7 +119,7 @@ export type GroupMemberRow = {
   group_id: string;
   user_id: string;
   joined_at: string;
-  role: 'owner' | 'member';
+  role: "owner" | "member";
 };
 
 export type ChatMessageRow = {
@@ -135,7 +147,7 @@ export type FocusSessionRow = {
   user_id: string;
   task_label: string;
   intention_text: string;
-  timer_type: 'countdown' | 'stopwatch';
+  timer_type: "countdown" | "stopwatch";
   planned_duration_seconds: number;
   actual_duration_seconds: number;
   started_at: string;
@@ -150,7 +162,12 @@ export type FocusSessionRow = {
   created_at: string;
 };
 
-export type MosqueEventCategory = 'sohbet' | 'egitim' | 'yardim' | 'genclik' | 'ozel';
+export type MosqueEventCategory =
+  | "sohbet"
+  | "egitim"
+  | "yardim"
+  | "genclik"
+  | "ozel";
 export type MosqueEventRow = {
   id: string;
   title: string;
@@ -176,8 +193,8 @@ export type JournalEntryRow = {
   moments: string[];
   self_note: string;
   tags: string[];
-  ritual_type: 'sabah' | 'aksam' | null;
-  entry_mode: 'quick' | 'full';
+  ritual_type: "sabah" | "aksam" | null;
+  entry_mode: "quick" | "full";
   niyet_text: string;
   beklenen_zorluk_text: string;
   gratitude_text: string;
@@ -194,11 +211,17 @@ export type WeeklyInsightRow = {
   generated_at: string;
 };
 
-export type GeographyRow = 'filistin' | 'dogu_turkistan';
+export type GeographyRow = "filistin" | "dogu_turkistan";
 export type RegionalAwarenessContentRow = {
   id: string;
   geography: GeographyRow;
-  section: 'history' | 'displacement' | 'today' | 'detention' | 'culture' | 'solidarity';
+  section:
+    | "history"
+    | "displacement"
+    | "today"
+    | "detention"
+    | "culture"
+    | "solidarity";
   title: string;
   body: string;
   source_label: string;
@@ -221,7 +244,7 @@ export type AwarenessQuizQuestionRow = {
   option_b: string;
   option_c: string;
   option_d: string;
-  correct_option: 'A' | 'B' | 'C' | 'D';
+  correct_option: "A" | "B" | "C" | "D";
   explanation_text: string;
   source_url: string;
   order_index: number;
@@ -242,7 +265,7 @@ export type AwarenessEngagementRow = {
   user_id: string;
   geography: GeographyRow;
   content_id: string;
-  event_type: 'section_read' | 'action_opened' | 'quiz_completed';
+  event_type: "section_read" | "action_opened" | "quiz_completed";
   metadata: Json;
   created_at: string;
   updated_at: string;
@@ -306,7 +329,7 @@ export type UserAsmaReflectionRow = {
 
 export type DuaLibraryRow = {
   id: string;
-  category: 'quran' | 'hadith' | 'companions';
+  category: "quran" | "hadith" | "companions";
   occasion: string;
   title: string;
   arabic_text: string;
@@ -321,7 +344,7 @@ export type JournalSpiritualLinkRow = {
   user_id: string;
   journal_entry_id: string;
   entry_date: string;
-  entry_kind: 'asma' | 'dua';
+  entry_kind: "asma" | "dua";
   reference_id: string;
   display_label: string;
   reflection_note: string | null;
@@ -339,8 +362,19 @@ export type IntegratedActivityRow = {
   source_view: string;
 };
 
-export type FeedbackType = 'suggestion' | 'bug' | 'usability' | 'content' | 'performance' | 'other';
-export type FeedbackStatus = 'received' | 'reviewing' | 'planned' | 'completed' | 'closed';
+export type FeedbackType =
+  | "suggestion"
+  | "bug"
+  | "usability"
+  | "content"
+  | "performance"
+  | "other";
+export type FeedbackStatus =
+  | "received"
+  | "reviewing"
+  | "planned"
+  | "completed"
+  | "closed";
 export type FeedbackRow = {
   id: string;
   user_id: string;
@@ -358,7 +392,7 @@ export type FeedbackRow = {
   updated_at: string;
 };
 
-export type AdminFeedbackRow = Omit<FeedbackRow, 'reviewed_by'> & {
+export type AdminFeedbackRow = Omit<FeedbackRow, "reviewed_by"> & {
   display_name: string;
   avatar_url: string | null;
   total_count: number;
@@ -370,13 +404,68 @@ export interface Database {
       profiles: RowTable<ProfileRow>;
       journal_entries: RowTable<JournalEntryRow>;
       weekly_insights: RowTable<WeeklyInsightRow>;
-      quran_notes: RowTable<{ id: string; user_id: string; date: string; sure: string; ayet: string; tefsir: string; ders: string; created_at: string }>;
-      hadis_notes: RowTable<{ id: string; user_id: string; date: string; metin: string; kaynak: string; konu: string; uygulama: string; created_at: string }>;
-      lesson_entries: RowTable<{ id: string; user_id: string; date: string; title: string; wrong: string; learned: string; severity: number | null; created_at: string }>;
-      sukur_entries: RowTable<{ id: string; user_id: string; date: string; text: string; nimet1: string; nimet2: string; nimet3: string; created_at: string }>;
-      eisenhower_tasks: RowTable<{ id: string; user_id: string; quadrant: 'q1' | 'q2' | 'q3' | 'q4'; text: string; done: boolean; completed_at: string | null; created_at: string }>;
-      tespih_log: RowTable<{ id: string; user_id: string; date: string; count: number }>;
-      friendships: RowTable<{ id: string; user_id: string; friend_id: string; status: 'pending' | 'accepted'; created_at: string }>;
+      quran_notes: RowTable<{
+        id: string;
+        user_id: string;
+        date: string;
+        sure: string;
+        ayet: string;
+        tefsir: string;
+        ders: string;
+        created_at: string;
+      }>;
+      hadis_notes: RowTable<{
+        id: string;
+        user_id: string;
+        date: string;
+        metin: string;
+        kaynak: string;
+        konu: string;
+        uygulama: string;
+        created_at: string;
+      }>;
+      lesson_entries: RowTable<{
+        id: string;
+        user_id: string;
+        date: string;
+        title: string;
+        wrong: string;
+        learned: string;
+        severity: number | null;
+        created_at: string;
+      }>;
+      sukur_entries: RowTable<{
+        id: string;
+        user_id: string;
+        date: string;
+        text: string;
+        nimet1: string;
+        nimet2: string;
+        nimet3: string;
+        created_at: string;
+      }>;
+      eisenhower_tasks: RowTable<{
+        id: string;
+        user_id: string;
+        quadrant: "q1" | "q2" | "q3" | "q4";
+        text: string;
+        done: boolean;
+        completed_at: string | null;
+        created_at: string;
+      }>;
+      tespih_log: RowTable<{
+        id: string;
+        user_id: string;
+        date: string;
+        count: number;
+      }>;
+      friendships: RowTable<{
+        id: string;
+        user_id: string;
+        friend_id: string;
+        status: "pending" | "accepted";
+        created_at: string;
+      }>;
       chat_messages: RowTable<ChatMessageRow>;
       groups: RowTable<GroupRow>;
       group_members: RowTable<GroupMemberRow>;
@@ -401,47 +490,258 @@ export interface Database {
       asma_ul_husna: RowTable<AsmaUlHusnaRow>;
       user_asma_reflections: RowTable<UserAsmaReflectionRow>;
       dua_library: RowTable<DuaLibraryRow>;
-      user_dua_favorites: RowTable<{ id: string; user_id: string; dua_id: string; created_at: string }>;
+      user_dua_favorites: RowTable<{
+        id: string;
+        user_id: string;
+        dua_id: string;
+        created_at: string;
+      }>;
       journal_spiritual_links: RowTable<JournalSpiritualLinkRow>;
-      wheel_history: RowTable<{ id: string; user_id: string; content_type: 'verse' | 'hadith'; content_id: string; reveal_date: string; is_daily: boolean; shown_at: string }>;
+      wheel_history: RowTable<{
+        id: string;
+        user_id: string;
+        content_type: "verse" | "hadith";
+        content_id: string;
+        reveal_date: string;
+        is_daily: boolean;
+        shown_at: string;
+      }>;
     };
     Views: {
-      public_profile_summary: { Row: Pick<ProfileRow, 'id' | 'display_name' | 'avatar_url' | 'xp' | 'streak_current' | 'badges'>; Relationships: [] };
+      public_profile_summary: {
+        Row: Pick<
+          ProfileRow,
+          | "id"
+          | "display_name"
+          | "avatar_url"
+          | "xp"
+          | "streak_current"
+          | "badges"
+        >;
+        Relationships: [];
+      };
     };
     Functions: {
-      create_group: { Args: { group_name: string; group_description?: string }; Returns: GroupRow };
-      preview_group_by_code: { Args: { lookup_code: string }; Returns: Array<Pick<GroupRow, 'id' | 'name' | 'description' | 'group_code' | 'member_count'>> };
+      create_group: {
+        Args: { group_name: string; group_description?: string };
+        Returns: GroupRow;
+      };
+      preview_group_by_code: {
+        Args: { lookup_code: string };
+        Returns: Array<
+          Pick<
+            GroupRow,
+            "id" | "name" | "description" | "group_code" | "member_count"
+          >
+        >;
+      };
       join_group_by_code: { Args: { join_code: string }; Returns: string };
       get_my_groups: { Args: Record<string, never>; Returns: GroupRow[] };
-      get_group_roster: { Args: { target_group_id: string }; Returns: Array<{ user_id: string; display_name: string; avatar_url: string | null; xp: number; streak_current: number; badges: string[]; role: 'owner' | 'member'; joined_at: string }> };
+      get_group_roster: {
+        Args: { target_group_id: string };
+        Returns: Array<{
+          user_id: string;
+          display_name: string;
+          avatar_url: string | null;
+          xp: number;
+          streak_current: number;
+          badges: string[];
+          role: "owner" | "member";
+          joined_at: string;
+        }>;
+      };
       leave_group: { Args: { target_group_id: string }; Returns: boolean };
       delete_group: { Args: { target_group_id: string }; Returns: boolean };
       rotate_group_code: { Args: { target_group_id: string }; Returns: string };
-      send_group_message: { Args: { target_group_id: string; message_content: string }; Returns: ChatMessageRow };
-      get_friends_with_last_message: { Args: { requesting_user: string }; Returns: Array<{ friend_id: string; display_name: string; avatar_url: string | null; xp: number; streak_current: number; friendship_id: string; last_message: string | null; last_message_at: string | null; unread_count: number }> };
-      search_users_by_name: { Args: { search_term: string; requesting_user: string }; Returns: Array<{ id: string; display_name: string; avatar_url: string | null; xp: number; streak_current: number }> };
+      send_group_message: {
+        Args: { target_group_id: string; message_content: string };
+        Returns: ChatMessageRow;
+      };
+      get_friends_with_last_message: {
+        Args: { requesting_user: string };
+        Returns: Array<{
+          friend_id: string;
+          display_name: string;
+          avatar_url: string | null;
+          xp: number;
+          streak_current: number;
+          friendship_id: string;
+          last_message: string | null;
+          last_message_at: string | null;
+          unread_count: number;
+        }>;
+      };
+      search_users_by_name: {
+        Args: { search_term: string; requesting_user: string };
+        Returns: Array<{
+          id: string;
+          display_name: string;
+          avatar_url: string | null;
+          xp: number;
+          streak_current: number;
+        }>;
+      };
       is_app_admin: { Args: Record<string, never>; Returns: boolean };
       ensure_my_profile: { Args: Record<string, never>; Returns: ProfileRow };
-      submit_feedback: { Args: { feedback_type: FeedbackType; feedback_title: string; feedback_message: string; feedback_rating?: number | null; feedback_page_path?: string }; Returns: string };
-      admin_feedback_stats: { Args: Record<string, never>; Returns: Array<{ total_count: number; received_count: number; reviewing_count: number; planned_count: number; completed_count: number; average_rating: number | null }> };
-      admin_list_feedback: { Args: { filter_status?: string | null; filter_type?: string | null; filter_rating?: number | null; search_text?: string | null; sort_order?: string; page_number?: number; page_size?: number; include_archived?: boolean; filter_from?: string | null; filter_to?: string | null }; Returns: AdminFeedbackRow[] };
-      admin_update_feedback: { Args: { target_id: string; next_status: FeedbackStatus; response_text?: string | null; archive_item?: boolean }; Returns: undefined };
-      complete_profession_lesson: { Args: { target_lesson_id: string; reflection_text?: string | null }; Returns: Array<{ awarded: boolean; xp_awarded: number; track_completed: boolean }> };
-      log_spiritual_to_journal: { Args: { target_kind: 'asma' | 'dua'; target_reference_id: string; reflection_text?: string | null }; Returns: Array<{ journal_entry_id: string; journal_content: string; xp_awarded: number; daily_xp_count: number }> };
-      get_my_activity_log: { Args: { from_date?: string | null; to_date?: string | null }; Returns: IntegratedActivityRow[] };
-      generate_weekly_insights: { Args: { target_week_start?: string | null }; Returns: WeeklyInsightRow[] };
-      record_wheel_reveal: { Args: { requested_type: 'verse' | 'hadith'; requested_content_id: string; daily_reveal?: boolean }; Returns: Array<{ content_id: string; shown_at: string }> };
-      admin_search_quran_users: { Args: { search_text: string }; Returns: Array<{ id: string; display_name: string; email: string; avatar_url: string | null; role: 'user' | 'admin' | 'hoca' }> };
-      admin_set_quran_role: { Args: { target_user_id: string; next_role: 'user' | 'hoca' }; Returns: string };
-      get_hoca_available_slots: { Args: { target_hoca_id: string; target_date: string }; Returns: Array<{ slot_start: string; slot_end: string }> };
-      get_hoca_available_days: { Args: { target_hoca_id: string; month_date: string }; Returns: Array<{ available_date: string; slot_count: number }> };
-      book_hoca_appointment: { Args: { target_hoca_id: string; target_start: string; notes?: string }; Returns: AppointmentRow };
-      cancel_hoca_appointment: { Args: { target_appointment_id: string; reason?: string }; Returns: AppointmentRow };
-      get_my_quran_appointments: { Args: Record<string, never>; Returns: Array<AppointmentRow & { hoca_name: string; hoca_title: string; hoca_photo: string | null; student_name: string; student_avatar: string | null }> };
-      browse_quran_helpers: { Args: Record<string, never>; Returns: Array<{ id: string; display_name: string; avatar_url: string | null; xp: number; quran_level: QuranLevel }> };
-      send_quran_peer_request: { Args: { target_helper_id: string; request_message?: string }; Returns: QuranPeerMatchRow };
-      respond_quran_peer_match: { Args: { target_match_id: string; accept_request: boolean }; Returns: QuranPeerMatchRow };
-      get_my_quran_peer_matches: { Args: Record<string, never>; Returns: Array<{ id: string; partner_id: string; partner_name: string; partner_avatar: string | null; direction: 'sent' | 'received'; status: QuranPeerMatchRow['status']; message: string; created_at: string }> };
+      submit_feedback: {
+        Args: {
+          feedback_type: FeedbackType;
+          feedback_title: string;
+          feedback_message: string;
+          feedback_rating?: number | null;
+          feedback_page_path?: string;
+        };
+        Returns: string;
+      };
+      admin_feedback_stats: {
+        Args: Record<string, never>;
+        Returns: Array<{
+          total_count: number;
+          received_count: number;
+          reviewing_count: number;
+          planned_count: number;
+          completed_count: number;
+          average_rating: number | null;
+        }>;
+      };
+      admin_list_feedback: {
+        Args: {
+          filter_status?: string | null;
+          filter_type?: string | null;
+          filter_rating?: number | null;
+          search_text?: string | null;
+          sort_order?: string;
+          page_number?: number;
+          page_size?: number;
+          include_archived?: boolean;
+          filter_from?: string | null;
+          filter_to?: string | null;
+        };
+        Returns: AdminFeedbackRow[];
+      };
+      admin_update_feedback: {
+        Args: {
+          target_id: string;
+          next_status: FeedbackStatus;
+          response_text?: string | null;
+          archive_item?: boolean;
+        };
+        Returns: undefined;
+      };
+      complete_profession_lesson: {
+        Args: { target_lesson_id: string; reflection_text?: string | null };
+        Returns: Array<{
+          awarded: boolean;
+          xp_awarded: number;
+          track_completed: boolean;
+        }>;
+      };
+      log_spiritual_to_journal: {
+        Args: {
+          target_kind: "asma" | "dua";
+          target_reference_id: string;
+          reflection_text?: string | null;
+        };
+        Returns: Array<{
+          journal_entry_id: string;
+          journal_content: string;
+          xp_awarded: number;
+          daily_xp_count: number;
+        }>;
+      };
+      get_my_activity_log: {
+        Args: { from_date?: string | null; to_date?: string | null };
+        Returns: IntegratedActivityRow[];
+      };
+      generate_weekly_insights: {
+        Args: { target_week_start?: string | null };
+        Returns: WeeklyInsightRow[];
+      };
+      record_wheel_reveal: {
+        Args: {
+          requested_type: "verse" | "hadith";
+          requested_content_id: string;
+          daily_reveal?: boolean;
+        };
+        Returns: Array<{ content_id: string; shown_at: string }>;
+      };
+      admin_search_quran_users: {
+        Args: { search_text: string };
+        Returns: Array<{
+          id: string;
+          display_name: string;
+          email: string;
+          avatar_url: string | null;
+          role: "user" | "admin" | "hoca";
+        }>;
+      };
+      admin_set_quran_role: {
+        Args: { target_user_id: string; next_role: "user" | "hoca" };
+        Returns: string;
+      };
+      get_hoca_available_slots: {
+        Args: { target_hoca_id: string; target_date: string };
+        Returns: Array<{ slot_start: string; slot_end: string }>;
+      };
+      get_hoca_available_days: {
+        Args: { target_hoca_id: string; month_date: string };
+        Returns: Array<{ available_date: string; slot_count: number }>;
+      };
+      book_hoca_appointment: {
+        Args: { target_hoca_id: string; target_start: string; notes?: string };
+        Returns: AppointmentRow;
+      };
+      cancel_hoca_appointment: {
+        Args: { target_appointment_id: string; reason?: string };
+        Returns: AppointmentRow;
+      };
+      get_my_quran_appointments: {
+        Args: Record<string, never>;
+        Returns: Array<
+          AppointmentRow & {
+            hoca_name: string;
+            hoca_title: string;
+            hoca_photo: string | null;
+            student_name: string;
+            student_avatar: string | null;
+          }
+        >;
+      };
+      browse_quran_helpers: {
+        Args: Record<string, never>;
+        Returns: Array<{
+          id: string;
+          display_name: string;
+          avatar_url: string | null;
+          xp: number;
+          quran_level: QuranLevel;
+        }>;
+      };
+      send_quran_peer_request: {
+        Args: { target_helper_id: string; request_message?: string };
+        Returns: QuranPeerMatchRow;
+      };
+      respond_quran_peer_match: {
+        Args: { target_match_id: string; accept_request: boolean };
+        Returns: QuranPeerMatchRow;
+      };
+      get_my_quran_peer_matches: {
+        Args: Record<string, never>;
+        Returns: Array<{
+          id: string;
+          partner_id: string;
+          partner_name: string;
+          partner_avatar: string | null;
+          direction: "sent" | "received";
+          status: QuranPeerMatchRow["status"];
+          message: string;
+          created_at: string;
+        }>;
+      };
+      delete_my_account: {
+        Args: { confirmation_text: string };
+        Returns: boolean;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
