@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AppIcon } from "@/components/ui/AppIcon";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -11,6 +12,7 @@ export default function AccountSettingsDialog({
   onClose: () => void;
 }) {
   const profile = useAuthStore((state) => state.profile);
+  const router = useRouter();
   const patchProfile = useAuthStore((state) => state.patchProfile);
   const [name, setName] = useState(profile?.display_name ?? "");
   const [saving, setSaving] = useState(false);
@@ -54,7 +56,8 @@ export default function AccountSettingsDialog({
       return;
     }
     await supabase.auth.signOut();
-    window.location.assign("/");
+    router.replace("/");
+    router.refresh();
   };
 
   return (

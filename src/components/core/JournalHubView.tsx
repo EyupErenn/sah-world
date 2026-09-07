@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AppIcon } from "@/components/ui/AppIcon";
 import SectionTagline from "./SectionTagline";
 import SectionView from "./SectionView";
@@ -46,16 +46,12 @@ const tabs: Array<{
 
 export default function JournalHubView({
   initialTab = "journal",
-  navigationKey = 0,
   onNavigate,
 }: {
   initialTab?: JournalHubTab;
-  navigationKey?: number;
   onNavigate: (view: string) => void;
 }) {
   const [tab, setTab] = useState<JournalHubTab>(initialTab);
-
-  useEffect(() => setTab(initialTab), [initialTab, navigationKey]);
 
   return (
     <div className="view-stack journal-hub">

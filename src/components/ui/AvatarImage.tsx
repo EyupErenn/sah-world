@@ -13,6 +13,10 @@ export default function AvatarImage({
   size?: number;
   priority?: boolean;
 }) {
+  const unoptimized =
+    src.startsWith("https://api.dicebear.com/") ||
+    /\.svg(?:$|[?#])/i.test(src);
+
   return (
     <Image
       src={src}
@@ -22,6 +26,7 @@ export default function AvatarImage({
       height={size}
       sizes={`${size}px`}
       priority={priority}
+      unoptimized={unoptimized}
     />
   );
 }

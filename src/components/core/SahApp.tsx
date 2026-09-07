@@ -122,9 +122,11 @@ export default function SahApp({
     // DEV-ONLY: enables deterministic end-to-end onboarding QA without
     // creating or mutating a real Supabase account.
     if (process.env.NODE_ENV === "development") {
-      setOnboardingPreview(
-        new URLSearchParams(window.location.search).get("onboarding") ===
-          "preview",
+      queueMicrotask(() =>
+        setOnboardingPreview(
+          new URLSearchParams(window.location.search).get("onboarding") ===
+            "preview",
+        ),
       );
     }
   }, []);
@@ -487,8 +489,8 @@ export default function SahApp({
                 />
               ) : view === "journal" ? (
                 <JournalHubView
+                  key={journalEntry.nonce}
                   initialTab={journalEntry.tab}
-                  navigationKey={journalEntry.nonce}
                   onNavigate={navigate}
                 />
               ) : view === "focus" ? (
