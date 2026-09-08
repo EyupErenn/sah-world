@@ -63,40 +63,50 @@ export default function CommunityView() {
   const loadGroups = useCallback(async () => {
     setLoading(true);
     setError("");
-    const { data, error: requestError } = await supabase.rpc("get_my_groups");
-    if (requestError) {
-      fail(requestError);
-      setGroups([]);
-    } else {
+    try {
+      const { data, error: requestError } = await supabase.rpc("get_my_groups");
+      if (requestError) throw requestError;
+
       const next = (data ?? []) as GroupRow[];
       setGroups(next);
       setActiveId((id) =>
         next.some((group) => group.id === id) ? id : (next[0]?.id ?? ""),
       );
+    } catch (candidate) {
+      fail(candidate);
+      setGroups([]);
+      setActiveId("");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [fail]);
 
   const loadGroupData = useCallback(
     async (id: string) => {
       if (!id) return;
       setError("");
-      const [rosterResult, messageResult] = await Promise.all([
-        supabase.rpc("get_group_roster", { target_group_id: id }),
-        supabase
-          .from("chat_messages")
-          .select("*")
-          .eq("group_id", id)
-          .order("created_at", { ascending: false })
-          .limit(50),
-      ]);
-      if (rosterResult.error) fail(rosterResult.error);
-      else setRoster((rosterResult.data ?? []) as RosterMember[]);
-      if (messageResult.error) fail(messageResult.error);
-      else {
+      try {
+        const [rosterResult, messageResult] = await Promise.all([
+          supabase.rpc("get_group_roster", { target_group_id: id }),
+          supabase
+            .from("chat_messages")
+            .select("*")
+            .eq("group_id", id)
+            .order("created_at", { ascending: false })
+            .limit(50),
+        ]);
+        if (rosterResult.error) throw rosterResult.error;
+        if (messageResult.error) throw messageResult.error;
+
+        setRoster((rosterResult.data ?? []) as RosterMember[]);
         const page = (messageResult.data ?? []) as ChatMessageRow[];
         setMessages([...page].reverse());
         setHasOlder(page.length === 50);
+      } catch (candidate) {
+        fail(candidate);
+        setRoster([]);
+        setMessages([]);
+        setHasOlder(false);
       }
     },
     [fail],
