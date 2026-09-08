@@ -20,6 +20,7 @@ import AwarenessProfileSummary from "./AwarenessProfileSummary";
 import ProfessionProfileSummary from "./ProfessionProfileSummary";
 import type { WisdomEntry } from "./DailyWisdomWheel";
 import type { JournalHubTab } from "./JournalHubView";
+import CommunityErrorBoundary from "./CommunityErrorBoundary";
 
 const DashboardView = dynamic(() => import("./DashboardView"), {
   loading: () => <DashboardLoading />,
@@ -511,7 +512,9 @@ export default function SahApp({
               ) : view === "reports" ? (
                 <ReportsView />
               ) : view === "community" ? (
-                <CommunityView />
+                <CommunityErrorBoundary>
+                  <CommunityView />
+                </CommunityErrorBoundary>
               ) : view === "quran-companion" ? (
                 <QuranCompanionView
                   key={wisdomEntry.nonce}

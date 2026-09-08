@@ -96,8 +96,9 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
         <button className="primary-button" onClick={() => onNavigate('journal')}><AppIcon name="plus" /> Yeni kayıt</button>
       </header>
 
-      {!hasActivityToday && <motion.section className={`daily-ritual-card ${streakAtRisk ? 'at-risk' : ''}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <span className="ritual-icon"><AppIcon name={streakAtRisk ? 'flame' : 'sunrise'} /></span><div><span className="eyebrow">{streakAtRisk ? 'SERİNİ KORUMAK İÇİN' : 'BUGÜNÜN KÜÇÜK NİYETİ'}</span><h2>{streakAtRisk ? 'Bugün için tek bir küçük kayıt yeter.' : intentionMessage}</h2><p>{streakAtRisk ? 'Bunu bir görev gibi değil, günün içinde kendine dönmek için kısa bir durak gibi düşün.' : `${suggested.title}, son dönemde en sık kullandığın alanlardan biri.`}</p></div>
+      {!hasActivityToday && <motion.section className={`daily-ritual-card ${streakAtRisk ? 'at-risk' : ''}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} aria-label="Bugünün küçük niyeti">
+        <span className="ritual-accent" aria-hidden="true" />
+        <span className="ritual-icon"><AppIcon name={streakAtRisk ? 'flame' : 'sunrise'} /></span><div className="ritual-copy"><span className="eyebrow">{streakAtRisk ? 'SERİNİ KORUMAK İÇİN' : 'BUGÜNÜN KÜÇÜK NİYETİ'}</span><h2>{streakAtRisk ? 'Bugün için tek bir küçük kayıt yeter.' : intentionMessage}</h2><p>{streakAtRisk ? 'Bunu bir görev gibi değil, günün içinde kendine dönmek için kısa bir durak gibi düşün.' : `${suggested.title}, son dönemde en sık kullandığın alanlardan biri.`}</p></div>
         <button onClick={() => onNavigate(suggested.id)}>{suggested.title}<AppIcon name="arrow-right" /></button>
       </motion.section>}
 
@@ -108,9 +109,9 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
         </div>
 
         <aside className="surface-card today-card" aria-labelledby="today-actions-title">
-          <div className="card-heading"><div><span className="eyebrow">BUGÜN</span><h2 id="today-actions-title">Neye alan açacaksın?</h2></div><span className="quiet-chip">1 adım yeter</span></div>
+          <div className="card-heading"><div><span className="eyebrow">BUGÜN</span><h2 id="today-actions-title">Neye alan açacaksın?</h2><p>Ritmini korumak için tek bir seçim yap.</p></div><span className="quiet-chip today-intention"><i aria-hidden="true" />1 adım yeter</span></div>
           <div className="quick-actions">
-            {[quickActions[0], quickActions[1], ...personalizedActions].map((action, index) => <button key={action.id} className={index === 0 ? 'primary-quick' : ''} onClick={() => onNavigate(action.id)}>
+            {[quickActions[0], quickActions[1], ...personalizedActions].map((action, index) => <button key={action.id} className={`${index === 0 ? 'primary-quick' : ''} action-${action.id}`} onClick={() => onNavigate(action.id)}>
               <span className="quick-action-icon"><AppIcon name={action.icon} /></span>
               <span><strong>{action.title}</strong><small>{action.note}</small></span>
               <AppIcon name="arrow-right" />
