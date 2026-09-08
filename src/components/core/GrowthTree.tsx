@@ -21,7 +21,7 @@ export default function GrowthTree({ xp, trigger, lastAmount }: { xp: number; tr
       <div className="progress-heading"><strong>{xp.toLocaleString('tr-TR')} XH</strong><span>{nextLevel ? `${Math.round(progress)}% · ${nextLevel.name} için ${nextLevel.xp - xp} XH` : 'Yolculuğun en geniş ufku'}</span></div>
       <div className="core-progress" role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100} aria-label="Sonraki seviyeye ilerleme"><span style={{ width: `${progress}%` }} /></div>
       <div className="level-rail" aria-label="Seviye yolculuğu">{LEVELS.map((item, itemIndex) => <i key={item.name} className={itemIndex <= index ? 'is-complete' : ''} title={item.name} />)}</div>
-      <div className="growth-next"><span>{LEVELS[index].icon}</span><p><strong>Şu anki evrenin</strong><small>{nextLevel ? `Sıradaki: ${nextLevel.icon} ${nextLevel.name}` : 'Tüm sahne tamamlandı'}</small></p></div>
+      <div className="growth-next"><span>{LEVELS[index].icon}</span><p><strong>Şu anki gelişim sahnen</strong><small>{nextLevel ? `Sıradaki: ${nextLevel.icon} ${nextLevel.name}` : 'Tüm sahne tamamlandı'}</small></p></div>
     </div>
 
     <div className={`growth-illustration level-${index + 1}`} aria-label={`${level.name} gelişim illüstrasyonu`}>

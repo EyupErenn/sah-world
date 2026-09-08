@@ -13,9 +13,9 @@ export function buildWeeklyInsights(journal:JournalEntry[],events:ActivityEvent[
   const quick=current.filter(entry=>entry.entryMode==='quick').length
   if(current.length<3)return[
     current.length?`Son yedi günde ${current.length} günlük kaydı oluşturdun. Birkaç kayıt daha biriktiğinde ruh hâli ve enerji örüntülerini güvenle yorumlayabileceğiz.`:'Son yedi günde henüz günlük kaydı oluşmadı; tek bir cümle bile ritmini görünür kılmak için yeterli.',
-    current.length?`${morning} sabah, ${evening} akşam ritüeli tamamlandı; hızlı kayıtların sayısı ${quick}.`:'Sabah niyetini veya akşam muhasebeni kaydettiğinde bu özet yalnızca gerçek verilerinden oluşacak.',
+    current.length?`${morning} sabah niyeti, ${evening} akşam muhasebesi tamamlandı; hızlı kayıtların sayısı ${quick}.`:'Sabah niyetini veya akşam muhasebeni kaydettiğinde bu özet yalnızca gerçek verilerinden oluşacak.',
   ]
-  const lines=[`Son yedi günde ${current.length} günlük kaydı oluşturdun: ${morning} sabah, ${evening} akşam ritüeli${quick?` ve ${quick} hızlı kayıt.`:'.'}`]
+  const lines=[`Son yedi günde ${current.length} günlük kaydı oluşturdun: ${morning} sabah niyeti, ${evening} akşam muhasebesi${quick?` ve ${quick} hızlı kayıt.`:'.'}`]
   const moods=new Map<string,number[]>();current.forEach(entry=>moods.set(entry.date,[...(moods.get(entry.date)??[]),entry.mood]))
   const ranked=[...moods].map(([date,values])=>({date,avg:values.reduce((a,b)=>a+b,0)/values.length})).sort((a,b)=>b.avg-a.avg)
   if(ranked.length){const best=ranked[0],worst=ranked.at(-1)!;lines.push(`Ruh hâlin en yüksek ${DAY_NAMES[new Date(`${best.date}T12:00:00`).getDay()]} günüydü (${best.avg.toFixed(1)}/5)${best.date!==worst.date?`; en düşük ortalama ${DAY_NAMES[new Date(`${worst.date}T12:00:00`).getDay()]} günüydü (${worst.avg.toFixed(1)}/5).`:'.'}`)}

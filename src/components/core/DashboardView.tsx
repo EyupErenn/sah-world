@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import GrowthTree from './GrowthTree'
 import PurposeEquation from './PurposeEquation'
 import { AppIcon } from '@/components/ui/AppIcon'
@@ -22,6 +22,8 @@ const quickActions = [
 ]
 
 export default function DashboardView({ onNavigate }: { onNavigate: (view: string) => void }) {
+  const rootRef = useRef<HTMLDivElement>(null)
+  const [introVisible, setIntroVisible] = useState(true)
   const store = useJourneyStore()
   const profile = useAuthStore((state) => state.profile)
   const remoteActivity = useActivityLog()
@@ -47,17 +49,55 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
     return quickActions.filter((action) => !['daily-wheel', 'focus'].includes(action.id)).sort((a, b) => (usage[b.id] ?? 0) - (usage[a.id] ?? 0)).slice(0, 2)
   }, [counts.focus, counts.hadis, counts.journal, counts.matrix, counts.mescidim, counts.quran, counts.sukur])
   const suggested = personalizedActions[0] ?? quickActions[2]
-  const ritualMessage = hour < 12 ? 'Güne sakin bir notla başlamak ister misin?' : hour < 18 ? 'Bugünden sende kalanları iki dakikada kaydedebilirsin.' : 'Günü kapatmadan önce kendine kısa bir alan aç.'
+  const intentionMessage = hour < 12 ? 'Güne sakin bir notla başlamak ister misin?' : hour < 18 ? 'Bugünden sende kalanları iki dakikada kaydedebilirsin.' : 'Günü kapatmadan önce kendine kısa bir alan aç.'
+
+  useEffect(() => {
+    const seen = window.sessionStorage.getItem('sah-dashboard-intro') === '1'
+    const timer = window.setTimeout(() => setIntroVisible(false), seen ? 20 : 980)
+    if (!seen) window.sessionStorage.setItem('sah-dashboard-intro', '1')
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    if (introVisible || !rootRef.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    let cancelled = false
+    let cleanup: (() => void) | undefined
+    void Promise.all([import('gsap'), import('gsap/ScrollTrigger')]).then(([gsapModule, scrollModule]) => {
+      if (cancelled || !rootRef.current) return
+      const gsap = gsapModule.gsap
+      const ScrollTrigger = scrollModule.ScrollTrigger
+      gsap.registerPlugin(ScrollTrigger)
+      const context = gsap.context(() => {
+        const timeline = gsap.timeline({ defaults: { ease: 'power3.out' } })
+        timeline
+          .from('.dashboard-heading .eyebrow', { opacity: 0, y: 10, duration: .38 })
+          .from('.dashboard-heading .hero-word', { opacity: 0, yPercent: 85, rotate: 2, duration: .62, stagger: .055 }, '-=.18')
+          .from('.dashboard-heading p, .dashboard-heading .primary-button', { opacity: 0, y: 12, duration: .42, stagger: .08 }, '-=.3')
+          .from('.dashboard-growth-stack', { opacity: 0, scale: .975, y: 18, duration: .72 }, '-=.18')
+          .from('.today-card .quick-actions button', { opacity: 0, x: 16, duration: .42, stagger: .06 }, '-=.52')
+          .from('.dashboard-metrics .metric-card', { opacity: 0, y: 14, duration: .44, stagger: .07 }, '-=.32')
+        gsap.utils.toArray<HTMLElement>('.dashboard-reveal').forEach((element) => {
+          gsap.from(element, { opacity: 0, y: 28, duration: .7, ease: 'power3.out', scrollTrigger: { trigger: element, start: 'top 90%', once: true } })
+        })
+        gsap.utils.toArray<HTMLElement>('.dashboard-parallax').forEach((element) => {
+          gsap.to(element, { yPercent: -7, ease: 'none', scrollTrigger: { trigger: element, start: 'top bottom', end: 'bottom top', scrub: .6 } })
+        })
+      }, rootRef)
+      cleanup = () => context.revert()
+    })
+    return () => { cancelled = true; cleanup?.() }
+  }, [introVisible])
 
   return (
-    <div className="view-stack dashboard-view">
+    <div className="view-stack dashboard-view dashboard-cinematic" ref={rootRef}>
+      {introVisible && <DashboardPreloader />}
       <header className="page-heading dashboard-heading">
-        <div><span className="eyebrow">{today.toLocaleUpperCase('tr-TR')}</span><h1>Tekrar hoş geldin, {firstName}.</h1><p>Bugün küçük bir adımla devam edebilirsin. Alanın, yargılamadan ilerlemeni görünür kılar.</p></div>
+        <div><span className="eyebrow">{today.toLocaleUpperCase('tr-TR')}</span><h1>{`Tekrar hoş geldin, ${firstName}.`.split(' ').map((word, index) => <span className="hero-word-wrap" key={`${word}-${index}`}><span className="hero-word">{word}&nbsp;</span></span>)}</h1><p>Bugün küçük bir adımla devam edebilirsin. Alanın, yargılamadan ilerlemeni görünür kılar.</p></div>
         <button className="primary-button" onClick={() => onNavigate('journal')}><AppIcon name="plus" /> Yeni kayıt</button>
       </header>
 
       {!hasActivityToday && <motion.section className={`daily-ritual-card ${streakAtRisk ? 'at-risk' : ''}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <span className="ritual-icon"><AppIcon name={streakAtRisk ? 'flame' : 'sunrise'} /></span><div><span className="eyebrow">{streakAtRisk ? 'SERİNİ KORUMAK İÇİN' : 'BUGÜNÜN KÜÇÜK RİTÜELİ'}</span><h2>{streakAtRisk ? 'Bugün için tek bir küçük kayıt yeter.' : ritualMessage}</h2><p>{streakAtRisk ? 'Bunu bir görev gibi değil, günün içinde kendine dönmek için kısa bir durak gibi düşün.' : `${suggested.title}, son dönemde en sık kullandığın alanlardan biri.`}</p></div>
+        <span className="ritual-icon"><AppIcon name={streakAtRisk ? 'flame' : 'sunrise'} /></span><div><span className="eyebrow">{streakAtRisk ? 'SERİNİ KORUMAK İÇİN' : 'BUGÜNÜN KÜÇÜK NİYETİ'}</span><h2>{streakAtRisk ? 'Bugün için tek bir küçük kayıt yeter.' : intentionMessage}</h2><p>{streakAtRisk ? 'Bunu bir görev gibi değil, günün içinde kendine dönmek için kısa bir durak gibi düşün.' : `${suggested.title}, son dönemde en sık kullandığın alanlardan biri.`}</p></div>
         <button onClick={() => onNavigate(suggested.id)}>{suggested.title}<AppIcon name="arrow-right" /></button>
       </motion.section>}
 
@@ -79,7 +119,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
         </aside>
       </div>
 
-      <button className="awareness-invitation" onClick={() => onNavigate('awareness')}>
+      <button className="awareness-invitation dashboard-reveal dashboard-parallax" onClick={() => onNavigate('awareness')}>
         <span className="invitation-symbol"><AppIcon name="world-heart" /></span>
         <span><small>YENİ FARKINDALIK ALANI</small><strong>Mazlum Coğrafyaları kültürleri ve kaynaklarıyla tanı</strong><em>Filistin ve Doğu Türkistan için kaynaklı anlatılar, güvenilir eylem rehberi ve 10’ar soruluk bilgi testleri.</em></span>
         <b>Alanı keşfet <AppIcon name="arrow-right" /></b>
@@ -92,7 +132,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
         <Metric icon="circle-check" value={done} suffix={`/${tasks.length}`} label="Tamamlanan görev" detail="Tüm matris" tone="blue" />
       </section>
 
-      <div className="dashboard-lower-grid">
+      <div className="dashboard-lower-grid dashboard-reveal">
         <section className="surface-card activity-card">
           <div className="card-heading"><div><span className="eyebrow">SON HAREKETLER</span><h2>Faaliyetlerin</h2></div><button className="text-button" onClick={() => onNavigate('reports')}>Tüm raporlar <AppIcon name="arrow-right" /></button></div>
           {events.length === 0 ? <Empty /> : (
@@ -119,6 +159,10 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
       </div>
     </div>
   )
+}
+
+function DashboardPreloader() {
+  return <div className="dashboard-preloader" role="status" aria-live="polite" aria-label="SAH alanın hazırlanıyor"><div className="preloader-mark"><span>S</span><i /><i /></div><div className="preloader-wordmark"><strong>SAH</strong><span>Kendine ait alan hazırlanıyor</span></div><div className="preloader-line"><span /></div></div>
 }
 
 function Metric({ icon, value, suffix = '', label, detail, tone }: { icon: string; value: number; suffix?: string; label: string; detail: string; tone: string }) {
