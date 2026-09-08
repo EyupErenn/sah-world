@@ -453,6 +453,12 @@ function DevelopmentGuestButton() {
             location_lat: null,
             location_lng: null,
             onboarding_completed: true,
+            theme_preference: "system",
+            notification_preferences: {
+              focus: true,
+              prayer: false,
+              community: true,
+            },
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });

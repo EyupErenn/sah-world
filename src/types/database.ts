@@ -30,6 +30,12 @@ export type ProfileRow = {
   location_lat: number | null;
   location_lng: number | null;
   onboarding_completed: boolean;
+  theme_preference: "light" | "dark" | "system";
+  notification_preferences: {
+    focus?: boolean;
+    prayer?: boolean;
+    community?: boolean;
+  };
   created_at: string;
   updated_at: string;
 };

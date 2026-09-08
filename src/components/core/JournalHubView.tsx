@@ -19,7 +19,7 @@ const tabs: Array<{
     label: "Günlük Yaz",
     shortLabel: "Günlük",
     icon: "notebook",
-    description: "Ritüeller, sayfalar ve hatıralar",
+    description: "Niyetler, sayfalar ve hatıralar",
   },
   {
     id: "matrix",

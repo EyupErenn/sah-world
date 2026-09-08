@@ -22,7 +22,7 @@ import type { WisdomEntry } from "./DailyWisdomWheel";
 import type { JournalHubTab } from "./JournalHubView";
 
 const DashboardView = dynamic(() => import("./DashboardView"), {
-  loading: () => <ViewSkeleton />,
+  loading: () => <DashboardLoading />,
 });
 const ReportsView = dynamic(() => import("./ReportsView"), {
   loading: () => <ViewSkeleton />,
@@ -117,6 +117,8 @@ export default function SahApp({
   const journalCount = store.journal.length;
   const streakCurrent = store.streak.current;
   const currentLevelName = level.name;
+  const savedThemePreference =
+    profile?.theme_preference ?? initialProfile?.theme_preference;
 
   useEffect(() => {
     // DEV-ONLY: enables deterministic end-to-end onboarding QA without
@@ -180,12 +182,28 @@ export default function SahApp({
   }, []);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("sah-theme");
-    const nextTheme = saved === "dark" ? "dark" : "light";
-    document.documentElement.dataset.theme = nextTheme;
-    const timer = window.setTimeout(() => setTheme(nextTheme), 0);
-    return () => window.clearTimeout(timer);
-  }, []);
+    const localPreference = window.localStorage.getItem("sah-theme-preference");
+    const preference =
+      savedThemePreference ??
+      (localPreference === "light" ||
+      localPreference === "dark" ||
+      localPreference === "system"
+        ? localPreference
+        : "system");
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      const nextTheme =
+        preference === "system" ? (media.matches ? "dark" : "light") : preference;
+      document.documentElement.dataset.theme = nextTheme;
+      setTheme(nextTheme);
+    };
+    const timer = window.setTimeout(apply, 0);
+    if (preference === "system") media.addEventListener("change", apply);
+    return () => {
+      window.clearTimeout(timer);
+      media.removeEventListener("change", apply);
+    };
+  }, [savedThemePreference]);
 
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
@@ -285,11 +303,24 @@ export default function SahApp({
     setProfileOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  const toggleTheme = () => {
-    const next = theme === "light" ? "dark" : "light";
+  const changeTheme = (preference: "light" | "dark" | "system") => {
+    const next =
+      preference === "system"
+        ? window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light"
+        : preference;
     setTheme(next);
     document.documentElement.dataset.theme = next;
-    window.localStorage.setItem("sah-theme", next);
+    window.localStorage.setItem("sah-theme-preference", preference);
+  };
+  const toggleTheme = () => {
+    const next = theme === "light" ? "dark" : "light";
+    changeTheme(next);
+    if (activeProfile) {
+      useAuthStore.getState().patchProfile({ theme_preference: next });
+      void supabase.from("profiles").update({ theme_preference: next }).eq("id", activeProfile.id);
+    }
   };
   const openPage = (path: string) => {
     setMoreOpen(false);
@@ -560,7 +591,10 @@ export default function SahApp({
         onNavigate={navigate}
       />
       {settingsOpen && (
-        <AccountSettingsDialog onClose={() => setSettingsOpen(false)} />
+        <AccountSettingsDialog
+          onClose={() => setSettingsOpen(false)}
+          onThemeChange={changeTheme}
+        />
       )}
       <MilestoneCelebration
         milestone={milestone}
@@ -581,6 +615,16 @@ function AppLoading() {
       </div>
       <p>Güvenli alanın hazırlanıyor…</p>
     </main>
+  );
+}
+
+function DashboardLoading() {
+  return (
+    <div className="dashboard-preloader loading-static" role="status" aria-live="polite" aria-label="SAH alanın hazırlanıyor">
+      <div className="preloader-mark"><span>S</span><i /><i /></div>
+      <div className="preloader-wordmark"><strong>SAH</strong><span>Kendine ait alan hazırlanıyor</span></div>
+      <div className="preloader-line"><span /></div>
+    </div>
   );
 }
 
