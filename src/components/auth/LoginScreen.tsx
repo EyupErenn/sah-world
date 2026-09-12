@@ -182,6 +182,9 @@ export default function LoginScreen() {
           <strong>SAH</strong>
         </div>
         <div className="login-story-copy">
+          <p className="login-story-eyebrow">
+            <span aria-hidden /> Kişisel gelişim platformu
+          </p>
           <h1 id="login-title">
             İyi alışkanlıkların,
             <br />
