@@ -1,7 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
-import { AnimatePresence, motion } from "framer-motion";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import type { User } from "@supabase/supabase-js";
 import LoginScreen from "@/components/auth/LoginScreen";
 import { AppIcon } from "@/components/ui/AppIcon";
@@ -21,6 +21,7 @@ import ProfessionProfileSummary from "./ProfessionProfileSummary";
 import type { WisdomEntry } from "./DailyWisdomWheel";
 import type { JournalHubTab } from "./JournalHubView";
 import CommunityErrorBoundary from "./CommunityErrorBoundary";
+import type { GrowthNavigationCue } from "./GrowthTree";
 
 const DashboardView = dynamic(() => import("./DashboardView"), {
   loading: () => <DashboardLoading />,
@@ -107,6 +108,9 @@ export default function SahApp({
   }>({ tab: "journal", nonce: 0 });
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [milestone, setMilestone] = useState<Milestone>(null);
+  const [transitionCue, setTransitionCue] = useState<(GrowthNavigationCue & { nonce: number }) | null>(null);
+  const reducedMotion = useReducedMotion();
+  const transitionCueTimer = useRef<number | null>(null);
   const milestoneArmed = useRef(false);
   const milestoneSnapshot = useRef({
     journal: store.journal.length,
@@ -271,6 +275,10 @@ export default function SahApp({
     milestoneSnapshot.current = current;
   }, [currentLevelName, journalCount, milestone, streakCurrent]);
 
+  useEffect(() => () => {
+    if (transitionCueTimer.current) window.clearTimeout(transitionCueTimer.current);
+  }, []);
+
   const closeSearch = useCallback(() => setSearchOpen(false), []);
 
   const activeUser = user || initialUser;
@@ -278,7 +286,12 @@ export default function SahApp({
   if (isAuthLoading && !initialUser) return <AppLoading />;
   if (!session && !activeUser) return <LoginScreen />;
 
-  const navigate = (next: string) => {
+  const navigate = (next: string, cue?: GrowthNavigationCue) => {
+    if (cue && !reducedMotion) {
+      if (transitionCueTimer.current) window.clearTimeout(transitionCueTimer.current);
+      setTransitionCue({ ...cue, nonce: Date.now() });
+      transitionCueTimer.current = window.setTimeout(() => setTransitionCue(null), 520);
+    }
     if (next === "quran" || next === "hadis") {
       setWisdomEntry({
         tab: "archive",
@@ -497,15 +510,32 @@ export default function SahApp({
           </div>
         </header>
 
+        <AnimatePresence>
+          {transitionCue && (
+            <motion.div
+              key={transitionCue.nonce}
+              className="context-navigation-cue"
+              style={{ '--navigation-accent': transitionCue.accent } as CSSProperties}
+              initial={{ opacity: 0, scaleX: 0.04 }}
+              animate={{ opacity: [0, 0.62, 0], scaleX: [0.04, 1, 1] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.46, ease: [0.22, 1, 0.36, 1] }}
+              aria-hidden="true"
+            >
+              <span><AppIcon name={transitionCue.icon} />{transitionCue.label}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <main className="app-main" id="main-content">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={view}
               className="view-motion-shell"
-              initial={{ opacity: 0, y: 10 }}
+              initial={reducedMotion ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}
+              transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
             >
               {view === "dashboard" ? (
                 <DashboardView onNavigate={navigate} />

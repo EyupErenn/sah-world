@@ -1,5 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { AppIcon } from "@/components/ui/AppIcon";
 import AvatarImage from "@/components/ui/AvatarImage";
@@ -151,6 +152,7 @@ export default function QuranCompanionView({
   const { user, profile, patchProfile } = useAuthStore();
   const journey = useJourneyStore();
   const [tab, setTab] = useState<CompanionTab>(wheelEntry ? "wheel" : "home");
+  const reducedMotion = useReducedMotion();
   const [teachers, setTeachers] = useState<HocaProfileRow[]>([]);
   const [appointments, setAppointments] = useState<AppointmentView[]>([]);
   const [goal, setGoal] = useState<QuranStudyGoalRow | null>(null);
@@ -431,6 +433,15 @@ export default function QuranCompanionView({
       {!profile?.quran_level && (
         <LevelOnboarding onSelect={(level) => void saveLevel(level)} />
       )}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={loading ? "loading" : tab}
+          className="quran-tab-transition"
+          initial={reducedMotion ? false : { opacity: 0, y: 7 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: -4 }}
+          transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+        >
       {loading ? (
         <CompanionSkeleton />
       ) : tab === "home" ? (
@@ -493,6 +504,8 @@ export default function QuranCompanionView({
           onReload={load}
         />
       )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

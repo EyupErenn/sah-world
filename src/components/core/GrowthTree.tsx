@@ -1,118 +1,252 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { useId, useMemo, useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { AppIcon } from '@/components/ui/AppIcon'
 import { getLevelForXP, LEVELS } from '@/lib/constants'
+import {
+  buildGrowthInputs,
+  growthInputForCategory,
+  type GrowthInput,
+  type GrowthInputKey,
+} from '@/lib/growthDiagram'
+import type { ActivityEvent } from '@/lib/activity'
 
-export default function GrowthTree({ xp, trigger, lastAmount }: { xp: number; trigger: number; lastAmount: number }) {
+export type GrowthNavigationCue = {
+  source: 'growth-diagram'
+  accent: string
+  icon: string
+  label: string
+}
+
+type GrowthTreeProps = {
+  xp: number
+  trigger: number
+  lastAmount: number
+  events: ActivityEvent[]
+  onNavigate: (view: string, cue?: GrowthNavigationCue) => void
+}
+
+type InputStyle = CSSProperties & {
+  '--input-accent': string
+  '--input-intensity': number
+}
+
+type Pulse = { source: GrowthInputKey; nonce: number; amount: number }
+
+export default function GrowthTree({ xp, trigger, lastAmount, events, onNavigate }: GrowthTreeProps) {
   const { level, nextLevel, index } = getLevelForXP(xp)
   const start = level.xp
   const end = nextLevel?.xp ?? start
   const progress = nextLevel ? Math.min(100, ((xp - start) / Math.max(1, end - start)) * 100) : 100
   const uid = useId().replace(/:/g, '')
-  const [delighted, setDelighted] = useState(false)
-  const motes = useMemo(() => Array.from({ length: Math.min(18, 3 + index * 2) }, (_, i) => ({ x: 34 + ((i * 73) % 350), y: 40 + ((i * 47) % 190), delay: `${(i % 8) * .23}s` })), [index])
+  const reducedMotion = useReducedMotion()
+  const inputs = useMemo(() => buildGrowthInputs(events), [events])
+  const latestRelevant = events.find((event) => growthInputForCategory(event.category))
+  const latestFingerprint = latestRelevant ? `${latestRelevant.category}:${latestRelevant.id}` : ''
+  const previousEvent = useRef(latestFingerprint)
+  const previousTrigger = useRef(trigger)
+  const pulseTimer = useRef<number | null>(null)
+  const [pulse, setPulse] = useState<Pulse | null>(null)
 
-  return <section className="growth-card" aria-labelledby="growth-title">
-    <div className="growth-copy">
-      <span className="eyebrow">GELİŞİM SAHNEN</span>
-      <div className="level-heading"><h2 id="growth-title">{level.name}</h2><span>Seviye {index + 1} / 10</span></div>
-      <p>{levelCopy[index]} Her düzenli kayıt, sahnenin yeni bir katmanını görünür kılar.</p>
-      <div className="progress-heading"><strong>{xp.toLocaleString('tr-TR')} XH</strong><span>{nextLevel ? `${Math.round(progress)}% · ${nextLevel.name} için ${nextLevel.xp - xp} XH` : 'Yolculuğun en geniş ufku'}</span></div>
-      <div className="core-progress" role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100} aria-label="Sonraki seviyeye ilerleme"><span style={{ width: `${progress}%` }} /></div>
-      <div className="level-rail" aria-label="On seviyelik gelişim yolculuğu">{LEVELS.map((item, itemIndex) => <i key={item.name} className={`${itemIndex < index ? 'is-complete' : ''} ${itemIndex === index ? 'is-current' : ''}`} title={`${itemIndex + 1}. seviye: ${item.name}`} />)}</div>
-      <div className="level-rail-caption" aria-hidden="true"><span>Tohum</span><span>10 aşamalı yolculuk</span><span>Evren</span></div>
-      <div className="growth-next"><span>{nextLevel?.icon ?? LEVELS[index].icon}</span><p><strong>{nextLevel ? 'Sıradaki gelişim sahnesi' : 'Gelişim sahnen tamamlandı'}</strong><small>{nextLevel ? `${nextLevel.name} · ${nextLevel.xp - xp} XH kaldı` : 'Evrenin bütün katmanları görünür'}</small></p></div>
-    </div>
+  const activatePulse = (source: GrowthInputKey, amount: number) => {
+    if (reducedMotion) return
+    if (pulseTimer.current) window.clearTimeout(pulseTimer.current)
+    setPulse({ source, nonce: Date.now(), amount })
+    pulseTimer.current = window.setTimeout(() => setPulse(null), 1500)
+  }
 
-    <div className={`growth-illustration level-${index + 1}`} aria-label={`${level.name} gelişim illüstrasyonu`}>
-      {trigger > 0 && lastAmount > 0 && <span key={trigger} className="xp-particle">+{lastAmount} XH</span>}
-      <span className="scene-level-chip">{level.icon} {level.name} · %{Math.round(progress)}</span>
-      <motion.div className={`growth-scene-frame ${delighted ? 'is-delighted' : ''}`} key={index} initial={{ opacity: .2, scale: .965, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: .7, ease: [0.16, 1, 0.3, 1] }} role="button" tabIndex={0} aria-label="Gelişim sahnesini canlandır" onClick={() => { setDelighted(true); window.setTimeout(() => setDelighted(false), 1200) }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setDelighted(true); window.setTimeout(() => setDelighted(false), 1200) } }}>
-        <svg viewBox="0 0 440 340" role="img" aria-label={`${level.name} seviyesinde katmanlı doğa ve ışık sahnesi`}>
-          <defs>
-            <linearGradient id={`${uid}-sky`} x1="0" y1="0" x2="0" y2="1"><stop stopColor={index >= 8 ? '#17153f' : index >= 6 ? '#4338ca' : '#b9dcff'}/><stop offset=".52" stopColor={index >= 8 ? '#553c9a' : index >= 6 ? '#8b5cf6' : '#e5e7ff'}/><stop offset="1" stopColor={index >= 8 ? '#f59e8b' : '#fff1d6'}/></linearGradient>
-            <linearGradient id={`${uid}-hill-back`} x1="0" y1="0" x2="1" y2="1"><stop stopColor={index >= 7 ? '#5146a5' : '#8fcdb3'}/><stop offset="1" stopColor={index >= 7 ? '#6255be' : '#6fb99a'}/></linearGradient>
-            <linearGradient id={`${uid}-hill-front`} x1="0" y1="0" x2="1" y2="1"><stop stopColor={index >= 7 ? '#185b62' : '#45a978'}/><stop offset="1" stopColor={index >= 7 ? '#0d3d4c' : '#177157'}/></linearGradient>
-            <linearGradient id={`${uid}-trunk`} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#6a3f2a"/><stop offset=".5" stopColor="#9a6740"/><stop offset="1" stopColor="#4f2c22"/></linearGradient>
-            <linearGradient id={`${uid}-leaf`} x1="0" y1="0" x2="1" y2="1"><stop stopColor={index >= 7 ? '#b9f17b' : '#6de39c'}/><stop offset=".54" stopColor={index >= 7 ? '#47c982' : '#23b46f'}/><stop offset="1" stopColor="#087454"/></linearGradient>
-            <radialGradient id={`${uid}-sun`}><stop stopColor="#fffbd1" stopOpacity="1"/><stop offset=".26" stopColor="#ffd66b" stopOpacity=".82"/><stop offset="1" stopColor="#f59e0b" stopOpacity="0"/></radialGradient>
-            <radialGradient id={`${uid}-cosmos`}><stop stopColor="#e9d5ff" stopOpacity=".7"/><stop offset=".5" stopColor="#8b5cf6" stopOpacity=".15"/><stop offset="1" stopColor="#4f46e5" stopOpacity="0"/></radialGradient>
-            <linearGradient id={`${uid}-trunk-light`} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#f4c786" stopOpacity=".42"/><stop offset=".55" stopColor="#d99258" stopOpacity=".08"/><stop offset="1" stopColor="#3a201b" stopOpacity=".32"/></linearGradient>
-            <filter id={`${uid}-shadow`} x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="7" stdDeviation="7" floodColor="#112d2d" floodOpacity=".24"/></filter>
-            <filter id={`${uid}-glow`} x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter>
-            <filter id={`${uid}-grain`} x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".72" numOctaves="2" seed={index + 9}/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .055"/></feComponentTransfer></filter>
-            <clipPath id={`${uid}-clip`}><rect width="440" height="340" rx="30"/></clipPath>
-          </defs>
-          <g clipPath={`url(#${uid}-clip)`}>
-            <rect width="440" height="340" rx="30" fill={`url(#${uid}-sky)`}/>
-            {index < 7 && <circle cx="356" cy="72" r="48" fill={`url(#${uid}-sun)`} opacity=".52" className="tree-halo"/>}
-            <g className="clouds" fill="#fff" opacity={index >= 7 ? .2 : .48}><path d="M32 111c7-15 27-17 37-4 8-11 27-7 30 7 11 0 19 7 20 17H25c0-9 2-15 7-20Z"/><path d="M312 142c6-12 22-14 30-3 7-9 23-5 25 7 9 0 16 6 17 14h-78c0-7 2-13 6-18Z"/></g>
-            {index >= 7 && <><circle cx="344" cy="70" r="73" fill={`url(#${uid}-sun)`} className="tree-halo"/><g className="sun-rays" stroke="#fff2a8" strokeWidth="2" opacity=".42"><path d="M344 8v21M344 111v23M281 70h-24M405 70h24M299 25l-16-16M389 115l16 16M299 115l-16 16M389 25l16-16"/></g></>}
-            {index >= 8 && <><ellipse cx="218" cy="104" rx="170" ry="82" fill={`url(#${uid}-cosmos)`}/><path className="galaxy-line" d="M26 104C105 31 280 22 415 110C292 60 145 70 56 143" fill="none" stroke="#e9d5ff" strokeWidth="2" opacity=".34"/><path className="galaxy-line delay" d="M55 63C154 130 303 130 407 54" fill="none" stroke="#f0abfc" strokeWidth="9" opacity=".12"/></>}
-            {index >= 3 && <g className="birds" fill="none" stroke={index >= 7 ? '#fff4cf' : '#5360a9'} strokeWidth="2" strokeLinecap="round"><path d="M72 82q7-7 14 0q7-7 14 0"/><path d="M125 58q5-5 10 0q5-5 10 0"/></g>}
-            <path d="M-18 235C52 190 100 187 166 221C225 252 269 183 338 201C386 214 417 198 465 170V350H-18Z" fill={`url(#${uid}-hill-back)`} opacity=".78"/>
-            {index >= 5 && <g className="mountain-layer"><path d="M-12 234L75 137l73 94 77-72 76 72 65-108 96 112v70H-12Z" fill={index >= 7 ? '#34356e' : '#7585a7'} opacity=".4"/><path d="M53 162l22-25 22 29-19-7zM343 149l23-26 25 29-23-9z" fill="#f8fafc" opacity=".7"/></g>}
-            <path d="M-10 272C56 227 122 236 178 261C251 294 304 219 377 234C412 241 439 230 466 214V350H-10Z" fill={`url(#${uid}-hill-front)`}/>
-            <path d="M-10 302C95 275 146 313 239 292C327 272 365 307 460 279V350H-10Z" fill={index >= 7 ? '#0d4350' : '#2d8c66'} opacity=".72"/>
-            <ellipse cx="228" cy="298" rx={index < 2 ? 38 : 112} ry="18" fill="#0a2f35" opacity=".22" filter={`url(#${uid}-glow)`}/>
-            <GrowthSubject index={index} uid={uid}/>
-            <g className="delight-particles" aria-hidden>{[[-46,-3],[-30,-27],[-5,-40],[22,-33],[43,-8],[29,20],[-21,24]].map(([x,y], itemIndex) => <circle key={itemIndex} cx={228 + x} cy={184 + y} r={2 + itemIndex % 2} fill={itemIndex % 3 === 0 ? '#fde68a' : '#bbf7d0'} style={{ '--particle-x': `${x * .45}px`, '--particle-y': `${y * .55 - 22}px`, animationDelay: `${itemIndex * .045}s` } as React.CSSProperties}/>)}</g>
-            {index >= 4 && <GroundLife index={index}/>}
-            <StageDetails index={index} />
-            {index >= 6 && motes.map((m, i) => <circle key={i} cx={m.x} cy={m.y} r={1.5 + (i % 3)} fill={i % 3 === 0 ? '#ffe58d' : i % 2 ? '#d8b4fe' : '#a7f3d0'} className="mote" style={{ animationDelay: m.delay }}/>) }
-            {index >= 9 && <g className="constellation" fill="none" stroke="#fef3c7" strokeWidth="1" opacity=".7"><path d="M49 49l35 19 29-31 31 32M328 42l25 29 35-20"/><circle cx="49" cy="49" r="3" fill="#fff"/><circle cx="84" cy="68" r="2" fill="#fff"/><circle cx="113" cy="37" r="3" fill="#fff"/><circle cx="144" cy="69" r="2" fill="#fff"/><circle cx="328" cy="42" r="2" fill="#fff"/><circle cx="353" cy="71" r="3" fill="#fff"/><circle cx="388" cy="51" r="2" fill="#fff"/></g>}
-            <rect width="440" height="340" fill="#fff" filter={`url(#${uid}-grain)`} opacity=".22" pointerEvents="none"/>
-          </g>
-        </svg>
-      </motion.div>
-      <span className="growth-caption">Bu sahne manevi değeri değil, yalnızca uygulamadaki istikrarı temsil eder.</span>
-    </div>
-  </section>
+  useEffect(() => {
+    if (!latestFingerprint) return
+    if (!previousEvent.current) {
+      previousEvent.current = latestFingerprint
+      return
+    }
+    if (previousEvent.current !== latestFingerprint && latestRelevant) {
+      const source = growthInputForCategory(latestRelevant.category)
+      previousEvent.current = latestFingerprint
+      if (source) {
+        const timer = window.setTimeout(() => activatePulse(source, latestRelevant.xp), 0)
+        return () => window.clearTimeout(timer)
+      }
+    }
+  }, [latestFingerprint, latestRelevant, reducedMotion]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (trigger <= previousTrigger.current) return
+    previousTrigger.current = trigger
+    const source = latestRelevant ? growthInputForCategory(latestRelevant.category) : null
+    if (source) {
+      const timer = window.setTimeout(() => activatePulse(source, lastAmount), 0)
+      return () => window.clearTimeout(timer)
+    }
+  }, [lastAmount, latestRelevant, reducedMotion, trigger]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => () => {
+    if (pulseTimer.current) window.clearTimeout(pulseTimer.current)
+  }, [])
+
+  const mescidimIntensity = inputs.find((input) => input.id === 'mescidim')?.intensity ?? 0.12
+
+  return (
+    <section className="growth-card growth-system" aria-labelledby="growth-title">
+      <div className="growth-copy">
+        <span className="eyebrow">GELİŞİM SAHNEN</span>
+        <div className="level-heading"><h2 id="growth-title">{level.name}</h2><span>Seviye {index + 1} / 10</span></div>
+        <p>{levelCopy[index]} Son yedi gündeki gerçek hareketlerin, sahneyi besleyen akışlara dönüşür.</p>
+        <div className="growth-model-note"><AppIcon name="activity-heartbeat" /><span><strong>Canlı gelişim modeli</strong><small>Akış kalınlığı ve ışık, yakın tarihli katılımına göre değişir.</small></span></div>
+        <div className="progress-heading"><strong>{xp.toLocaleString('tr-TR')} XH</strong><span>{nextLevel ? `${Math.round(progress)}% · ${nextLevel.name} için ${nextLevel.xp - xp} XH` : 'Yolculuğun en geniş ufku'}</span></div>
+        <div className="core-progress" role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100} aria-label="Sonraki seviyeye ilerleme"><span style={{ width: `${progress}%` }} /></div>
+        <div className="level-rail" aria-label="On seviyelik gelişim yolculuğu">{LEVELS.map((item, itemIndex) => <i key={item.name} className={`${itemIndex < index ? 'is-complete' : ''} ${itemIndex === index ? 'is-current' : ''}`} title={`${itemIndex + 1}. seviye: ${item.name}`} />)}</div>
+        <div className="level-rail-caption" aria-hidden="true"><span>Tohum</span><span>10 aşamalı yolculuk</span><span>Evren</span></div>
+        <div className="growth-next"><span>{nextLevel?.icon ?? LEVELS[index].icon}</span><p><strong>{nextLevel ? 'Sıradaki gelişim sahnesi' : 'Gelişim sahnen tamamlandı'}</strong><small>{nextLevel ? `${nextLevel.name} · ${nextLevel.xp - xp} XH kaldı` : 'Evrenin bütün katmanları görünür'}</small></p></div>
+      </div>
+
+      <div className="growth-illustration" aria-label={`${level.name} seviyesinde, son yedi günün faaliyetleriyle beslenen gelişim diyagramı`}>
+        <div className="diagram-period"><i aria-hidden="true" /><span>SON 7 GÜN</span><small>Etkinlik akışı</small></div>
+        <div className={`growth-diagram ${pulse ? 'is-responding' : ''}`}>
+          <svg className="growth-flow-layer" viewBox="0 0 760 480" aria-hidden="true">
+            <defs>
+              <filter id={`${uid}-flow-glow`} x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            </defs>
+            {inputs.map((input) => <FlowPath key={input.id} input={input} uid={uid} pulse={pulse} />)}
+            <circle className="ambient-orbit" cx="380" cy="244" r="151" style={{ opacity: 0.1 + mescidimIntensity * 0.42 }} />
+            <circle className="ambient-orbit orbit-two" cx="380" cy="244" r="164" style={{ opacity: 0.06 + mescidimIntensity * 0.26 }} />
+          </svg>
+
+          <motion.div
+            className="growth-scene-frame"
+            key={index}
+            initial={reducedMotion ? false : { opacity: 0.28, scale: 0.97, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: reducedMotion ? 0 : 0.65, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <TreeScene index={index} uid={uid} progress={progress} pulse={pulse} mescidimIntensity={mescidimIntensity} />
+          </motion.div>
+
+          {inputs.map((input) => (
+            <button
+              key={input.id}
+              className={`growth-input input-${input.id} status-${input.status}`}
+              style={{ '--input-accent': input.accent, '--input-intensity': input.intensity } as InputStyle}
+              onClick={() => onNavigate(input.target, { source: 'growth-diagram', accent: input.accent, icon: input.icon, label: input.accessibleLabel })}
+              aria-label={`${input.accessibleLabel} bölümüne git. Son 7 günde ${input.count} hareket. ${input.metaphor}`}
+            >
+              <span className="growth-input-icon"><AppIcon name={input.icon} /></span>
+              <span className="growth-input-copy"><strong>{input.label}</strong><small>{input.count ? `${input.count} hareket · ${input.status}` : 'Bu hafta sessiz'}</small></span>
+              <span className="growth-input-arrow"><AppIcon name="arrow-up-right" /></span>
+              <span className="growth-input-tooltip" role="tooltip">{input.metaphor}</span>
+            </button>
+          ))}
+
+          <div className="growth-output" aria-label={`Toplam ${xp} deneyim puanı`}>
+            <span><AppIcon name="arrow-up" /></span><p><strong>{pulse ? `+${pulse.amount} XH` : 'XH'}</strong><small>Gelişim çıktısı</small></p>
+          </div>
+        </div>
+        <p className="diagram-caption"><AppIcon name="info-circle" /> Bir alan seçerek doğrudan ilerleyebilirsin. Yoğunluk, son 7 günün gerçek kayıtlarını gösterir.</p>
+      </div>
+    </section>
+  )
+}
+
+function FlowPath({ input, uid, pulse }: { input: GrowthInput; uid: string; pulse: Pulse | null }) {
+  const pathId = `${uid}-${input.id}-flow`
+  const particles = Math.max(1, Math.round(input.intensity * 3))
+  const isPulseSource = pulse?.source === input.id
+  return <g className={`diagram-flow flow-${input.id} ${isPulseSource ? 'is-live-pulse' : ''}`} style={{ color: input.accent }}>
+    <path id={pathId} d={input.path} className="flow-guide" style={{ opacity: 0.1 + input.intensity * 0.58, strokeWidth: 1.2 + input.intensity * 3.4 }} />
+    <path d={input.path} className="flow-dashes" style={{ opacity: 0.18 + input.intensity * 0.66, strokeWidth: 1 + input.intensity * 1.3 }} />
+    {Array.from({ length: particles }, (_, index) => <circle key={index} className="flow-particle" r={1.8 + input.intensity * 1.5} fill="currentColor" opacity={0.34 + input.intensity * 0.58} filter={`url(#${uid}-flow-glow)`}>
+      <animateMotion dur={`${5.4 - input.intensity * 2.2}s`} begin={`${index * -1.2}s`} repeatCount="indefinite"><mpath href={`#${pathId}`} /></animateMotion>
+    </circle>)}
+    {isPulseSource && <circle key={pulse.nonce} className="event-flow-pulse" r="7" fill="currentColor" filter={`url(#${uid}-flow-glow)`}>
+      <animateMotion dur=".9s" fill="freeze"><mpath href={`#${pathId}`} /></animateMotion>
+    </circle>}
+  </g>
+}
+
+function TreeScene({ index, uid, progress, pulse, mescidimIntensity }: { index: number; uid: string; progress: number; pulse: Pulse | null; mescidimIntensity: number }) {
+  const motes = Array.from({ length: Math.min(16, 3 + index + Math.round(mescidimIntensity * 5)) }, (_, item) => ({ x: 32 + ((item * 71) % 372), y: 48 + ((item * 43) % 210), delay: item * -0.31 }))
+  return <svg viewBox="0 0 440 360" role="img" aria-label={`${LEVELS[index].name} seviyesinde kökleri görünen katmanlı gelişim ağacı`}>
+    <defs>
+      <linearGradient id={`${uid}-sky`} x1="0" y1="0" x2="0" y2="1"><stop stopColor={index >= 8 ? '#191b49' : index >= 6 ? '#4b4aa1' : '#a9d4ea'}/><stop offset=".55" stopColor={index >= 8 ? '#57428b' : index >= 6 ? '#7766bd' : '#dce8e8'}/><stop offset="1" stopColor={index >= 8 ? '#dfa47d' : '#f1d9a7'}/></linearGradient>
+      <linearGradient id={`${uid}-hill-back`} x1="0" y1="0" x2="1" y2="1"><stop stopColor={index >= 7 ? '#514d88' : '#7db29f'}/><stop offset="1" stopColor={index >= 7 ? '#635b9e' : '#568c7a'}/></linearGradient>
+      <linearGradient id={`${uid}-hill-front`} x1="0" y1="0" x2="1" y2="1"><stop stopColor={index >= 7 ? '#1d5961' : '#3c9470'}/><stop offset="1" stopColor={index >= 7 ? '#123b4b' : '#17654e'}/></linearGradient>
+      <linearGradient id={`${uid}-soil`} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#7e5b42"/><stop offset="1" stopColor="#372a2c"/></linearGradient>
+      <linearGradient id={`${uid}-trunk`} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#513526"/><stop offset=".46" stopColor="#94633e"/><stop offset=".72" stopColor="#bd8050"/><stop offset="1" stopColor="#3d281f"/></linearGradient>
+      <linearGradient id={`${uid}-trunk-light`} x1="0" y1="0" x2="1" y2="0"><stop stopColor="#f1c785" stopOpacity=".55"/><stop offset=".55" stopColor="#d99258" stopOpacity=".1"/><stop offset="1" stopColor="#291817" stopOpacity=".38"/></linearGradient>
+      <linearGradient id={`${uid}-leaf`} x1="0" y1="0" x2="1" y2="1"><stop stopColor={index >= 7 ? '#b7e47c' : '#65d28c'}/><stop offset=".5" stopColor={index >= 7 ? '#4fbe78' : '#259e68'}/><stop offset="1" stopColor="#075f4a"/></linearGradient>
+      <radialGradient id={`${uid}-sun`}><stop stopColor="#fff8c8"/><stop offset=".28" stopColor="#f7c95e" stopOpacity=".8"/><stop offset="1" stopColor="#f59e0b" stopOpacity="0"/></radialGradient>
+      <filter id={`${uid}-shadow`} x="-40%" y="-40%" width="180%" height="210%"><feDropShadow dx="0" dy="8" stdDeviation="7" floodColor="#071d25" floodOpacity=".3"/></filter>
+      <filter id={`${uid}-tree-glow`} x="-60%" y="-60%" width="220%" height="240%"><feGaussianBlur stdDeviation="9"/></filter>
+      <clipPath id={`${uid}-scene-clip`}><rect width="440" height="360" rx="30"/></clipPath>
+    </defs>
+    <g clipPath={`url(#${uid}-scene-clip)`}>
+      <rect width="440" height="360" rx="30" fill={`url(#${uid}-sky)`}/>
+      <circle cx="352" cy="72" r="55" fill={`url(#${uid}-sun)`} opacity={0.5 + index * 0.03}/>
+      <g className="scene-clouds" fill="#fff" opacity={index >= 7 ? .16 : .45}><path d="M25 111c7-15 27-17 37-4 8-11 27-7 30 7 11 0 19 7 20 17H18c0-9 2-15 7-20Z"/><path d="M320 139c6-12 22-14 30-3 7-9 23-5 25 7 9 0 16 6 17 14h-78c0-7 2-13 6-18Z"/></g>
+      {index >= 5 && <path d="M-10 245L72 139l74 96 79-75 74 72 68-111 94 120v64H-10Z" fill="#6e7697" opacity=".36"/>}
+      <path d="M-18 246C52 196 105 191 170 225C230 257 276 188 342 205C391 218 420 199 466 176V336H-18Z" fill={`url(#${uid}-hill-back)`} opacity=".82"/>
+      <path d="M-10 284C58 239 124 247 181 272C250 302 310 231 381 245C416 252 443 240 466 225V344H-10Z" fill={`url(#${uid}-hill-front)`}/>
+      <path d="M-10 302C94 278 145 315 240 295C327 276 368 310 460 285V360H-10Z" fill="#164d45" opacity=".62"/>
+      <path d="M0 311C99 295 161 324 232 310C302 296 359 318 440 303V360H0Z" fill={`url(#${uid}-soil)`} opacity=".88"/>
+      <ellipse cx="228" cy="303" rx={index < 2 ? 38 : 107} ry="18" fill="#081d26" opacity=".26" filter={`url(#${uid}-tree-glow)`}/>
+      <RootSystem index={index} uid={uid}/>
+      <g className={pulse ? 'tree-response-pulse' : ''}><GrowthSubject index={index} uid={uid}/></g>
+      <GroundLife index={index}/>
+      {motes.map((mote, item) => <circle key={item} className="scene-mote" cx={mote.x} cy={mote.y} r={item % 4 === 0 ? 2.2 : 1.3} fill={item % 3 === 0 ? '#fce69b' : '#d6f8df'} style={{ animationDelay: `${mote.delay}s`, opacity: 0.18 + mescidimIntensity * 0.58 }}/>) }
+      {index >= 8 && <g className="cosmic-orbit" fill="none" stroke="#eee1a5" opacity=".55"><ellipse cx="228" cy="176" rx="152" ry="75" transform="rotate(-13 228 176)" strokeDasharray="7 11"/><ellipse cx="228" cy="176" rx="126" ry="143" transform="rotate(56 228 176)" opacity=".4"/></g>}
+    </g>
+    <g className="tree-output-stream" aria-hidden="true">
+      <path d="M230 148 C 238 111, 264 92, 280 54" fill="none" stroke="#f7dea0" strokeWidth="2" strokeDasharray="4 7" opacity=".55"/>
+      {[0, 1, 2].map((item) => <circle key={item} r="2.5" fill="#fff2b5"><animateMotion dur={`${3.4 + item * .45}s`} begin={`${item * -.9}s`} repeatCount="indefinite" path="M230 148 C 238 111, 264 92, 280 54"/></circle>)}
+    </g>
+    <g className="growth-ring" transform="translate(228 276)" opacity={0.28 + progress / 250}><circle r="28"/><circle r="39"/><circle r="50"/></g>
+  </svg>
+}
+
+function RootSystem({ index, uid }: { index: number; uid: string }) {
+  const width = index < 2 ? 2.8 : 4 + index * 0.25
+  return <g className="root-system" fill="none" stroke={`url(#${uid}-trunk)`} strokeWidth={width} strokeLinecap="round" opacity={0.6 + index * 0.03}>
+    <path d="M228 294C207 308 184 323 154 343"/><path d="M229 295C250 309 279 325 310 344"/><path d="M226 297C216 318 212 337 212 355"/><path d="M233 298C244 318 248 339 248 357"/>
+    {index >= 3 && <><path d="M191 319c-18 2-31 8-43 18"/><path d="M274 322c20 2 34 9 48 19"/></>}
+  </g>
 }
 
 function GrowthSubject({ index, uid }: { index: number; uid: string }) {
-  if (index === 0) return <g className="seed-stage" filter={`url(#${uid}-shadow)`}><path d="M176 294c19-19 75-24 108 0-27 20-82 20-108 0Z" fill="#704a35"/><ellipse cx="228" cy="283" rx="12" ry="8" fill="#c18a55" transform="rotate(-20 228 283)"/><path d="M228 278c-1-14 4-24 12-31" stroke="#2b9b63" strokeWidth="4" strokeLinecap="round"/><path d="M239 247c8-5 15-3 18 4-8 5-15 4-18-4Z" fill="#6ee7a2"/></g>
-  if (index === 1) return <g className="sprout-stage" filter={`url(#${uid}-shadow)`}><path d="M190 296c20-16 66-17 86 0-20 13-67 14-86 0Z" fill="#704a35"/><path d="M229 289c-2-29 0-55 4-75" stroke="#258b58" strokeWidth="8" strokeLinecap="round"/><path d="M231 248c-23-18-43-12-46 5 19 12 35 10 46-5Z" fill="#55d98a"/><path d="M232 231c16-19 35-16 41-2-13 15-29 16-41 2Z" fill="#35bb70"/></g>
-  if (index === 2) return <g className="tree-stage fidan-stage" filter={`url(#${uid}-shadow)`}>
-    <g className="fidan-roots" fill="none" stroke={`url(#${uid}-trunk)`} strokeLinecap="round"><path d="M228 294c-16 4-29 9-41 17"/><path d="M231 294c17 3 31 8 44 16"/><path d="M226 292c-7 8-11 15-13 23"/></g>
-    <path className="fidan-trunk" d="M224 297C219 272 226 251 222 229C218 208 225 190 235 171C234 191 241 208 236 229C231 251 239 274 235 298Z" fill={`url(#${uid}-trunk)`}/>
-    <path d="M228 291c-1-26 4-43 1-63-2-16 1-31 6-43" fill="none" stroke={`url(#${uid}-trunk-light)`} strokeWidth="4" strokeLinecap="round" opacity=".8"/>
-    <g className="bark-marks" fill="none" stroke="#4a281f" strokeWidth="1.6" strokeLinecap="round" opacity=".42"><path d="M224 270q6 4 12 0"/><path d="M225 247q5 3 11-1"/><path d="M225 221q5 4 11 0"/></g>
-    <g className="fidan-branches" fill="none" stroke={`url(#${uid}-trunk)`} strokeLinecap="round" strokeLinejoin="round"><path d="M228 254C210 242 197 230 188 213"/><path d="M232 237c18-12 32-27 40-44"/><path d="M226 222c-10-13-15-28-14-43"/><path d="M234 213c10-11 17-23 20-36"/><path d="M219 238c-13-4-25-11-35-21"/></g>
-    <g className="fidan-leaves">
-      <path d="M161 201c-3-20 15-34 33-27 6-17 29-19 38-4 4 18-5 32-22 40-17 8-35 5-49-9Z" fill="#2fbf73"/>
-      <path d="M247 187c1-20 21-31 37-20 11-11 32-5 34 11-5 18-18 28-38 29-17 1-28-6-33-20Z" fill="#35ca7a"/>
-      <path d="M190 166c0-17 17-27 32-20 8-17 32-17 40-1 2 19-10 32-27 37-18 4-35-1-45-16Z" fill="#57d98b"/>
-      <path d="M171 224c-3-13 10-23 22-18 7-8 21-4 23 7-4 13-15 20-29 20-8-1-13-4-16-9Z" fill="#199f62"/>
-      <path d="M264 218c2-13 17-19 27-10 10-5 22 3 21 14-8 11-20 15-34 10-7-2-11-7-14-14Z" fill="#148b58"/>
-      <g className="fidan-highlights" fill="none" stroke="#c8f8ae" strokeWidth="4" strokeLinecap="round" opacity=".38"><path d="M173 193c14-6 28-6 41 0"/><path d="M262 179c12 2 22 7 30 16"/><path d="M207 158c13 2 24 8 31 18"/></g>
+  if (index === 0) return <g className="seed-stage" filter={`url(#${uid}-shadow)`}><path d="M176 298c19-19 75-24 108 0-27 20-82 20-108 0Z" fill="#704a35"/><ellipse cx="228" cy="284" rx="12" ry="8" fill="#c18a55" transform="rotate(-20 228 284)"/><path d="M228 280c-1-14 4-24 12-31" stroke="#2b9b63" strokeWidth="4" strokeLinecap="round"/><path d="M239 249c8-5 15-3 18 4-8 5-15 4-18-4Z" fill="#6ee7a2"/></g>
+  if (index === 1) return <g className="sprout-stage" filter={`url(#${uid}-shadow)`}><path d="M190 300c20-16 66-17 86 0-20 13-67 14-86 0Z" fill="#704a35"/><path d="M229 293c-2-29 0-55 4-75" stroke="#258b58" strokeWidth="8" strokeLinecap="round"/><path d="M231 252c-23-18-43-12-46 5 19 12 35 10 46-5Z" fill="#55d98a"/><path d="M232 235c16-19 35-16 41-2-13 15-29 16-41 2Z" fill="#35bb70"/></g>
+  const treeScale = index === 2 ? 0.62 : 0.72 + index * .045
+  return <g className={`tree-stage tree-tier-${index + 1}`} transform={`translate(${228 - 228 * treeScale} ${302 - 302 * treeScale}) scale(${treeScale})`} filter={`url(#${uid}-shadow)`}>
+    <path d="M226 302C217 268 222 235 216 206C211 178 222 147 228 120C240 155 245 181 239 208C232 241 242 274 238 302Z" fill={`url(#${uid}-trunk)`}/>
+    <path d="M230 295c-3-33 3-59-1-86-3-24 1-47 3-70" fill="none" stroke={`url(#${uid}-trunk-light)`} strokeWidth="6" strokeLinecap="round" opacity=".75"/>
+    <g className="bark-texture" fill="none" stroke="#3b241d" strokeLinecap="round" opacity=".42"><path d="M222 274q8 5 17 0"/><path d="M221 247q9 5 19-1"/><path d="M221 221q8 4 18-1"/></g>
+    <path d="M226 236C204 211 183 191 157 177M235 224c25-25 46-48 75-62M222 200c-9-27-20-46-38-61M237 188c22-27 36-48 43-69" fill="none" stroke={`url(#${uid}-trunk)`} strokeWidth={index >= 5 ? 13 : 10} strokeLinecap="round"/>
+    {index >= 3 && <path d="M218 168c-30-19-52-45-61-72M239 157c31-18 55-39 71-66" fill="none" stroke={`url(#${uid}-trunk)`} strokeWidth="8" strokeLinecap="round"/>}
+    <g className="tree-crown">
+      <path d="M111 176c-9-29 18-54 48-45 4-31 39-48 63-27 19-31 64-26 73 9 36-7 60 31 38 56 27 25 2 65-30 59-13 30-50 35-72 12-22 24-62 17-70-15-31 10-61-18-50-49Z" fill={`url(#${uid}-leaf)`}/>
+      <path d="M122 182c17-9 35-11 52-6M178 128c14 7 27 18 36 33M253 116c-10 14-17 30-18 49M285 169c-15 5-29 15-40 27" fill="none" stroke="#cef3b2" strokeWidth="7" opacity=".25" strokeLinecap="round"/>
+      {index >= 4 && <><path d="M94 155c-10-23 11-44 34-38 2-24 31-35 48-18 6 23-3 41-24 51-18 9-38 10-58 5Z" fill="#45bd75"/><path d="M304 133c7-22 34-29 50-10 23-4 37 21 24 39-18 8-41 6-60-5-9-6-14-14-14-24Z" fill="#158556"/></>}
+      {index >= 6 && <path d="M160 99c1-28 34-42 54-22 14-29 55-27 65 3 24-5 42 19 30 40-45 24-105 17-149-21Z" fill="#73cf76"/>}
+      {index >= 7 && <g fill="#ffdf70" className="fruit-lights"><circle cx="145" cy="164" r="5"/><circle cx="201" cy="113" r="4"/><circle cx="281" cy="146" r="5"/><circle cx="319" cy="180" r="4"/></g>}
     </g>
-  </g>
-  const treeScale = 0.72 + index * .045
-  return <g className="tree-stage" transform={`translate(${228 - 228 * treeScale} ${300 - 300 * treeScale}) scale(${treeScale})`} filter={`url(#${uid}-shadow)`}>
-    <path d="M226 298C217 264 222 231 216 202C211 174 222 143 228 116C240 151 245 177 239 204C232 237 242 270 238 298Z" fill={`url(#${uid}-trunk)`}/>
-    <path d="M230 291c-3-33 3-59-1-86-3-24 1-47 3-70" fill="none" stroke={`url(#${uid}-trunk-light)`} strokeWidth="6" strokeLinecap="round" opacity=".7"/>
-    <path d="M226 232C204 207 183 187 157 173M235 220c25-25 46-48 75-62M222 196c-9-27-20-46-38-61M237 184c22-27 36-48 43-69" fill="none" stroke={`url(#${uid}-trunk)`} strokeWidth={index >= 5 ? 13 : 10} strokeLinecap="round"/>
-    {index >= 3 && <path d="M218 164c-30-19-52-45-61-72M239 153c31-18 55-39 71-66" fill="none" stroke={`url(#${uid}-trunk)`} strokeWidth="8" strokeLinecap="round"/>}
-    <g className="tree-crown"><path d="M111 172c-9-29 18-54 48-45 4-31 39-48 63-27 19-31 64-26 73 9 36-7 60 31 38 56 27 25 2 65-30 59-13 30-50 35-72 12-22 24-62 17-70-15-31 10-61-18-50-49Z" fill={`url(#${uid}-leaf)`}/><path d="M122 178c17-9 35-11 52-6M178 124c14 7 27 18 36 33M253 112c-10 14-17 30-18 49M285 165c-15 5-29 15-40 27" fill="none" stroke="#c8f8ae" strokeWidth="7" opacity=".25" strokeLinecap="round"/>{index >= 4 && <><path d="M94 151c-10-23 11-44 34-38 2-24 31-35 48-18 6 23-3 41-24 51-18 9-38 10-58 5Z" fill="#45c978"/><path d="M304 129c7-22 34-29 50-10 23-4 37 21 24 39-18 8-41 6-60-5-9-6-14-14-14-24Z" fill="#15945d"/></>}{index >= 6 && <path d="M160 95c1-28 34-42 54-22 14-29 55-27 65 3 24-5 42 19 30 40-45 24-105 17-149-21Z" fill="#78df79"/>}{index >= 7 && <g fill="#ffdf70" className="fruit-lights"><circle cx="145" cy="160" r="5"/><circle cx="201" cy="109" r="4"/><circle cx="281" cy="142" r="5"/><circle cx="319" cy="176" r="4"/></g>}</g>
-    {index >= 8 && <g className="cosmic-ring" fill="none" stroke="#f8e7a1" strokeWidth="2"><ellipse cx="228" cy="160" rx="151" ry="70" transform="rotate(-12 228 160)" strokeDasharray="7 10"/><ellipse cx="228" cy="160" rx="127" ry="139" transform="rotate(58 228 160)" opacity=".38"/></g>}
   </g>
 }
 
 function GroundLife({ index }: { index: number }) {
-  return <g className="ground-life"><g fill="#146b50"><path d="M73 296c-4-25 7-41 16-48 4 20-1 37-16 48Z"/><path d="M91 298c0-23 13-37 25-42-1 20-9 34-25 42Z"/><path d="M345 297c-2-25 10-41 21-47 2 20-5 37-21 47Z"/></g>{index >= 4 && <g className="wildflowers">{[50,77,106,326,354,389].map((x, i) => <g key={x}><path d={`M${x} 310v-15`} stroke="#136044" strokeWidth="2"/><path d={`M${x - 5} 297q5-7 10 0q-5 7-10 0Z`} fill={i % 2 ? '#f9a8d4' : '#fde68a'}/></g>)}</g>}{index >= 5 && <g className="forest-companions" fill="#185d49"><path d="M125 297l18-51 19 51Z"/><rect x="140" y="288" width="6" height="18" rx="3"/><path d="M294 297l17-47 18 47Z"/><rect x="308" y="289" width="6" height="17" rx="3"/></g>}</g>
+  if (index < 3) return null
+  return <g className="ground-life"><g fill="#135d49"><path d="M73 304c-4-25 7-41 16-48 4 20-1 37-16 48Z"/><path d="M91 306c0-23 13-37 25-42-1 20-9 34-25 42Z"/><path d="M345 305c-2-25 10-41 21-47 2 20-5 37-21 47Z"/></g>{index >= 4 && <g className="wildflowers">{[50,77,106,326,354,389].map((x, item) => <g key={x}><path d={`M${x} 318v-15`} stroke="#0f553e" strokeWidth="2"/><path d={`M${x - 5} 305q5-7 10 0q-5 7-10 0Z`} fill={item % 2 ? '#f9a8d4' : '#fde68a'}/></g>)}</g>}{index >= 5 && <g className="forest-companions" fill="#174d3e"><path d="M125 305l18-51 19 51Z"/><rect x="140" y="296" width="6" height="18" rx="3"/><path d="M294 305l17-47 18 47Z"/><rect x="308" y="297" width="6" height="17" rx="3"/></g>}</g>
 }
 
-function StageDetails({ index }: { index: number }) {
-  return <g className={`stage-details stage-${index + 1}`} aria-hidden="true">
-    {index <= 2 && <g className="foreground-details"><path d="M103 306l7-19 7 19M330 307l5-14 6 14" fill="none" stroke="#145f48" strokeWidth="3" strokeLinecap="round"/><ellipse cx="150" cy="305" rx="10" ry="5" fill="#54746d" opacity=".55"/><ellipse cx="302" cy="310" rx="7" ry="4" fill="#355d57" opacity=".48"/></g>}
-    {index === 1 && <g className="dew-drops" fill="#dff9ff" opacity=".86"><circle cx="185" cy="249" r="3"/><circle cx="270" cy="226" r="2.5"/></g>}
-    {index === 2 && <g className="fidan-fireflies" fill="#fff0a8"><circle cx="150" cy="239" r="2"/><circle cx="301" cy="250" r="2.4"/><circle cx="326" cy="215" r="1.6"/></g>}
-    {index >= 3 && <g className="path-stones" fill="#d6c7a3" opacity=".72"><ellipse cx="173" cy="313" rx="13" ry="4"/><ellipse cx="202" cy="320" rx="9" ry="3"/><ellipse cx="264" cy="320" rx="11" ry="3.5"/><ellipse cx="289" cy="313" rx="7" ry="3"/></g>}
-    {index >= 5 && <g className="distant-lanterns" fill="#ffe9a6"><circle cx="89" cy="260" r="3"/><circle cx="371" cy="250" r="3"/><path d="M89 264v24M371 254v29" stroke="#35564f" strokeWidth="3"/></g>}
-    {index >= 6 && <g className="night-stars" fill="#fff9d6"><circle cx="176" cy="52" r="2"/><circle cx="220" cy="82" r="1.5"/><circle cx="268" cy="43" r="2.5"/><circle cx="395" cy="104" r="1.5"/></g>}
-  </g>
-}
-
-const levelCopy = ['Başlangıç görünmez olabilir; yine de kök salmaya başladı.','İlk filiz, tekrar etmeye değer küçük bir niyeti temsil ediyor.','Fidanın gövdesi güçleniyor; alışkanlıkların biçim kazanıyor.','Ağaç artık kendi gölgesini kuruyor; ritmin belirginleşiyor.','Tek bir ağaç çevresine hayat çağırıyor; istikrarın yayılıyor.','Dağ silueti beliriyor; uzun soluklu emeğin ufku genişliyor.','Yıldızlar sahneye katılıyor; sürekliliğin yeni işaretler bırakıyor.','Güneş doğuyor; kökle gökyüzü aynı hikâyede buluşuyor.','Galaksi halkaları açılıyor; farklı alanlardaki emeklerin birleşiyor.','Evren tamamlandı; sahnen, uzun yolculuğunun yaşayan bir haritası.']
+const levelCopy = [
+  'Başlangıç görünmez olabilir; yine de kök salmaya başladı.',
+  'İlk filiz, tekrar etmeye değer küçük bir niyeti temsil ediyor.',
+  'Fidanın gövdesi güçleniyor; alışkanlıkların biçim kazanıyor.',
+  'Ağaç artık kendi gölgesini kuruyor; ritmin belirginleşiyor.',
+  'Tek bir ağaç çevresine hayat çağırıyor; istikrarın yayılıyor.',
+  'Dağ silueti beliriyor; uzun soluklu emeğin ufku genişliyor.',
+  'Yıldızlar sahneye katılıyor; sürekliliğin yeni işaretler bırakıyor.',
+  'Güneş doğuyor; kökle gökyüzü aynı hikâyede buluşuyor.',
+  'Galaksi halkaları açılıyor; farklı alanlardaki emeklerin birleşiyor.',
+  'Evren tamamlandı; sahnen, uzun yolculuğunun yaşayan bir haritası.',
+]
