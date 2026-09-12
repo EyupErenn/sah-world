@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useState } from "react";
 import { AppIcon } from "@/components/ui/AppIcon";
 import SectionTagline from "./SectionTagline";
@@ -52,6 +53,7 @@ export default function JournalHubView({
   onNavigate: (view: string) => void;
 }) {
   const [tab, setTab] = useState<JournalHubTab>(initialTab);
+  const reducedMotion = useReducedMotion();
 
   return (
     <div className="view-stack journal-hub">
@@ -90,13 +92,20 @@ export default function JournalHubView({
           </button>
         ))}
       </nav>
-      <section
-        className="journal-tab-panel"
-        role="tabpanel"
-        aria-label={tabs.find((item) => item.id === tab)?.label}
-      >
-        <SectionView section={tab} onNavigate={onNavigate} embedded />
-      </section>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.section
+          key={tab}
+          className="journal-tab-panel"
+          role="tabpanel"
+          aria-label={tabs.find((item) => item.id === tab)?.label}
+          initial={reducedMotion ? false : { opacity: 0, y: 7 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: -4 }}
+          transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <SectionView section={tab} onNavigate={onNavigate} embedded />
+        </motion.section>
+      </AnimatePresence>
     </div>
   );
 }

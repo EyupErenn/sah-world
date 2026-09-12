@@ -38,10 +38,51 @@ export function useActivityLog(fromDate?: string, toDate?: string) {
   useEffect(() => {
     const initial = window.setTimeout(() => void load(), 0)
     const refresh = () => void load()
+    const poll = window.setInterval(refresh, 60_000)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
     window.addEventListener('sah:activity-changed', refresh)
+    document.addEventListener('visibilitychange', onVisibility)
     return () => {
       window.clearTimeout(initial)
+      window.clearInterval(poll)
       window.removeEventListener('sah:activity-changed', refresh)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [load])
+
+  useEffect(() => {
+    let cancelled = false
+    let refreshTimer: number | null = null
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    const scheduleRefresh = () => {
+      if (refreshTimer) window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => void load(), 220)
+    }
+
+    void supabase.auth.getUser().then(({ data }) => {
+      const userId = data.user?.id
+      if (cancelled || !userId) return
+      const filter = `user_id=eq.${userId}`
+      channel = supabase
+        .channel(`activity-log-${userId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'journal_entries', filter }, scheduleRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'quran_notes', filter }, scheduleRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'hadis_notes', filter }, scheduleRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'eisenhower_tasks', filter }, scheduleRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'lesson_entries', filter }, scheduleRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'sukur_entries', filter }, scheduleRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'focus_sessions', filter }, scheduleRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'journal_spiritual_links', filter }, scheduleRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'user_lesson_progress', filter }, scheduleRefresh)
+        .subscribe()
+    })
+
+    return () => {
+      cancelled = true
+      if (refreshTimer) window.clearTimeout(refreshTimer)
+      if (channel) void supabase.removeChannel(channel)
     }
   }, [load])
 

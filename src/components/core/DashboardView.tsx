@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import GrowthTree from './GrowthTree'
+import GrowthTree, { type GrowthNavigationCue } from './GrowthTree'
 import PurposeEquation from './PurposeEquation'
 import { AppIcon } from '@/components/ui/AppIcon'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
@@ -21,7 +21,7 @@ const quickActions = [
   { id: 'mescidim', icon: 'building-mosque', title: 'Mescidim', note: 'Kısa bir farkındalık molası' },
 ]
 
-export default function DashboardView({ onNavigate }: { onNavigate: (view: string) => void }) {
+export default function DashboardView({ onNavigate }: { onNavigate: (view: string, cue?: GrowthNavigationCue) => void }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [introVisible, setIntroVisible] = useState(true)
   const store = useJourneyStore()
@@ -104,7 +104,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
 
       <div className="dashboard-hero-grid">
         <div className="dashboard-growth-stack">
-          <GrowthTree xp={store.xp} trigger={store.xpOrbTrigger} lastAmount={store.lastXPAmount} />
+          <GrowthTree xp={store.xp} trigger={store.xpOrbTrigger} lastAmount={store.lastXPAmount} events={events} onNavigate={onNavigate} />
           <PurposeEquation />
         </div>
 
