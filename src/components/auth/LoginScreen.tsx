@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { getGoogleAuthAvailability, supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/store/useAuthStore";
-import PurposeEquation from "@/components/core/PurposeEquation";
 import CardioidMotif from "./CardioidMotif";
 
 type Step = "email" | "otp";
@@ -196,7 +195,6 @@ export default function LoginScreen() {
           </p>
         </div>
         <CardioidMotif />
-        <PurposeEquation compact />
         <ul className="login-trust-list" aria-label="Platform özellikleri">
           <li>
             <span>✓</span> Yedi sade yaşam alanı

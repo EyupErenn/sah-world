@@ -103,15 +103,21 @@ export default function GrowthTree({ xp, trigger, lastAmount, events, onNavigate
       </div>
 
       <div className="growth-illustration" aria-label={`${level.name} seviyesinde, son yedi günün faaliyetleriyle beslenen gelişim diyagramı`}>
-        <div className="diagram-period"><i aria-hidden="true" /><span>SON 7 GÜN</span><small>Etkinlik akışı</small></div>
+        <div className="diagram-period">
+          <i aria-hidden="true" />
+          <span>SON 7 GÜN</span>
+          <button type="button" onClick={() => onNavigate('reports')}>
+            Etkinlik akışını aç <AppIcon name="arrow-right" />
+          </button>
+        </div>
         <div className={`growth-diagram ${pulse ? 'is-responding' : ''}`}>
-          <svg className="growth-flow-layer" viewBox="0 0 760 480" aria-hidden="true">
+          <svg className="growth-flow-layer" viewBox="0 0 820 600" aria-hidden="true">
             <defs>
               <filter id={`${uid}-flow-glow`} x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
             </defs>
             {inputs.map((input) => <FlowPath key={input.id} input={input} uid={uid} pulse={pulse} />)}
-            <circle className="ambient-orbit" cx="380" cy="244" r="151" style={{ opacity: 0.1 + mescidimIntensity * 0.42 }} />
-            <circle className="ambient-orbit orbit-two" cx="380" cy="244" r="164" style={{ opacity: 0.06 + mescidimIntensity * 0.26 }} />
+            <circle className="ambient-orbit" cx="410" cy="292" r="164" style={{ opacity: 0.2 + mescidimIntensity * 0.45 }} />
+            <circle className="ambient-orbit orbit-two" cx="410" cy="292" r="180" style={{ opacity: 0.14 + mescidimIntensity * 0.3 }} />
           </svg>
 
           <motion.div
@@ -122,6 +128,9 @@ export default function GrowthTree({ xp, trigger, lastAmount, events, onNavigate
             transition={{ duration: reducedMotion ? 0 : 0.65, ease: [0.16, 1, 0.3, 1] }}
           >
             <TreeScene index={index} uid={uid} progress={progress} pulse={pulse} mescidimIntensity={mescidimIntensity} />
+            <div className="growth-output" aria-label={`Toplam ${xp} deneyim puanı`}>
+              <span><AppIcon name="arrow-up" /></span><p><strong>{pulse ? `+${pulse.amount} XH` : 'XH'}</strong><small>Gelişim çıktısı</small></p>
+            </div>
           </motion.div>
 
           {inputs.map((input) => (
@@ -138,10 +147,6 @@ export default function GrowthTree({ xp, trigger, lastAmount, events, onNavigate
               <span className="growth-input-tooltip" role="tooltip">{input.metaphor}</span>
             </button>
           ))}
-
-          <div className="growth-output" aria-label={`Toplam ${xp} deneyim puanı`}>
-            <span><AppIcon name="arrow-up" /></span><p><strong>{pulse ? `+${pulse.amount} XH` : 'XH'}</strong><small>Gelişim çıktısı</small></p>
-          </div>
         </div>
         <p className="diagram-caption"><AppIcon name="info-circle" /> Bir alan seçerek doğrudan ilerleyebilirsin. Yoğunluk, son 7 günün gerçek kayıtlarını gösterir.</p>
       </div>
@@ -151,12 +156,12 @@ export default function GrowthTree({ xp, trigger, lastAmount, events, onNavigate
 
 function FlowPath({ input, uid, pulse }: { input: GrowthInput; uid: string; pulse: Pulse | null }) {
   const pathId = `${uid}-${input.id}-flow`
-  const particles = Math.max(1, Math.round(input.intensity * 3))
+  const particles = Math.max(2, Math.round(input.intensity * 4))
   const isPulseSource = pulse?.source === input.id
   return <g className={`diagram-flow flow-${input.id} ${isPulseSource ? 'is-live-pulse' : ''}`} style={{ color: input.accent }}>
-    <path id={pathId} d={input.path} className="flow-guide" style={{ opacity: 0.1 + input.intensity * 0.58, strokeWidth: 1.2 + input.intensity * 3.4 }} />
-    <path d={input.path} className="flow-dashes" style={{ opacity: 0.18 + input.intensity * 0.66, strokeWidth: 1 + input.intensity * 1.3 }} />
-    {Array.from({ length: particles }, (_, index) => <circle key={index} className="flow-particle" r={1.8 + input.intensity * 1.5} fill="currentColor" opacity={0.34 + input.intensity * 0.58} filter={`url(#${uid}-flow-glow)`}>
+    <path id={pathId} d={input.path} className="flow-guide" style={{ opacity: 0.48 + input.intensity * 0.35, strokeWidth: 2.4 + input.intensity * 3.2 }} />
+    <path d={input.path} className="flow-dashes" style={{ opacity: 0.62 + input.intensity * 0.28, strokeWidth: 1.5 + input.intensity * 1.6 }} />
+    {Array.from({ length: particles }, (_, index) => <circle key={index} className="flow-particle" r={2.4 + input.intensity * 1.8} fill="currentColor" opacity={0.68 + input.intensity * 0.28} filter={`url(#${uid}-flow-glow)`}>
       <animateMotion dur={`${5.4 - input.intensity * 2.2}s`} begin={`${index * -1.2}s`} repeatCount="indefinite"><mpath href={`#${pathId}`} /></animateMotion>
     </circle>)}
     {isPulseSource && <circle key={pulse.nonce} className="event-flow-pulse" r="7" fill="currentColor" filter={`url(#${uid}-flow-glow)`}>
@@ -216,7 +221,21 @@ function RootSystem({ index, uid }: { index: number; uid: string }) {
 function GrowthSubject({ index, uid }: { index: number; uid: string }) {
   if (index === 0) return <g className="seed-stage" filter={`url(#${uid}-shadow)`}><path d="M176 298c19-19 75-24 108 0-27 20-82 20-108 0Z" fill="#704a35"/><ellipse cx="228" cy="284" rx="12" ry="8" fill="#c18a55" transform="rotate(-20 228 284)"/><path d="M228 280c-1-14 4-24 12-31" stroke="#2b9b63" strokeWidth="4" strokeLinecap="round"/><path d="M239 249c8-5 15-3 18 4-8 5-15 4-18-4Z" fill="#6ee7a2"/></g>
   if (index === 1) return <g className="sprout-stage" filter={`url(#${uid}-shadow)`}><path d="M190 300c20-16 66-17 86 0-20 13-67 14-86 0Z" fill="#704a35"/><path d="M229 293c-2-29 0-55 4-75" stroke="#258b58" strokeWidth="8" strokeLinecap="round"/><path d="M231 252c-23-18-43-12-46 5 19 12 35 10 46-5Z" fill="#55d98a"/><path d="M232 235c16-19 35-16 41-2-13 15-29 16-41 2Z" fill="#35bb70"/></g>
-  const treeScale = index === 2 ? 0.62 : 0.72 + index * .045
+  if (index === 2) return <g className="fidan-stage" filter={`url(#${uid}-shadow)`}>
+    <path d="M228 305C218 278 223 249 220 222C217 194 222 159 230 121C242 160 244 192 239 222C234 252 243 280 237 305Z" fill={`url(#${uid}-trunk)`}/>
+    <path d="M230 290c0-32 4-59 1-86-2-22 1-43 3-62" fill="none" stroke={`url(#${uid}-trunk-light)`} strokeWidth="6" strokeLinecap="round" opacity=".72"/>
+    <g className="fidan-branches" fill="none" stroke={`url(#${uid}-trunk)`} strokeLinecap="round">
+      <path d="M226 238c-20-22-37-35-58-43M237 222c18-22 35-38 57-48M225 202c-13-19-24-31-39-40M238 190c15-21 28-35 44-47"/>
+    </g>
+    <g className="fidan-leaves">
+      <path d="M116 183c-4-24 18-41 41-34 8-25 37-31 54-12 16-13 43-4 45 18 17 12 12 39-7 47-32 18-99 13-133-19Z" fill={`url(#${uid}-leaf)`}/>
+      <path d="M224 146c3-25 29-39 51-27 13-21 46-18 55 7 24-2 37 25 22 44-25 20-92 24-122 5-10-7-12-18-6-29Z" fill="#32a96d"/>
+      <path d="M151 221c-5-19 12-34 31-29 10-18 36-18 47 0 18-3 31 15 24 31-22 17-77 18-102-2Z" fill="#56c982"/>
+      <path d="M249 213c-2-19 17-32 34-24 12-16 37-11 42 9 17 3 23 24 11 36-28 13-67 6-87-21Z" fill="#16865a"/>
+      <path d="M137 175c22-8 46-8 67 1M253 150c21-5 43-3 61 7M174 207c16-4 33-2 46 5" fill="none" stroke="#c7f2ae" strokeWidth="6" strokeLinecap="round" opacity=".22"/>
+    </g>
+  </g>
+  const treeScale = 0.84 + (index - 3) * .035
   return <g className={`tree-stage tree-tier-${index + 1}`} transform={`translate(${228 - 228 * treeScale} ${302 - 302 * treeScale}) scale(${treeScale})`} filter={`url(#${uid}-shadow)`}>
     <path d="M226 302C217 268 222 235 216 206C211 178 222 147 228 120C240 155 245 181 239 208C232 241 242 274 238 302Z" fill={`url(#${uid}-trunk)`}/>
     <path d="M230 295c-3-33 3-59-1-86-3-24 1-47 3-70" fill="none" stroke={`url(#${uid}-trunk-light)`} strokeWidth="6" strokeLinecap="round" opacity=".75"/>

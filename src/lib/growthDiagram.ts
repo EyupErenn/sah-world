@@ -39,7 +39,7 @@ const INPUT_DEFINITIONS: GrowthInputDefinition[] = [
     accent: '#e8b949',
     metaphor: 'Kur’an’la kurulan bağ, köklere ulaşan bir su gibi iç dünyayı besler.',
     categories: ['quran', 'hadis'],
-    path: 'M 92 86 C 184 86, 214 142, 315 222',
+    path: 'M 160 112 C 242 118, 270 176, 322 224',
   },
   {
     id: 'focus',
@@ -50,7 +50,7 @@ const INPUT_DEFINITIONS: GrowthInputDefinition[] = [
     accent: '#8ea5ff',
     metaphor: 'Odaklanmış dikkat, büyümeye yön veren ışık gibidir.',
     categories: ['focus'],
-    path: 'M 666 86 C 575 91, 536 137, 438 188',
+    path: 'M 660 112 C 578 118, 548 176, 498 224',
   },
   {
     id: 'sukur',
@@ -61,7 +61,7 @@ const INPUT_DEFINITIONS: GrowthInputDefinition[] = [
     accent: '#f5b94f',
     metaphor: 'Fark edilen nimetler, gelişim sahnesine sıcaklık ve canlılık katar.',
     categories: ['sukur'],
-    path: 'M 72 232 C 168 229, 226 212, 314 194',
+    path: 'M 160 302 C 221 302, 256 288, 304 274',
   },
   {
     id: 'lessons',
@@ -72,7 +72,7 @@ const INPUT_DEFINITIONS: GrowthInputDefinition[] = [
     accent: '#f17a8e',
     metaphor: 'Şefkatle çıkarılan dersler, budama gibi daha sağlıklı büyümeye alan açar.',
     categories: ['lessons'],
-    path: 'M 684 246 C 581 245, 523 258, 421 267',
+    path: 'M 660 302 C 599 302, 564 288, 516 274',
   },
   {
     id: 'journal',
@@ -83,7 +83,7 @@ const INPUT_DEFINITIONS: GrowthInputDefinition[] = [
     accent: '#b99aff',
     metaphor: 'Kendine dönüp yazmak, görünür gelişimi taşıyan kökleri derinleştirir.',
     categories: ['journal'],
-    path: 'M 150 432 C 233 412, 258 361, 334 323',
+    path: 'M 160 548 C 250 520, 272 448, 330 402',
   },
   {
     id: 'profession',
@@ -94,7 +94,7 @@ const INPUT_DEFINITIONS: GrowthInputDefinition[] = [
     accent: '#9e86ff',
     metaphor: 'Bilgiyle ahlakın birlikteliği, gövdeye dayanıklılık kazandırır.',
     categories: ['profession'],
-    path: 'M 613 428 C 530 397, 492 327, 407 283',
+    path: 'M 660 548 C 570 520, 548 448, 490 402',
   },
   {
     id: 'mescidim',
@@ -105,7 +105,7 @@ const INPUT_DEFINITIONS: GrowthInputDefinition[] = [
     accent: '#68d9ad',
     metaphor: 'Dua, esmâ ve tefekkür; bütün sahneyi saran sakin bir atmosfer kurar.',
     categories: ['mescidim'],
-    path: 'M 252 53 C 308 73, 329 113, 356 158',
+    path: 'M 410 62 C 410 92, 410 112, 410 136',
   },
 ]
 

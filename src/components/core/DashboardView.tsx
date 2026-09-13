@@ -3,7 +3,6 @@
 import { motion } from 'framer-motion'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import GrowthTree, { type GrowthNavigationCue } from './GrowthTree'
-import PurposeEquation from './PurposeEquation'
 import { AppIcon } from '@/components/ui/AppIcon'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -105,7 +104,6 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
       <div className="dashboard-hero-grid">
         <div className="dashboard-growth-stack">
           <GrowthTree xp={store.xp} trigger={store.xpOrbTrigger} lastAmount={store.lastXPAmount} events={events} onNavigate={onNavigate} />
-          <PurposeEquation />
         </div>
 
         <aside className="surface-card today-card" aria-labelledby="today-actions-title">
