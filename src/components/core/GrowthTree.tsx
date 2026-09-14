@@ -48,6 +48,8 @@ export default function GrowthTree({ xp, trigger, lastAmount, events, onNavigate
   const previousTrigger = useRef(trigger)
   const pulseTimer = useRef<number | null>(null)
   const [pulse, setPulse] = useState<Pulse | null>(null)
+  const weeklyMovementCount = inputs.reduce((total, input) => total + input.count, 0)
+  const activeAreaCount = inputs.filter((input) => input.count > 0).length
 
   const activatePulse = (source: GrowthInputKey, amount: number) => {
     if (reducedMotion) return
@@ -89,12 +91,17 @@ export default function GrowthTree({ xp, trigger, lastAmount, events, onNavigate
   const mescidimIntensity = inputs.find((input) => input.id === 'mescidim')?.intensity ?? 0.12
 
   return (
-    <section className="growth-card growth-system" aria-labelledby="growth-title">
+    <section className={`growth-card growth-system growth-level-${index + 1}`} aria-labelledby="growth-title">
       <div className="growth-copy">
-        <span className="eyebrow">GELİŞİM SAHNEN</span>
+        <span className="eyebrow">YAŞAYAN GELİŞİM ALANIN</span>
         <div className="level-heading"><h2 id="growth-title">{level.name}</h2><span>Seviye {index + 1} / 10</span></div>
-        <p>{levelCopy[index]} Son yedi gündeki gerçek hareketlerin, sahneyi besleyen akışlara dönüşür.</p>
-        <div className="growth-model-note"><AppIcon name="activity-heartbeat" /><span><strong>Canlı gelişim modeli</strong><small>Akış kalınlığı ve ışık, yakın tarihli katılımına göre değişir.</small></span></div>
+        <p>{levelCopy[index]} Son yedi gündeki gerçek hareketlerin; toprağı, ışığı ve kökleri besler.</p>
+        <div className="growth-weekly-summary" aria-label={`Bu hafta ${weeklyMovementCount} hareket, ${activeAreaCount} aktif alan`}>
+          <span><strong>{weeklyMovementCount}</strong><small>haftalık hareket</small></span>
+          <i aria-hidden="true" />
+          <span><strong>{activeAreaCount}/7</strong><small>beslenen alan</small></span>
+        </div>
+        <div className="growth-model-note"><AppIcon name="activity-heartbeat" /><span><strong>Gerçek verinle büyüyor</strong><small>Her kayıt, sahnendeki bir yaşam alanını görünür biçimde güçlendirir.</small></span></div>
         <div className="progress-heading"><strong>{xp.toLocaleString('tr-TR')} XH</strong><span>{nextLevel ? `${Math.round(progress)}% · ${nextLevel.name} için ${nextLevel.xp - xp} XH` : 'Yolculuğun en geniş ufku'}</span></div>
         <div className="core-progress" role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100} aria-label="Sonraki seviyeye ilerleme"><span style={{ width: `${progress}%` }} /></div>
         <div className="level-rail" aria-label="On seviyelik gelişim yolculuğu">{LEVELS.map((item, itemIndex) => <i key={item.name} className={`${itemIndex < index ? 'is-complete' : ''} ${itemIndex === index ? 'is-current' : ''}`} title={`${itemIndex + 1}. seviye: ${item.name}`} />)}</div>
@@ -105,7 +112,7 @@ export default function GrowthTree({ xp, trigger, lastAmount, events, onNavigate
       <div className="growth-illustration" aria-label={`${level.name} seviyesinde, son yedi günün faaliyetleriyle beslenen gelişim diyagramı`}>
         <div className="diagram-period">
           <i aria-hidden="true" />
-          <span>SON 7 GÜN</span>
+          <span>SON 7 GÜN · CANLI ETKİNLİK</span>
           <button type="button" onClick={() => onNavigate('reports')}>
             Etkinlik akışını aç <AppIcon name="arrow-right" />
           </button>
@@ -142,13 +149,14 @@ export default function GrowthTree({ xp, trigger, lastAmount, events, onNavigate
               aria-label={`${input.accessibleLabel} bölümüne git. Son 7 günde ${input.count} hareket. ${input.metaphor}`}
             >
               <span className="growth-input-icon"><AppIcon name={input.icon} /></span>
-              <span className="growth-input-copy"><strong>{input.label}</strong><small>{input.count ? `${input.count} hareket · ${input.status}` : 'Bu hafta sessiz'}</small></span>
+              <span className="growth-input-copy"><strong>{input.label}</strong><small>{input.count ? `${input.count} hareket · ${input.status}` : 'Bu hafta henüz kayıt yok'}</small></span>
               <span className="growth-input-arrow"><AppIcon name="arrow-up-right" /></span>
+              <span className="growth-input-meter" aria-hidden="true"><i style={{ width: `${Math.max(12, input.intensity * 100)}%` }} /></span>
               <span className="growth-input-tooltip" role="tooltip">{input.metaphor}</span>
             </button>
           ))}
         </div>
-        <p className="diagram-caption"><AppIcon name="info-circle" /> Bir alan seçerek doğrudan ilerleyebilirsin. Yoğunluk, son 7 günün gerçek kayıtlarını gösterir.</p>
+        <p className="diagram-caption"><AppIcon name="info-circle" /> Bir alana dokunarak doğrudan ilerle. Işık ve canlılık, son 7 günün gerçek kayıtlarını gösterir.</p>
       </div>
     </section>
   )
@@ -222,18 +230,26 @@ function GrowthSubject({ index, uid }: { index: number; uid: string }) {
   if (index === 0) return <g className="seed-stage" filter={`url(#${uid}-shadow)`}><path d="M176 298c19-19 75-24 108 0-27 20-82 20-108 0Z" fill="#704a35"/><ellipse cx="228" cy="284" rx="12" ry="8" fill="#c18a55" transform="rotate(-20 228 284)"/><path d="M228 280c-1-14 4-24 12-31" stroke="#2b9b63" strokeWidth="4" strokeLinecap="round"/><path d="M239 249c8-5 15-3 18 4-8 5-15 4-18-4Z" fill="#6ee7a2"/></g>
   if (index === 1) return <g className="sprout-stage" filter={`url(#${uid}-shadow)`}><path d="M190 300c20-16 66-17 86 0-20 13-67 14-86 0Z" fill="#704a35"/><path d="M229 293c-2-29 0-55 4-75" stroke="#258b58" strokeWidth="8" strokeLinecap="round"/><path d="M231 252c-23-18-43-12-46 5 19 12 35 10 46-5Z" fill="#55d98a"/><path d="M232 235c16-19 35-16 41-2-13 15-29 16-41 2Z" fill="#35bb70"/></g>
   if (index === 2) return <g className="fidan-stage" filter={`url(#${uid}-shadow)`}>
-    <path d="M228 305C218 278 223 249 220 222C217 194 222 159 230 121C242 160 244 192 239 222C234 252 243 280 237 305Z" fill={`url(#${uid}-trunk)`}/>
-    <path d="M230 290c0-32 4-59 1-86-2-22 1-43 3-62" fill="none" stroke={`url(#${uid}-trunk-light)`} strokeWidth="6" strokeLinecap="round" opacity=".72"/>
-    <g className="fidan-branches" fill="none" stroke={`url(#${uid}-trunk)`} strokeLinecap="round">
-      <path d="M226 238c-20-22-37-35-58-43M237 222c18-22 35-38 57-48M225 202c-13-19-24-31-39-40M238 190c15-21 28-35 44-47"/>
+    <ellipse cx="229" cy="304" rx="58" ry="10" fill="#0b3029" opacity=".24" />
+    <g className="fidan-branches" fill="none" stroke={`url(#${uid}-trunk)`} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M229 303C225 274 231 247 226 221C222 196 228 168 232 139" strokeWidth="18" />
+      <path d="M228 247C207 225 191 211 170 201M230 226C248 204 266 190 286 178M228 204C216 188 207 173 200 157M232 188C246 169 257 153 263 137" strokeWidth="8" />
     </g>
+    <path d="M229 292c-1-30 4-53 0-76-2-21 1-41 4-61" fill="none" stroke={`url(#${uid}-trunk-light)`} strokeWidth="5" strokeLinecap="round" opacity=".76" />
     <g className="fidan-leaves">
-      <path d="M116 183c-4-24 18-41 41-34 8-25 37-31 54-12 16-13 43-4 45 18 17 12 12 39-7 47-32 18-99 13-133-19Z" fill={`url(#${uid}-leaf)`}/>
-      <path d="M224 146c3-25 29-39 51-27 13-21 46-18 55 7 24-2 37 25 22 44-25 20-92 24-122 5-10-7-12-18-6-29Z" fill="#32a96d"/>
-      <path d="M151 221c-5-19 12-34 31-29 10-18 36-18 47 0 18-3 31 15 24 31-22 17-77 18-102-2Z" fill="#56c982"/>
-      <path d="M249 213c-2-19 17-32 34-24 12-16 37-11 42 9 17 3 23 24 11 36-28 13-67 6-87-21Z" fill="#16865a"/>
-      <path d="M137 175c22-8 46-8 67 1M253 150c21-5 43-3 61 7M174 207c16-4 33-2 46 5" fill="none" stroke="#c7f2ae" strokeWidth="6" strokeLinecap="round" opacity=".22"/>
+      <ellipse cx="176" cy="190" rx="52" ry="31" fill="#43b978" />
+      <ellipse cx="207" cy="157" rx="58" ry="37" fill={`url(#${uid}-leaf)`} />
+      <ellipse cx="257" cy="145" rx="61" ry="39" fill="#2eaa6d" />
+      <ellipse cx="295" cy="177" rx="49" ry="32" fill="#16875a" />
+      <ellipse cx="226" cy="197" rx="65" ry="36" fill="#35ad70" />
+      <ellipse cx="271" cy="210" rx="48" ry="29" fill="#137650" />
+      <path d="M137 199c-8-18 5-37 24-38 3-22 26-34 45-23 14-16 41-12 49 8 20 2 30 24 19 41-15 20-43 27-73 25-28-1-54-3-64-13Z" fill={`url(#${uid}-leaf)`} />
+      <path d="M226 157c-2-21 17-38 38-34 9-19 36-23 50-7 21-2 37 18 30 37-8 21-37 33-66 34-27 0-49-10-52-30Z" fill="#239b64" />
+      <path d="M154 224c-4-16 9-30 26-29 9-16 32-17 43-3 17-1 29 15 24 30-12 16-30 22-51 20-20-1-36-7-42-18Z" fill="#62c981" />
+      <path d="M252 211c-3-16 10-30 27-29 10-15 33-13 41 4 16 2 24 19 17 33-15 14-36 18-56 12-15-4-25-10-29-20Z" fill="#147a52" />
+      <path d="M151 190c20-8 43-8 61-1M251 151c19-7 40-6 57 2M173 218c15-5 31-4 44 1" fill="none" stroke="#d9f5c5" strokeWidth="5" strokeLinecap="round" opacity=".24" />
     </g>
+    <g className="dew-drops" fill="#d8fff0"><circle cx="177" cy="176" r="2.2"/><circle cx="298" cy="145" r="1.8"/><circle cx="214" cy="204" r="1.6"/></g>
   </g>
   const treeScale = 0.84 + (index - 3) * .035
   return <g className={`tree-stage tree-tier-${index + 1}`} transform={`translate(${228 - 228 * treeScale} ${302 - 302 * treeScale}) scale(${treeScale})`} filter={`url(#${uid}-shadow)`}>
