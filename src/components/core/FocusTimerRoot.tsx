@@ -155,6 +155,7 @@ function AnimateWelcomeBack({ visible }: { visible: boolean }) {
 function FocusTimerWidgetCard({ now }: { now: number }) {
   const router = useRouter()
   const timer = useFocusTimerStore()
+  const widgetRef = useRef<HTMLElement | null>(null)
   const [dragPosition, setDragPosition] = useState<FocusWidgetPosition | null>(null)
   const drag = useRef<{ pointerId: number; offsetX: number; offsetY: number; moved: boolean } | null>(null)
   const displaySeconds = getFocusDisplaySeconds(timer, now)
@@ -169,12 +170,14 @@ function FocusTimerWidgetCard({ now }: { now: number }) {
     if (!timer.isActive) return
     const clampPosition = () => {
       const current = useFocusTimerStore.getState()
-      const width = window.innerWidth <= 620 ? 220 : 236
+      const width = widgetRef.current?.offsetWidth ?? (window.innerWidth <= 620 ? Math.min(220, window.innerWidth - 24) : 236)
+      const height = widgetRef.current?.offsetHeight ?? 148
+      const safeTop = window.innerWidth <= 900 ? 72 : 88
       const next = {
-        x: Math.min(Math.max(8, current.position.x), Math.max(8, window.innerWidth - width - 8)),
-        y: Math.min(Math.max(8, current.position.y), Math.max(8, window.innerHeight - 148 - 8)),
+        x: Math.min(Math.max(12, current.position.x), Math.max(12, window.innerWidth - width - 12)),
+        y: Math.min(Math.max(safeTop, current.position.y), Math.max(safeTop, window.innerHeight - height - 12)),
       }
-      if (!current.positionInitialized) current.initialisePosition({ x: Math.max(8, window.innerWidth - width - 16), y: 96 })
+      if (!current.positionInitialized) current.initialisePosition({ x: Math.max(12, window.innerWidth - width - 16), y: Math.max(safeTop, window.innerHeight - height - 20) })
       else if (next.x !== current.position.x || next.y !== current.position.y) current.setPosition(next)
     }
     clampPosition()
@@ -200,11 +203,12 @@ function FocusTimerWidgetCard({ now }: { now: number }) {
   const pointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!drag.current || drag.current.pointerId !== event.pointerId) return
     drag.current.moved = true
-    const width = 236
-    const height = 148
+    const width = event.currentTarget.offsetWidth
+    const height = event.currentTarget.offsetHeight
+    const safeTop = window.innerWidth <= 900 ? 72 : 88
     setDragPosition({
-      x: Math.min(Math.max(8, event.clientX - drag.current.offsetX), Math.max(8, window.innerWidth - width - 8)),
-      y: Math.min(Math.max(8, event.clientY - drag.current.offsetY), Math.max(8, window.innerHeight - height - 8)),
+      x: Math.min(Math.max(12, event.clientX - drag.current.offsetX), Math.max(12, window.innerWidth - width - 12)),
+      y: Math.min(Math.max(safeTop, event.clientY - drag.current.offsetY), Math.max(safeTop, window.innerHeight - height - 12)),
     })
   }
   const pointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -225,6 +229,7 @@ function FocusTimerWidgetCard({ now }: { now: number }) {
 
   if (!timer.isActive || timer.isFullscreen) return null
   return <aside
+    ref={widgetRef}
     className={`focus-floating-widget ${timer.isPaused ? 'paused' : ''}`}
     style={style}
     aria-label="Devam eden odak oturumu"
