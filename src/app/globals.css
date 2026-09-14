@@ -549,7 +549,54 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 @media(max-width:900px){.wisdom-toolbar{position:relative;top:auto;z-index:4}.wisdom-layout{grid-template-columns:1fr}.wheel-stage{min-height:600px;padding:38px 36px 28px}.wheel-stage-copy{text-align:center}.wheel-stage-copy h2,.wheel-stage-copy p{margin-left:auto;margin-right:auto}.premium-dial{width:320px;height:320px}.wisdom-result{min-height:570px;padding:46px}.wisdom-date{display:none}}
 @media(max-width:620px){.wisdom-card{border-radius:16px}.wisdom-toolbar{min-height:62px;padding:8px}.wisdom-toolbar .wisdom-tabs{width:100%}.wisdom-toolbar .wisdom-tabs button{min-height:42px}.wheel-stage{min-height:530px;padding:32px 20px 24px}.wheel-stage-copy h2{font-size:23px}.premium-dial{width:272px;height:272px;margin-top:18px}.dial-core{width:124px;height:124px}.dial-core>span{width:34px;height:34px}.wisdom-result{min-height:0;padding:34px 24px}.wisdom-quote-mark{margin-top:26px}.wisdom-result h2{font-size:30px}.wisdom-result blockquote{font-size:16px}.wisdom-actions{flex-direction:column}.wisdom-actions>*{width:100%}}
 @media(max-width:360px){.premium-dial{width:242px;height:242px}.dial-core{width:112px;height:112px}.wheel-stage{min-height:500px}.wheel-stage .spin-button{padding-inline:15px}}
-@media(prefers-reduced-motion:reduce){.wisdom-dial,.wisdom-citation>a,.wheel-stage .spin-button{transition:none!important}}
+/* Çark-ı Rahmet — mechanical three-step reveal ritual */
+.wisdom-layout{min-height:730px}
+.ritual-info{width:min(100%,430px);min-height:62px;flex:0 0 auto;margin:20px auto 0;padding:7px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;border:1px solid rgba(255,255,255,.11);border-radius:16px;background:rgba(8,12,32,.38);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 14px 30px rgba(5,7,24,.16);backdrop-filter:blur(14px)}
+.ritual-info>div{min-width:0;padding:8px 9px;border-radius:11px;display:flex;flex-direction:column;gap:4px;transition:background .25s ease,box-shadow .25s ease}
+.ritual-info>div.revealed{background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(196,181,253,.13)}
+.ritual-info span{color:#8f9aba;font-size:8px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.ritual-info strong{overflow:hidden;color:#65708f;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.ritual-info .revealed strong{color:#fff}
+.premium-dial{width:330px;height:330px;margin-top:18px}
+.wisdom-dial{position:absolute;inset:10px;width:calc(100% - 20px);height:calc(100% - 20px);z-index:1;transition:transform 1.72s cubic-bezier(.12,.78,.18,1.045);will-change:transform}
+.dial-bezel{position:absolute;inset:0;z-index:2;width:100%;height:100%;pointer-events:none;filter:drop-shadow(0 7px 16px rgba(0,0,0,.2))}
+.dial-bezel circle:first-child{fill:none;stroke:rgba(237,233,254,.72);stroke-width:2;stroke-dasharray:2 8;stroke-linecap:round}
+.dial-bezel circle:last-child{fill:none;stroke:rgba(255,255,255,.13);stroke-width:8}
+.dial-segment{fill:rgba(99,102,241,.68);stroke:rgba(255,255,255,.17);stroke-width:1.2;transition:fill .25s ease}
+.dial-segment.alternate{fill:rgba(124,58,237,.62)}
+.dial-segment.hadith{fill:rgba(5,150,105,.54)}
+.dial-segment.hadith.alternate{fill:rgba(13,148,136,.46)}
+.dial-motif{fill:rgba(255,255,255,.12);stroke:rgba(255,255,255,.72);stroke-width:1}
+.dial-motif-core{fill:#fff}
+.dial-inner-ring{fill:rgba(11,15,39,.82);stroke:rgba(255,255,255,.14);stroke-width:2}
+.dial-pointer{z-index:5;top:-1px;width:22px;height:25px;border-radius:5px 5px 10px 5px;background:linear-gradient(145deg,#fff7d6,#f5c95c 55%,#d39a1a);box-shadow:0 0 0 6px rgba(245,201,92,.08),0 8px 25px rgba(245,201,92,.34)}
+.premium-dial.spinning .dial-pointer{animation:wheelPointerTick .16s ease-in-out infinite alternate}
+@keyframes wheelPointerTick{to{transform:translateX(-50%) rotate(51deg) scale(.94)}}
+.dial-core{z-index:4;width:140px;height:140px;border-color:rgba(245,201,92,.2);background:radial-gradient(circle at 42% 30%,rgba(55,62,121,.9),rgba(10,13,34,.94) 68%);box-shadow:inset 0 0 0 8px rgba(255,255,255,.025),inset 0 1px 0 rgba(255,255,255,.14),0 18px 44px rgba(5,7,24,.4)}
+.dial-core small{color:#d4bb72}
+.ritual-progress{height:16px;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:7px}
+.ritual-progress i{width:7px;height:7px;border-radius:999px;background:rgba(255,255,255,.18);transition:width .25s ease,background .25s ease,box-shadow .25s ease}
+.ritual-progress i.complete{width:18px;background:#f2ce6b;box-shadow:0 0 14px rgba(242,206,107,.35)}
+.ritual-progress i.active{background:#fff;box-shadow:0 0 0 5px rgba(255,255,255,.08)}
+.ritual-progress span{margin-left:3px;color:#aeb7d7;font-size:8px;font-weight:850;letter-spacing:.08em}
+.wheel-stage .spin-button{min-width:190px;margin-top:10px;justify-content:center}
+.ritual-locked{width:min(100%,540px);margin:auto;display:flex;flex-direction:column;align-items:flex-start}
+.ritual-locked-icon{width:58px;height:58px;margin-bottom:24px;display:grid;place-items:center;border-radius:18px;color:#5b52dd;background:linear-gradient(145deg,#f0efff,#e7e8ff);box-shadow:0 12px 30px rgba(79,70,229,.12)}
+.ritual-locked-icon .app-icon{font-size:25px}
+.ritual-locked h2{margin:9px 0 10px}
+.ritual-locked>p{max-width:470px;margin:0;color:#6f7b92;font-size:12px;line-height:1.65}
+.ritual-locked-fields{width:100%;margin:28px 0 20px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ritual-locked-fields>div{min-width:0;padding:13px;border-radius:13px;background:#f5f6fa;box-shadow:inset 0 0 0 1px rgba(72,86,119,.06)}
+.ritual-locked-fields>div.revealed{background:#f0efff;box-shadow:inset 0 0 0 1px rgba(79,70,229,.1)}
+.ritual-locked-fields span,.ritual-locked-fields strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ritual-locked-fields span{margin-bottom:5px;color:#929caf;font-size:8px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.ritual-locked-fields strong{color:#afb6c4;font-size:10px}.ritual-locked-fields .revealed strong{color:#4037bc}
+.ritual-locked>small{display:flex;align-items:center;gap:7px;color:#8d97aa;font-size:9px}.ritual-locked>small .app-icon{color:#5b52dd;font-size:14px}
+@media(max-width:1050px){.wisdom-layout{min-height:700px}.premium-dial{width:310px;height:310px}.ritual-info{margin-top:16px}}
+@media(max-width:900px){.wisdom-layout{min-height:0}.wheel-stage{min-height:700px}.premium-dial{width:320px;height:320px}.ritual-locked{min-height:420px;justify-content:center}}
+@media(max-width:620px){.wheel-stage{min-height:660px;padding:30px 16px 22px}.ritual-info{margin-top:16px}.ritual-info>div{padding:7px 6px}.ritual-info strong{font-size:9px}.premium-dial{width:min(278px,84vw);height:min(278px,84vw);margin-top:28px}.dial-core{width:116px;height:116px}.dial-core>span{width:32px;height:32px}.wheel-stage .spin-button{width:100%;min-height:50px}.wisdom-result{min-height:500px!important;padding-top:52px;justify-content:flex-start}.ritual-locked{min-height:0;margin:0 auto;align-items:center;text-align:center}.ritual-locked-icon,.ritual-locked>.eyebrow{display:none}.ritual-locked-fields{grid-template-columns:1fr;margin-top:22px}.ritual-locked-fields>div{text-align:left}.ritual-locked>small{justify-content:center}}
+@media(max-width:390px){.wheel-stage{min-height:630px}.wheel-stage-copy p{font-size:10px}.premium-dial{width:min(250px,78vw);height:min(250px,78vw);margin-top:26px}.dial-core{width:104px;height:104px}.dial-core strong{font-size:11px}.ritual-info span{font-size:7px}}
+@media(prefers-reduced-motion:reduce){.wisdom-dial,.wisdom-citation>a,.wheel-stage .spin-button,.ritual-info>div,.ritual-progress i{transition:none!important}.premium-dial.spinning .dial-pointer{animation:none!important}}
 
 /* Bugünün Çarkı — consolidated discovery, reveal and private notes workspace */
 .wisdom-toolbar .wisdom-tabs{flex-wrap:wrap}
