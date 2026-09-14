@@ -50,9 +50,58 @@ function secureRandomIndex(length: number) {
   return values[0] % length
 }
 
+type RevealStep = 0 | 1 | 2 | 3
+type RitualField = { label: string; value: string }
+
+const SPIN_SEGMENTS = 12
+const SPIN_DURATION_MS = 1720
+
+function pointOnCircle(radius: number, angle: number) {
+  const radians = (angle - 90) * Math.PI / 180
+  return { x: 160 + radius * Math.cos(radians), y: 160 + radius * Math.sin(radians) }
+}
+
+function segmentPath(index: number) {
+  const step = 360 / SPIN_SEGMENTS
+  const start = pointOnCircle(145, index * step)
+  const end = pointOnCircle(145, (index + 1) * step)
+  const innerEnd = pointOnCircle(76, (index + 1) * step)
+  const innerStart = pointOnCircle(76, index * step)
+  return `M ${start.x} ${start.y} A 145 145 0 0 1 ${end.x} ${end.y} L ${innerEnd.x} ${innerEnd.y} A 76 76 0 0 0 ${innerStart.x} ${innerStart.y} Z`
+}
+
+function ritualFields(kind: ReflectionKind, item: (typeof VERSE_REFLECTIONS)[number] | null): RitualField[] {
+  if (!item) return kind === 'verse'
+    ? [{ label: 'Sure', value: '—' }, { label: 'Sayfa', value: '—' }, { label: 'Ayet', value: '—' }]
+    : [{ label: 'Kaynak', value: '—' }, { label: 'Konu', value: '—' }, { label: 'Hadis No', value: '—' }]
+
+  if (kind === 'verse') {
+    const match = item.reference.match(/^(.+?)\s+(\d+):([\d-]+)$/)
+    return [
+      { label: 'Sure', value: match?.[1] || item.reference },
+      { label: 'Sayfa', value: item.page ? String(item.page) : '—' },
+      { label: 'Ayet', value: match?.[3] || item.reference },
+    ]
+  }
+
+  const hadithNumber = item.id.match(/(\d+)$/)?.[1] || item.reference
+  return [
+    { label: 'Kaynak', value: 'Nevevî 40 Hadis' },
+    { label: 'Konu', value: item.theme },
+    { label: 'Hadis No', value: hadithNumber },
+  ]
+}
+
+function nextSpinLabel(kind: ReflectionKind, step: RevealStep) {
+  const labels = kind === 'verse'
+    ? ['Sure Çarkını Çevir', 'Sayfa Çarkını Çevir', 'Ayet Çarkını Çevir']
+    : ['Kaynak Çarkını Çevir', 'Konu Çarkını Çevir', 'Hadis Çarkını Çevir']
+  return labels[Math.min(step, 2)]
+}
+
 export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
   const store = useJourneyStore()
-  const user = useAuthStore((state) => state.user || state.session?.user)
+  const user = useAuthStore((state) => state.session?.access_token === 'mock-token' ? undefined : state.user || state.session?.user)
   const identity = user?.id || 'guest'
   const [tab, setTab] = useState<WisdomTab>(entry?.tab || 'verse')
   const [mode, setMode] = useState<ReflectionKind>(entry?.tab === 'hadith' ? 'hadith' : 'verse')
@@ -61,6 +110,7 @@ export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
   const [selectedIndex, setSelectedIndex] = useState(() => getDailyReflectionIndex('verse', VERSE_REFLECTIONS.length, identity))
   const [recentIds, setRecentIds] = useState<string[]>([])
   const [rotation, setRotation] = useState(0)
+  const [revealStep, setRevealStep] = useState<RevealStep>(0)
   const [isSpinning, setIsSpinning] = useState(false)
   const [isRevealing, setIsRevealing] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
@@ -70,7 +120,6 @@ export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
   const [composerKind, setComposerKind] = useState<ReflectionKind | null>(null)
   const spinTimer = useRef<number | null>(null)
   const revealTimer = useRef<number | null>(null)
-  const loadedHistoryKey = useRef('')
   const recentIdsRef = useRef<string[]>([])
 
   const list = mode === 'verse' ? VERSE_REFLECTIONS : HADITH_REFLECTIONS
@@ -80,6 +129,8 @@ export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
   const themeColor = selected ? (themePalette[selected.theme] || '#4f46e5') : '#4f46e5'
   const marker = selected ? `[wheel:${selected.id}]` : ''
   const availableCount = list.filter((item) => !new Set([...recentIds.slice(0, RECENT_LIMIT), selected?.id || '']).has(item.id)).length
+  const fields = ritualFields(mode, selected)
+  const resultRevealed = !isToday || revealStep === 3
   const alreadySaved = Boolean(selected && (mode === 'verse'
     ? store.quranNotes.some((note) => note.date === selectedDate && (note.ders.includes(marker) || (note.ayet === selected.reference && note.tefsir.includes(selected.text))))
     : store.hadisNotes.some((note) => note.date === selectedDate && (note.uygulama.includes(marker) || (note.kaynak === selected.reference && note.metin.includes(selected.text))))))
@@ -91,17 +142,14 @@ export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
 
   useEffect(() => {
     if (tab === 'archive') return
-    const loadKey = `${identity}:${mode}:${selectedDate}`
-    if (loadedHistoryKey.current === loadKey) return
-    loadedHistoryKey.current = loadKey
     let active = true
     const currentList = mode === 'verse' ? VERSE_REFLECTIONS : HADITH_REFLECTIONS
     const fallbackIndex = getDailyReflectionIndex(mode, currentList.length, identity, dateFromKey(selectedDate))
-    setHistoryLoading(true)
-    setPastEmpty(false)
-    setSelectedIndex(fallbackIndex)
 
     const load = async () => {
+      setHistoryLoading(true)
+      setPastEmpty(false)
+      setSelectedIndex(fallbackIndex)
       const local = readLocalHistory(identity).filter((item) => item.content_type === mode)
       let recent = local.slice(0, RECENT_LIMIT).map((item) => item.content_id)
       let dailyId = local.find((item) => item.reveal_date === selectedDate && item.is_daily)?.content_id
@@ -163,13 +211,43 @@ export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
       setMode(next)
       setSelectedDate(todayKey())
       setRotation(0)
+      setRevealStep(0)
     }
   }
 
+  const changeDate = (amount: number) => {
+    if (isSpinning) return
+    setSelectedDate((date) => addDays(date, amount))
+    setRevealStep(0)
+    setIsRevealing(false)
+  }
+
   const spin = () => {
+    if (isSpinning || !isToday || historyLoading || revealStep >= 3 || !selected) return
+    const nextStep = (revealStep + 1) as RevealStep
+    setIsSpinning(true)
+    setIsRevealing(false)
+    setNotice('')
+    const metadataSeed = `${selected.id}:${nextStep}`.split('').reduce((total, character) => total + character.charCodeAt(0), 0)
+    const landingSegment = metadataSeed % SPIN_SEGMENTS
+    const landingAngle = ((SPIN_SEGMENTS - landingSegment) % SPIN_SEGMENTS) * (360 / SPIN_SEGMENTS)
+    setRotation((current) => Math.ceil(current / 360) * 360 + 1440 + landingAngle)
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    spinTimer.current = window.setTimeout(() => {
+      setRevealStep(nextStep)
+      setIsSpinning(false)
+      if (nextStep === 3) {
+        setIsRevealing(true)
+        recentIdsRef.current = [selected.id, ...recentIdsRef.current.filter((id) => id !== selected.id)].slice(0, RECENT_LIMIT)
+        setRecentIds(recentIdsRef.current)
+        void recordReveal(mode, selected.id, false, identity, user?.id)
+        revealTimer.current = window.setTimeout(() => setIsRevealing(false), 520)
+      }
+    }, reducedMotion ? 80 : SPIN_DURATION_MS)
+  }
+
+  const startOver = () => {
     if (isSpinning || !isToday || historyLoading) return
-    // Read the persisted queue at click time as well as React state. This keeps
-    // rapid/background-tab spins correct even when a render is temporarily delayed.
     const persistedRecent = readLocalHistory(identity).filter((item) => item.content_type === mode).map((item) => item.content_id)
     const recentQueue = Array.from(new Set([...persistedRecent, ...recentIdsRef.current])).slice(0, RECENT_LIMIT)
     const excluded = new Set([...recentQueue, selected?.id || ''])
@@ -177,25 +255,16 @@ export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
     if (!eligible.length) eligible = list.map((item, index) => ({ item, index })).filter(({ item }) => item.id !== selected?.id)
     const target = eligible[secureRandomIndex(eligible.length)]
     if (!target) return
-
-    setIsSpinning(true)
+    // The coherent target is selected before the first theatrical spin. The three
+    // spins only uncover its metadata; they never perform independent selections.
+    setSelectedIndex(target.index)
+    setRevealStep(0)
     setIsRevealing(false)
-    setNotice('')
-    const targetAngle = target.index * (360 / list.length)
-    setRotation((current) => current + 1080 + 360 - (targetAngle % 360))
-    spinTimer.current = window.setTimeout(() => {
-      setSelectedIndex(target.index)
-      setIsSpinning(false)
-      setIsRevealing(true)
-      recentIdsRef.current = [target.item.id, ...recentIdsRef.current.filter((id) => id !== target.item.id)].slice(0, RECENT_LIMIT)
-      setRecentIds(recentIdsRef.current)
-      void recordReveal(mode, target.item.id, false, identity, user?.id)
-      revealTimer.current = window.setTimeout(() => setIsRevealing(false), 420)
-    }, 1320)
+    setNotice('Yeni seçim hazır. Üç adımda keşfet.')
   }
 
   const save = () => {
-    if (!selected || alreadySaved || !isToday) return
+    if (!selected || alreadySaved || !isToday || !resultRevealed) return
     const id = crypto.randomUUID()
     const createdAt = new Date().toISOString()
     if (mode === 'verse') {
@@ -253,9 +322,9 @@ export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
             <button id="wisdom-archive-tab" role="tab" aria-selected={tab === 'archive'} className={tab === 'archive' ? 'active' : ''} onClick={() => changeTab('archive')}><AppIcon name="archive" /> Kayıtlı Notlarım</button>
           </div>
           {tab !== 'archive' && <div className="wisdom-date-nav" aria-label="Tarih seçimi">
-            <button onClick={() => setSelectedDate((date) => addDays(date, -1))} aria-label="Önceki gün"><AppIcon name="chevron-left" /></button>
+            <button onClick={() => changeDate(-1)} aria-label="Önceki gün"><AppIcon name="chevron-left" /></button>
             <span className="wisdom-date"><AppIcon name="calendar" /> {formattedDate}</span>
-            <button onClick={() => setSelectedDate((date) => addDays(date, 1))} disabled={isToday} aria-label="Sonraki gün"><AppIcon name="chevron-right" /></button>
+            <button onClick={() => changeDate(1)} disabled={isToday} aria-label="Sonraki gün"><AppIcon name="chevron-right" /></button>
           </div>}
         </header>
 
@@ -263,29 +332,49 @@ export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
           ? <ArchiveView items={archiveItems} filter={archiveKind} setFilter={setArchiveKind} composerKind={composerKind} setComposerKind={setComposerKind} onSubmit={submitManual} onDelete={(kind, id) => kind === 'verse' ? store.deleteQuranNote(id) : store.deleteHadisNote(id)} />
           : <div id="wisdom-panel" className="wisdom-layout" role="tabpanel" aria-labelledby={`wisdom-${mode}-tab`}>
             <div className="wheel-stage">
-              <div className="wheel-stage-copy"><span>TEFEKKÜR PUSULASI</span><h2>{mode === 'verse' ? 'Bir ayetle dur ve düşün' : 'Bir hadisle yönünü tazele'}</h2><p>{isToday ? `Her seçim ${list.length} doğrulanmış kaynaktan gelir; son ${RECENT_LIMIT} sonuç tekrar edilmez.` : 'Geçmiş günler salt okunurdur; o gün gerçekten açılan sonuç gösterilir.'}</p></div>
+              <div className="wheel-stage-copy"><span>ÇARK-I RAHMET</span><h2>{mode === 'verse' ? 'Bir ayeti üç adımda keşfet' : 'Bir hadisi üç adımda keşfet'}</h2><p>{isToday ? `Tutarlı tek seçim önceden hazırlanır; üç dönüş yalnızca kaynağını adım adım açar.` : 'Geçmiş günler salt okunurdur; o gün gerçekten açılan sonuç gösterilir.'}</p></div>
+
+              {isToday && <div className="ritual-info" aria-label={`Üç aşamalı keşif · ${revealStep}/3 tamamlandı`}>
+                {fields.map((field, index) => <div key={field.label} className={revealStep > index ? 'revealed' : ''}>
+                  <span>{field.label}</span><strong>{revealStep > index ? field.value : '—'}</strong>
+                </div>)}
+              </div>}
 
               <div className={`premium-dial ${isSpinning ? 'spinning' : ''}`} aria-label={`${list.length} içerikli etkileşimli tefekkür çarkı`}>
                 <div className="dial-pointer" />
+                <svg className="dial-bezel" viewBox="0 0 320 320" aria-hidden>
+                  <circle cx="160" cy="160" r="153" />
+                  <circle cx="160" cy="160" r="147" />
+                </svg>
                 <svg className="wisdom-dial" viewBox="0 0 320 320" style={{ transform: `rotate(${rotation}deg)` }}>
-                  <defs><linearGradient id={`dialStroke-${mode}`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#a5b4fc"/><stop offset=".52" stopColor={themeColor}/><stop offset="1" stopColor="#f0abfc"/></linearGradient><radialGradient id={`dialGlow-${mode}`}><stop offset="0" stopColor={themeColor} stopOpacity=".24"/><stop offset="1" stopColor="#312e81" stopOpacity="0"/></radialGradient></defs>
-                  <circle cx="160" cy="160" r="151" fill={`url(#dialGlow-${mode})`} stroke="rgba(255,255,255,.08)" />
-                  <circle cx="160" cy="160" r="128" fill="none" stroke={`url(#dialStroke-${mode})`} strokeWidth="2" strokeDasharray="3 7" />
-                  <circle cx="160" cy="160" r="103" fill="none" stroke="rgba(255,255,255,.09)" />
-                  {Array.from({ length: 20 }, (_, index) => { const angle = (index * 18 - 90) * Math.PI / 180; return <circle key={index} cx={160 + Math.cos(angle) * 128} cy={160 + Math.sin(angle) * 128} r={index % 5 === 0 ? 5 : 3} fill={index % 5 === 0 ? '#fff' : 'rgba(255,255,255,.48)'} /> })}
+                  <defs>
+                    <radialGradient id={`dialGlow-${mode}`}><stop offset="0" stopColor={themeColor} stopOpacity=".3"/><stop offset="1" stopColor="#171a3a" stopOpacity=".16"/></radialGradient>
+                    <filter id={`dialLight-${mode}`}><feDropShadow dx="0" dy="2" stdDeviation="3" floodColor={mode === 'hadith' ? '#34d399' : '#c4b5fd'} floodOpacity=".32" /></filter>
+                  </defs>
+                  <circle cx="160" cy="160" r="146" fill={`url(#dialGlow-${mode})`} />
+                  {Array.from({ length: SPIN_SEGMENTS }, (_, index) => {
+                    const motif = pointOnCircle(111, index * (360 / SPIN_SEGMENTS) + 15)
+                    return <g key={index}>
+                      <path d={segmentPath(index)} className={`dial-segment ${mode === 'hadith' ? 'hadith' : 'verse'} ${index % 2 ? 'alternate' : ''}`} />
+                      <rect x={motif.x - 5} y={motif.y - 5} width="10" height="10" rx="2" transform={`rotate(45 ${motif.x} ${motif.y})`} className="dial-motif" filter={`url(#dialLight-${mode})`} />
+                      <circle cx={motif.x} cy={motif.y} r="2.2" className="dial-motif-core" />
+                    </g>
+                  })}
+                  <circle cx="160" cy="160" r="75" className="dial-inner-ring" />
                 </svg>
                 <div className="dial-core">
-                  <span><AppIcon name={modeMeta[mode].icon} /></span><strong>{isSpinning ? 'Seçiliyor' : selected?.theme || 'Geçmiş'}</strong><small>{list.length} KAYNAK · SON {RECENT_LIMIT} KORUMALI</small>
+                  <span><AppIcon name={modeMeta[mode].icon} /></span><strong>{isSpinning ? 'Dönüyor…' : revealStep === 3 ? 'Tamamlandı' : revealStep ? `${revealStep}/3 açıldı` : 'Hazır'}</strong><small>{mode === 'verse' ? 'AYET' : 'HADİS'} · {revealStep}/3</small>
                 </div>
               </div>
 
-              <button className="spin-button" type="button" onClick={spin} disabled={isSpinning || !isToday || historyLoading} aria-busy={isSpinning} aria-label={isToday ? `Yeni bir ${mode === 'verse' ? 'ayet' : 'hadis'} seç · ${availableCount} yakın zamanda gösterilmemiş seçenek` : 'Geçmiş gün · salt okunur'}><AppIcon name="refresh" /> {isSpinning ? 'Çark dönüyor…' : isToday ? `Yeni bir ${mode === 'verse' ? 'ayet' : 'hadis'} seç` : 'Geçmiş gün · salt okunur'}</button>
-              <p className="wheel-privacy"><AppIcon name={isToday ? 'shield-check' : 'history'} /> {isToday ? 'İlk seçim gün boyunca sabittir; yalnızca sen yeniden çevirdiğinde değişir.' : 'Bu görünüm geçmişteki gerçek kaydı gösterir ve yeni seçim üretmez.'}</p>
+              {isToday && <div className="ritual-progress" aria-hidden>{[1, 2, 3].map((step) => <i key={step} className={revealStep >= step ? 'complete' : isSpinning && revealStep + 1 === step ? 'active' : ''} />)}<span>{revealStep}/3</span></div>}
+              <button className="spin-button" type="button" onClick={revealStep === 3 ? startOver : spin} disabled={isSpinning || !isToday || historyLoading} aria-busy={isSpinning} aria-label={isToday ? revealStep === 3 ? `Yeni bir seçim hazırla · ${availableCount} yakın zamanda gösterilmemiş seçenek` : nextSpinLabel(mode, revealStep) : 'Geçmiş gün · salt okunur'}><AppIcon name={revealStep === 3 ? 'restore' : 'refresh'} /> {isSpinning ? 'Çark dönüyor…' : !isToday ? 'Geçmiş gün · salt okunur' : revealStep === 3 ? 'Baştan Başla' : nextSpinLabel(mode, revealStep)}</button>
+              <p className="wheel-privacy"><AppIcon name={isToday ? 'shield-check' : 'history'} /> {isToday ? 'Sonuç baştan bellidir; her dönüş aynı güvenilir kaydın bir parçasını açar.' : 'Bu görünüm geçmişteki gerçek kaydı gösterir ve yeni seçim üretmez.'}</p>
             </div>
 
             <article className="wisdom-result" aria-live="polite" aria-busy={isSpinning || historyLoading} style={{ '--theme-color': themeColor } as CSSProperties}>
-              {historyLoading ? <ResultSkeleton /> : pastEmpty || !selected ? <PastEmpty date={formattedDate} /> : <AnimatePresence mode="wait">
-                <motion.div className="wisdom-reveal" key={selected.id} initial={{ opacity: 0, x: 18, filter: 'blur(5px)' }} animate={{ opacity: isSpinning ? .22 : 1, x: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, x: -10 }} transition={{ duration: isRevealing ? .42 : .22, ease: [0.22, 1, 0.36, 1] }}>
+              {historyLoading ? <ResultSkeleton /> : pastEmpty || !selected ? <PastEmpty date={formattedDate} /> : !resultRevealed ? <RitualLocked kind={mode} step={revealStep} fields={fields} /> : <AnimatePresence mode="wait">
+                <motion.div className="wisdom-reveal" key={selected.id} initial={{ opacity: 0, y: 22, filter: 'blur(5px)' }} animate={{ opacity: isSpinning ? .22 : 1, y: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, y: -10 }} transition={{ duration: isRevealing ? .52 : .22, ease: [0.22, 1, 0.36, 1] }}>
                   <div className="wisdom-result-top"><span className="eyebrow">{modeMeta[mode].eyebrow}</span><span className="theme-chip"><i /> {selected.theme}</span></div>
                   <span className="wisdom-quote-mark" aria-hidden>“</span>
                   <h2 id="wisdom-title">{selected.title}</h2>
@@ -293,8 +382,8 @@ export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
                   <div className="wisdom-citation"><span><AppIcon name="shield-check" /></span><div><small>DOĞRULANABİLİR KAYNAK</small><strong>{selected.reference}</strong><em>{selected.sourceLabel}</em></div><a href={selected.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${selected.reference} kaynağını yeni sekmede aç`}><AppIcon name="external-link" /></a></div>
                   <div className="wisdom-reflection"><span><AppIcon name="bulb" /></span><div><small>BUGÜN İÇİN</small><p>Bu hatırlatmanın davranışlarında nasıl küçük, somut bir karşılığı olabilir?</p></div></div>
                   {isToday && <div className="wisdom-actions">
-                    <motion.button className="primary-button wisdom-save" type="button" onClick={save} disabled={isSpinning || alreadySaved} animate={saveBurst ? { scale: [1, 1.045, 1] } : { scale: 1 }}><AppIcon name={alreadySaved ? 'circle-check' : 'bookmark'} /> {alreadySaved ? modeMeta[mode].saved : modeMeta[mode].save}{saveBurst && <span className="save-sparkles" aria-hidden><i/><i/><i/></span>}</motion.button>
-                    <button className="ghost-button" type="button" onClick={spin} disabled={isSpinning}><AppIcon name="arrows-shuffle" /> Başka bir seçim</button>
+                    <motion.button className="primary-button wisdom-save" type="button" onClick={save} disabled={isSpinning || alreadySaved || !resultRevealed} animate={saveBurst ? { scale: [1, 1.045, 1] } : { scale: 1 }}><AppIcon name={alreadySaved ? 'circle-check' : 'bookmark'} /> {alreadySaved ? modeMeta[mode].saved : modeMeta[mode].save}{saveBurst && <span className="save-sparkles" aria-hidden><i/><i/><i/></span>}</motion.button>
+                    <button className="ghost-button" type="button" onClick={startOver} disabled={isSpinning}><AppIcon name="restore" /> Baştan Başla</button>
                   </div>}
                   <p className="wisdom-source-note"><AppIcon name="info-circle" /> Kısa anlam tefekkür başlangıcıdır. Tam metin, bağlam ve rivayet bilgisi için doğrulanabilir kaynak bağlantısını incele.</p>
                 </motion.div>
@@ -324,6 +413,20 @@ async function recordReveal(kind: ReflectionKind, contentId: string, isDaily: bo
   const resolved = data?.[0]?.content_id || contentId
   writeLocalHistory(identity, { ...item, content_id: resolved })
   return resolved
+}
+
+function RitualLocked({ kind, step, fields }: { kind: ReflectionKind; step: RevealStep; fields: RitualField[] }) {
+  const nextField = fields[Math.min(step, 2)]
+  return <motion.div className="ritual-locked" key={`${kind}-${step}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+    <span className="ritual-locked-icon"><AppIcon name={step ? 'sparkles' : 'lock'} /></span>
+    <span className="eyebrow">{step ? `${step}. ADIM TAMAM` : 'ÜÇ ADIMLI KEŞİF'}</span>
+    <h2>{step ? `${fields[step - 1].label} açıldı` : 'Hatırlatman hazır'}</h2>
+    <p>{step < 3 ? `Şimdi “${nextField.label}” bilgisini açmak için çarkı çevir.` : 'Metin açılıyor…'}</p>
+    <div className="ritual-locked-fields">
+      {fields.map((field, index) => <div key={field.label} className={step > index ? 'revealed' : ''}><span>{field.label}</span><strong>{step > index ? field.value : 'Gizli'}</strong></div>)}
+    </div>
+    <small><AppIcon name="shield-check" /> Seçim üç dönüş boyunca değişmez.</small>
+  </motion.div>
 }
 
 function ResultSkeleton() {

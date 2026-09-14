@@ -9,12 +9,28 @@ export type DailyReflection = {
   theme: string
   sourceLabel: string
   sourceUrl: string
+  /** Madinah mushaf page number returned by Quran.com for the first cited ayah. */
+  page?: number
+}
+
+const VERSE_PAGES: Record<string, number> = {
+  'fatiha-5': 1, 'bakara-45': 7, 'bakara-152': 23, 'bakara-153': 23,
+  'bakara-186': 28, 'bakara-195': 30, 'bakara-216': 34, 'bakara-286': 49,
+  'ali-imran-134': 67, 'ali-imran-139': 67, 'ali-imran-159': 71, 'ali-imran-200': 76,
+  'nisa-36': 84, 'maide-8': 108, 'enam-160': 150, 'araf-56': 157,
+  'araf-199': 176, 'enfal-46': 183, 'tevbe-51': 195, 'yunus-57': 215,
+  'hud-115': 234, 'yusuf-87': 246, 'rad-11': 250, 'rad-28': 252,
+  'ibrahim-7': 256, 'nahl-90': 277, 'nahl-128': 281, 'isra-23': 284,
+  'isra-70': 289, 'kehf-46': 299, 'taha-46': 314, 'taha-114': 320,
+  'enbiya-107': 331, 'muminun-61': 346, 'ankebut-69': 404, 'lokman-17': 412,
+  'zumer-53': 464, 'fussilet-34': 480, 'hucurat-13': 517, 'insirah-5-6': 596,
 }
 
 const verse = (id: string, title: string, reference: string, text: string, theme: string, path: string): DailyReflection => ({
   id, kind: 'verse', title, reference, text, theme,
   sourceLabel: 'Quran.com · ayet görünümü',
   sourceUrl: `https://quran.com/${path}`,
+  page: VERSE_PAGES[id],
 })
 
 /**
