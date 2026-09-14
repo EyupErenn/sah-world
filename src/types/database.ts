@@ -271,7 +271,7 @@ export type AwarenessEngagementRow = {
   user_id: string;
   geography: GeographyRow;
   content_id: string;
-  event_type: "section_read" | "action_opened" | "quiz_completed";
+  event_type: "section_read" | "action_opened" | "quiz_completed" | "narrative_completed" | "shared";
   metadata: Json;
   created_at: string;
   updated_at: string;

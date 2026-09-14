@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AppIcon } from '@/components/ui/AppIcon'
 import PrayerTimes from './PrayerTimes'
 import MescidimLibrary from './MescidimLibrary'
@@ -9,7 +9,16 @@ import MosqueEventArchive from './MosqueEventArchive'
 type MescidimTab = 'vakitler' | 'asma' | 'dua' | 'etkinlikler'
 
 export default function MescidimView({ reward }: { reward: (amount: number, label: string, sourceType: string, sourceId: string) => void }) {
-  const [tab, setTab] = useState<MescidimTab>('vakitler')
+  const [tab, setTab] = useState<MescidimTab>(() => {
+    if (typeof window === 'undefined') return 'vakitler'
+    const requested = sessionStorage.getItem('sah:mescidim:tab')
+    return requested === 'dua' || requested === 'asma' ? requested : 'vakitler'
+  })
+  const [initialOccasion] = useState(() => typeof window === 'undefined' ? undefined : sessionStorage.getItem('sah:mescidim:occasion') ?? undefined)
+  useEffect(() => {
+    sessionStorage.removeItem('sah:mescidim:tab')
+    sessionStorage.removeItem('sah:mescidim:occasion')
+  }, [])
   return <div className="mescidim-experience">
     <section className="mosque-identity-hero">
       <div className="mosque-identity-art" aria-hidden="true">
@@ -33,6 +42,6 @@ export default function MescidimView({ reward }: { reward: (amount: number, labe
       <button className={tab === 'dua' ? 'active' : ''} onClick={() => setTab('dua')}><AppIcon name="book-2"/><span><strong>Dua Kütüphanesi</strong><small>Kaynaklı · aranabilir</small></span></button>
       <button className={tab === 'etkinlikler' ? 'active' : ''} onClick={() => setTab('etkinlikler')}><AppIcon name="calendar-heart"/><span><strong>Etkinlik Arşivi</strong><small>Sohbet · eğitim · dayanışma</small></span></button>
     </nav>
-    {tab === 'vakitler' ? <PrayerTimes reward={reward} /> : tab === 'etkinlikler' ? <MosqueEventArchive /> : <MescidimLibrary initialTab={tab} onTabChange={setTab} key={tab} />}
+    {tab === 'vakitler' ? <PrayerTimes reward={reward} /> : tab === 'etkinlikler' ? <MosqueEventArchive /> : <MescidimLibrary initialTab={tab} initialOccasion={initialOccasion} onTabChange={setTab} key={tab} />}
   </div>
 }

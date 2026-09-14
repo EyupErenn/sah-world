@@ -13,7 +13,7 @@ type LogResult = { journal_entry_id: string; journal_content: string; xp_awarded
 const LOCAL_FAVORITES_KEY = 'sah-spiritual-favorites-v1'
 const DAILY_LIMIT = 3
 
-export default function MescidimLibrary({ initialTab = 'asma', onTabChange }: { initialTab?: LibraryTab; onTabChange?: (tab: LibraryTab) => void }) {
+export default function MescidimLibrary({ initialTab = 'asma', initialOccasion, onTabChange }: { initialTab?: LibraryTab; initialOccasion?: string; onTabChange?: (tab: LibraryTab) => void }) {
   const [tab, setTab] = useState<LibraryTab>(initialTab)
   const dailyName = getDailyAsma()
   const selectTab = (next: LibraryTab) => { setTab(next); onTabChange?.(next) }
@@ -29,7 +29,7 @@ export default function MescidimLibrary({ initialTab = 'asma', onTabChange }: { 
       <button className={tab === 'asma' ? 'active' : ''} onClick={() => selectTab('asma')}><AppIcon name="sparkles" /> Esmâü’l Hüsnâ <span>99</span></button>
       <button className={tab === 'dua' ? 'active' : ''} onClick={() => selectTab('dua')}><AppIcon name="book-2" /> Dua Kütüphanesi <span>{DUA_LIBRARY.length}</span></button>
     </nav>
-    {tab === 'asma' ? <AsmaLibrary dailyName={dailyName} /> : <DuaLibrary />}
+    {tab === 'asma' ? <AsmaLibrary dailyName={dailyName} /> : <DuaLibrary initialOccasion={initialOccasion} />}
   </div>
 }
 
@@ -152,10 +152,10 @@ function AsmaDrawer({ name, reflection, favorite, logged, onClose, onFavorite, o
   return <div className="spiritual-drawer-backdrop" onMouseDown={onClose}><aside className="spiritual-drawer" role="dialog" aria-modal="true" aria-label={name.transliteration} onMouseDown={(event) => event.stopPropagation()}><header><span>{name.order}/99</span><div><button aria-label="Favoriye ekle" className={favorite ? 'active' : ''} onClick={onFavorite}><AppIcon name="heart" /></button><button aria-label="Kapat" onClick={onClose}><AppIcon name="x" /></button></div></header><div className="asma-detail-mark" lang="ar" dir="rtl">{name.arabic}</div><span className="eyebrow">ESMÂÜ’L HÜSNÂ</span><h2>{name.transliteration}</h2><h3>{name.meaning}</h3><p>{name.reflection}</p><div className="source-assurance"><AppIcon name="shield-check"/><span><strong>Kaynak yaklaşımı</strong>{ASMA_SOURCE.note}</span></div><label><span>Kendi tefekkür notun</span><textarea rows={5} value={value} onChange={(event) => setValue(event.target.value)} placeholder="Bu ismin bugün sende uyandırdığı düşünce…"/></label><div className="spiritual-drawer-actions"><button onClick={() => onSave(value)} className="ghost-button">Notu kaydet</button><button onClick={() => onLog(value)} disabled={logged} className="primary-button"><AppIcon name="notebook" /> {logged ? 'Bugün günlüğünde' : 'Günlüğe ekle'}</button></div></aside></div>
 }
 
-function DuaLibrary() {
+function DuaLibrary({ initialOccasion }: { initialOccasion?: string }) {
   const state = useSpiritualState()
   const [category, setCategory] = useState<'Tümü' | DuaCategory>('Tümü')
-  const [occasion, setOccasion] = useState('Tümü')
+  const [occasion, setOccasion] = useState(initialOccasion && DUA_LIBRARY.some((item) => item.occasion === initialOccasion) ? initialOccasion : 'Tümü')
   const [query, setQuery] = useState('')
   const [favoritesOnly, setFavoritesOnly] = useState(false)
   const [amin, setAmin] = useState<string[]>([])

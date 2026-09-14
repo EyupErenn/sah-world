@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/store/useAuthStore'
 import type { IntegratedActivity } from '@/types'
 
 type State = { items: IntegratedActivity[]; loading: boolean; error: boolean }
@@ -19,9 +20,14 @@ function mapRow(row: Record<string, unknown>): IntegratedActivity {
 }
 
 export function useActivityLog(fromDate?: string, toDate?: string) {
+  const user = useAuthStore((state) => state.session?.access_token === 'mock-token' ? null : state.session?.user ?? null)
   const [state, setState] = useState<State>({ items: [], loading: true, error: false })
 
   const load = useCallback(async () => {
+    if (!user) {
+      setState({ items: [], loading: false, error: false })
+      return
+    }
     const { data, error } = await supabase.rpc('get_my_activity_log', {
       from_date: fromDate ?? null,
       to_date: toDate ?? null,
@@ -33,7 +39,7 @@ export function useActivityLog(fromDate?: string, toDate?: string) {
       return
     }
     setState({ items: ((data ?? []) as unknown as Record<string, unknown>[]).map(mapRow), loading: false, error: false })
-  }, [fromDate, toDate])
+  }, [fromDate, toDate, user])
 
   useEffect(() => {
     const initial = window.setTimeout(() => void load(), 0)
@@ -53,6 +59,7 @@ export function useActivityLog(fromDate?: string, toDate?: string) {
   }, [load])
 
   useEffect(() => {
+    if (!user) return
     let cancelled = false
     let refreshTimer: number | null = null
     let channel: ReturnType<typeof supabase.channel> | null = null
@@ -61,12 +68,10 @@ export function useActivityLog(fromDate?: string, toDate?: string) {
       refreshTimer = window.setTimeout(() => void load(), 220)
     }
 
-    void supabase.auth.getUser().then(({ data }) => {
-      const userId = data.user?.id
-      if (cancelled || !userId) return
-      const filter = `user_id=eq.${userId}`
+    const filter = `user_id=eq.${user.id}`
+    if (!cancelled) {
       channel = supabase
-        .channel(`activity-log-${userId}`)
+        .channel(`activity-log-${user.id}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'journal_entries', filter }, scheduleRefresh)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quran_notes', filter }, scheduleRefresh)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'hadis_notes', filter }, scheduleRefresh)
@@ -76,15 +81,17 @@ export function useActivityLog(fromDate?: string, toDate?: string) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'focus_sessions', filter }, scheduleRefresh)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'journal_spiritual_links', filter }, scheduleRefresh)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'user_lesson_progress', filter }, scheduleRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'xp_events', filter }, scheduleRefresh)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tespih_log', filter }, scheduleRefresh)
         .subscribe()
-    })
+    }
 
     return () => {
       cancelled = true
       if (refreshTimer) window.clearTimeout(refreshTimer)
       if (channel) void supabase.removeChannel(channel)
     }
-  }, [load])
+  }, [load, user])
 
   return { ...state, refresh: load }
 }
