@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { ownedRealtimeChannel } from '@/lib/ownedRealtimeChannel'
 import { useAuthStore } from '@/store/useAuthStore'
 import type { IntegratedActivity } from '@/types'
 
@@ -64,14 +65,14 @@ export function useActivityLog(fromDate?: string, toDate?: string) {
     let refreshTimer: number | null = null
     let channel: ReturnType<typeof supabase.channel> | null = null
     const scheduleRefresh = () => {
+      if (cancelled) return
       if (refreshTimer) window.clearTimeout(refreshTimer)
       refreshTimer = window.setTimeout(() => void load(), 220)
     }
 
     const filter = `user_id=eq.${user.id}`
     if (!cancelled) {
-      channel = supabase
-        .channel(`activity-log-${user.id}`)
+      channel = ownedRealtimeChannel(supabase, `activity-log-${user.id}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'journal_entries', filter }, scheduleRefresh)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quran_notes', filter }, scheduleRefresh)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'hadis_notes', filter }, scheduleRefresh)
