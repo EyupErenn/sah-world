@@ -36,12 +36,14 @@ export const CATEGORY_META: Record<ActivityCategory, { label: string; icon: stri
 };
 
 export function mapIntegratedActivities(items: IntegratedActivity[]): ActivityEvent[] {
-  return items.map((item) => ({
+  // RPC schemas can evolve independently of a cached client. An unknown or
+  // malformed activity must not crash every dashboard through CATEGORY_META.
+  return items.filter((item) => item && Object.hasOwn(CATEGORY_META, item.category) && Number.isFinite(Date.parse(item.occurredAt))).map((item) => ({
     id: item.id,
     category: item.category,
     label: item.label,
     detail: item.detail,
-    xp: item.xp,
+    xp: Number.isFinite(item.xp) ? item.xp : 0,
     createdAt: item.occurredAt,
   }));
 }
