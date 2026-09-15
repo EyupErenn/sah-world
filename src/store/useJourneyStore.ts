@@ -15,6 +15,7 @@ import type {
   FocusSession,
 } from '@/types';
 import { VEHICLE_DEFS } from '@/lib/constants';
+import { normalizeJourneyData, journeyPreferences } from '@/lib/normalizeJourney';
 
 const localDateKey = (date = new Date()) => date.toLocaleDateString('en-CA');
 
@@ -680,7 +681,7 @@ export const useJourneyStore = create<JourneyState>()(
       }),
 
       // Backup / Initial Load
-      importAll: (data) => set({
+      importAll: (incoming) => { const data = normalizeJourneyData(incoming); set({
         xp: data.xp ?? 0,
         vehicle: data.vehicle ?? VEHICLE_DEFS.car,
         badges: data.badges ?? [],
@@ -697,7 +698,7 @@ export const useJourneyStore = create<JourneyState>()(
           interruptionCount: session.interruptionCount ?? 0,
           totalAwaySeconds: session.totalAwaySeconds ?? 0,
         })),
-      }),
+      }); },
 
       exportAll: () => {
         const s = get();
@@ -719,6 +720,7 @@ export const useJourneyStore = create<JourneyState>()(
     }),
     {
       name: 'sah-world-store', // localStorage key
+      merge: (persisted, current) => persisted == null ? current : ({ ...current, ...normalizeJourneyData(persisted), ...journeyPreferences(persisted) }),
       partialize: (s) => ({
         vehicle: s.vehicle,
         vehicleChosen: s.vehicleChosen,

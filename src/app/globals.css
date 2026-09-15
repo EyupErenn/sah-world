@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+/* Route fallbacks are outside .core-app: do not depend on its scoped tokens. */
+.route-state-card .primary-button {
+  color: #fff;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  min-height: 48px;
+  padding: 12px 24px;
+  border: 0;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.route-state-card .primary-button:focus-visible { outline: 3px solid #4f46e5; outline-offset: 4px; }
+.route-state-card .route-reload { color: #4338ca; background: transparent; border: 0; min-height: 44px; margin-top: 16px; font: inherit; text-decoration: underline; cursor: pointer; }
+
 /* SAH WORLD — centralized interface design tokens */
 :root {
   --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
