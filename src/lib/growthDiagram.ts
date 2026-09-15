@@ -18,6 +18,7 @@ export type GrowthInput = {
   accent: string
   metaphor: string
   count: number
+  daily: number[]
   weightedScore: number
   intensity: number
   status: 'sessiz' | 'filizleniyor' | 'güçlü'
@@ -26,7 +27,7 @@ export type GrowthInput = {
 
 type GrowthInputDefinition = Omit<
   GrowthInput,
-  'count' | 'weightedScore' | 'intensity' | 'status'
+  'count' | 'daily' | 'weightedScore' | 'intensity' | 'status'
 > & { categories: ActivityCategory[] }
 
 const INPUT_DEFINITIONS: GrowthInputDefinition[] = [
@@ -34,7 +35,7 @@ const INPUT_DEFINITIONS: GrowthInputDefinition[] = [
     id: 'quran',
     label: 'Kur’an Kardeşim',
     accessibleLabel: 'Kur’an’ı Kerim Kardeşim',
-    icon: 'droplet-filled',
+    icon: 'book-2',
     target: 'quran-companion',
     accent: '#e8b949',
     metaphor: 'Kur’an’la kurulan bağ, köklere ulaşan bir su gibi iç dünyayı besler.',
@@ -120,7 +121,15 @@ export function buildGrowthInputs(
   events: ActivityEvent[],
   now = Date.now(),
 ): GrowthInput[] {
-  const start = now - 7 * DAY_MS
+  // Seven local calendar days, including today (not a rolling 168-hour window).
+  // Date arithmetic rather than millisecond division also handles DST days.
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(now)
+    date.setHours(0, 0, 0, 0)
+    date.setDate(date.getDate() - 6 + index)
+    return date.getTime()
+  })
+  const start = days[0]
 
   return INPUT_DEFINITIONS.map(({ categories, ...definition }) => {
     const matching = events.filter((event) => {
@@ -131,6 +140,10 @@ export function buildGrowthInputs(
       const ageInDays = Math.max(0, (now - Date.parse(event.createdAt)) / DAY_MS)
       return score + Math.max(0.2, 1 - ageInDays / 8)
     }, 0)
+    const daily = days.map((day, index) => matching.filter((event) => {
+      const timestamp = Date.parse(event.createdAt)
+      return timestamp >= day && timestamp < (days[index + 1] ?? now + 1)
+    }).length)
     const intensity = matching.length === 0
       ? 0.12
       : Math.min(1, 0.28 + Math.log2(1 + weightedScore) / 2.7)
@@ -143,6 +156,7 @@ export function buildGrowthInputs(
     return {
       ...definition,
       count: matching.length,
+      daily,
       weightedScore,
       intensity,
       status,

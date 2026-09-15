@@ -103,7 +103,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (view: strin
 
       <div className="dashboard-hero-grid">
         <div className="dashboard-growth-stack">
-          <GrowthTree xp={store.xp} trigger={store.xpOrbTrigger} lastAmount={store.lastXPAmount} events={events} onNavigate={onNavigate} />
+          <GrowthTree xp={store.xp} trigger={store.xpOrbTrigger} lastAmount={store.lastXPAmount} events={events} loading={remoteActivity.loading} onNavigate={onNavigate} />
         </div>
 
         <aside className="surface-card today-card" aria-labelledby="today-actions-title">
