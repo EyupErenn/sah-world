@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppIcon } from "@/components/ui/AppIcon";
 import AvatarImage from "@/components/ui/AvatarImage";
 import { supabase } from "@/lib/supabase";
+import { ownedRealtimeChannel } from "@/lib/ownedRealtimeChannel";
 import { useAuthStore } from "@/store/useAuthStore";
 import { isValidUUID, useJourneyStore } from "@/store/useJourneyStore";
 import type {
@@ -1331,8 +1332,7 @@ function PeerChat({
       .or(query)
       .order("created_at")
       .then(({ data }) => setMessages(data || []));
-    const channel = supabase
-      .channel(`quran-peer-${match.id}`)
+    const channel = ownedRealtimeChannel(supabase, `quran-peer-${match.id}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "chat_messages" },

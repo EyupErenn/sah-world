@@ -1,4 +1,6 @@
 'use client';
+
+import { ownedRealtimeChannel } from '@/lib/ownedRealtimeChannel';
 /* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -92,7 +94,7 @@ export default function ChatTab() {
   useEffect(() => {
     if (!user || !isValidUUID(user.id)) return;
 
-    const channel = supabase.channel('realtime:chat_messages')
+    const channel = ownedRealtimeChannel(supabase, 'realtime:chat_messages')
       .on(
         'postgres_changes',
         {

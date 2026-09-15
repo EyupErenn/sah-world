@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { getLevelForXP } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
+import { ownedRealtimeChannel } from "@/lib/ownedRealtimeChannel";
 import { useAuthStore } from "@/store/useAuthStore";
 import type { ChatMessageRow, GroupRow } from "@/types/database";
 import { AppIcon } from "@/components/ui/AppIcon";
@@ -125,8 +126,7 @@ export default function CommunityView() {
 
   useEffect(() => {
     if (!active?.id) return;
-    const channel = supabase
-      .channel(`group-chat:${active.id}`)
+    const channel = ownedRealtimeChannel(supabase, `group-chat:${active.id}`)
       .on(
         "postgres_changes",
         {
