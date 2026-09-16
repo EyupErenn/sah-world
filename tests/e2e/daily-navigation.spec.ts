@@ -8,25 +8,20 @@ async function openGuest(page: Page, url: string) {
   await page.goto(url);
   await page.getByRole('button', { name: 'DEV: Misafir görünümü' }).click();
 }
-test('home has three sections and defers the tree until explicitly expanded', async ({ page }) => {
+test('home shows the growth simulation by default on desktop, tablet and mobile', async ({ page }) => {
   test.setTimeout(120_000);
   await openGuest(page, '/');
-  await expect(page.locator('.daily-home > section')).toHaveCount(3);
-  await expect(page.locator('#daily-growth-detail')).toHaveCount(0);
-  const primary = page.getByRole('button', { name: 'Günlüğümü aç', exact: true });
-  await expect(primary).toBeInViewport();
+  await expect(page.locator('[data-growth-scene]')).toBeVisible();
+  await expect(page.locator('.daily-home')).toHaveCount(0);
   for (const width of [375, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    await expect(primary).toBeInViewport();
+    await expect(page.locator('[data-growth-scene]')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   }
-  await expect(page.getByRole('heading', { name: /Bu hafta .* gün kendine alan açtın/ })).toBeVisible();
-  await page.getByRole('button', { name: 'Detayları Gör', exact: true }).click();
-  await expect(page.locator('#daily-growth-detail')).toBeVisible();
-  await expect(page.locator('#daily-growth-detail svg').first()).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  await page.getByRole('button', { name: 'Detayları gizle', exact: true }).click();
-  await expect(page.locator('#daily-growth-detail')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Günlük', exact: true }).filter({ visible: true }).first().click();
+  await expect(page.locator('.journal-notebook')).toBeVisible();
+  await page.getByRole('button', { name: 'SAH ana sayfa', exact: true }).filter({ visible: true }).first().click();
+  await expect(page.locator('[data-growth-scene]')).toBeVisible();
 });
 
 test('journal tabs have distinct URLs, Back restores the tab, and reload preserves it', async ({ page }) => {
