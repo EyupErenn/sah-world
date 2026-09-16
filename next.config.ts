@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Keep E2E compilation isolated from the user's already-running dev server.
+  distDir: process.env.SAH_E2E === '1' ? '.next-e2e' : '.next',
+  devIndicators: process.env.SAH_E2E === '1' ? false : undefined,
   allowedDevOrigins: ["10.58.0.180"],
   images: {
     remotePatterns: [

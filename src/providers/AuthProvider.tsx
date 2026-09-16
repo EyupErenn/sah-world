@@ -7,6 +7,7 @@ import type { Profile } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useJourneyStore } from '@/store/useJourneyStore';
 import { useSupabaseSync } from '@/hooks/useSupabaseSync';
+import { startJournalSync } from '@/lib/journalOutbox';
 
 // ============================================================
 // Context
@@ -20,9 +21,11 @@ export const useAuthContext = () => useContext(AuthContext);
 export function AuthProvider({ children, initialUser, initialProfile }: { children: React.ReactNode; initialUser: User | null; initialProfile: Profile | null }) {
   const { setSession, setUser, setProfile, setIsAuthLoading, reset } = useAuthStore();
   const initialized = useRef(false);
+  const userId = useAuthStore(state => state.user?.id);
 
   // Veri senkronizasyonu (Supabase'den çekme + migrasyon)
   useSupabaseSync();
+  useEffect(() => startJournalSync(), [userId]);
 
   useEffect(() => {
     if (initialized.current) return;

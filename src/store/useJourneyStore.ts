@@ -16,6 +16,7 @@ import type {
 } from '@/types';
 import { VEHICLE_DEFS } from '@/lib/constants';
 import { normalizeJourneyData, journeyPreferences } from '@/lib/normalizeJourney';
+import { queueJournal, type JournalWriteStatus } from '@/lib/journalOutbox';
 
 const localDateKey = (date = new Date()) => date.toLocaleDateString('en-CA');
 
@@ -75,7 +76,7 @@ interface JourneyState {
   updateStreak: () => void;
 
   addJournal: (entry: JournalEntry) => void;
-  saveJournal: (entry: JournalEntry) => void;
+  saveJournal: (entry: JournalEntry) => JournalWriteStatus;
   upsertJournalLocal: (entry: JournalEntry) => void;
   deleteJournal: (id: string) => void;
 
@@ -301,28 +302,15 @@ export const useJourneyStore = create<JourneyState>()(
       },
       saveJournal: (entry) => {
         const validEntry: JournalEntry = { ...entry, id: ensureUUID(entry.id) };
+        const writeStatus = queueJournal(validEntry);
+        if (writeStatus === 'storage-error') return writeStatus;
         set((state) => {
           const exists = state.journal.some((item) => item.id === validEntry.id || (item.date === validEntry.date && item.ritualType === validEntry.ritualType));
           return { journal: exists
             ? state.journal.map((item) => item.id === validEntry.id || (item.date === validEntry.date && item.ritualType === validEntry.ritualType) ? validEntry : item)
             : [validEntry, ...state.journal] };
         });
-        getAuthenticatedUserId().then((uid) => {
-          if (!uid) return;
-          supabase.from('journal_entries').upsert({
-            id: validEntry.id, user_id: uid, date: validEntry.date,
-            mood: validEntry.mood, energy: validEntry.energy, stress: validEntry.stress,
-            sleep: validEntry.sleep ?? null, content: validEntry.content,
-            moments: validEntry.moments ?? [], self_note: validEntry.selfNote ?? '',
-            ritual_type: validEntry.ritualType ?? null, entry_mode: validEntry.entryMode ?? 'full',
-            niyet_text: validEntry.intentionText ?? '', beklenen_zorluk_text: validEntry.expectedChallengeText ?? '',
-            gratitude_text: validEntry.gratitudeText ?? '', xp_awarded: validEntry.xpAwarded ?? 0,
-            tags: validEntry.tags ?? [], created_at: validEntry.createdAt,
-          }, { onConflict: 'id' }).then(({ error }) => {
-            if (error) notifySyncError(error, 'saveJournal');
-            else if (typeof window !== 'undefined') window.dispatchEvent(new Event('sah:activity-changed'));
-          });
-        });
+        return writeStatus;
       },
       // Server-side RPCs (for example Mescidim → Günlük) already persist the
       // record. This action mirrors their result in the client store without
