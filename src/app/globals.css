@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+.core-app .report-next-step{padding:24px;display:grid;gap:16px;border-radius:24px;background:linear-gradient(135deg,#eef2ff,#faf5ff)}
+.core-app .report-next-step h2,.core-app .report-next-step p{margin:0}.core-app .report-next-step .primary-button{justify-self:start}
+.mescidim-scope-tabs{display:flex;gap:8px;padding:8px;border-radius:16px;background:var(--surface-soft,#eef2ff);flex-wrap:wrap}
+.mescidim-scope-tabs button{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;padding:16px;border:0;border-radius:8px;color:var(--ink-soft,#52617a);font-weight:600;background:transparent;min-height:48px}
+.mescidim-scope-tabs button[aria-selected=true]{color:#4f46e5;background:var(--surface,#fff);box-shadow:0 4px 16px rgba(0,0,0,.08)}
+@media(max-width:767px){.mescidim-scope-tabs{flex-direction:column}}
+
 /* Daily core: exactly three content sections; detail loads only on request. */
 .core-app .daily-home { display: grid; gap: var(--space-6); max-width: 1100px; margin: 0 auto; grid-template-columns: 1fr 1fr; }
 .core-app .daily-home > section { padding: var(--space-8); border-radius: var(--radius-lg); min-width: 0; }
