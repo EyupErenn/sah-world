@@ -21,7 +21,8 @@ import {
 import type { FocusSession } from "@/types";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { supabase } from "@/lib/supabase";
-import { buildWeeklyInsights } from "@/lib/weeklyInsights";
+import { buildWeeklyInsights, getWeeklyNextStep } from "@/lib/weeklyInsights";
+import { openAppView } from "@/lib/appLocation";
 import { getFocusHistoryStats } from "@/lib/focusInsights";
 import SectionTagline from "./SectionTagline";
 
@@ -92,6 +93,7 @@ export default function ReportsView() {
     quick: weekJournal.filter((item) => item.entryMode === "quick").length,
   };
   const localWeeklyInsights = buildWeeklyInsights(store.journal, events, now);
+  const nextStep = getWeeklyNextStep(store.journal, events, now);
 
   useEffect(() => {
     let active = true;
@@ -120,6 +122,12 @@ export default function ReportsView() {
         <SectionTagline section="reports" compact />
         <span className="quiet-chip">Son güncelleme · şimdi</span>
       </header>
+      <section className="surface-card report-next-step" aria-labelledby="report-next-title">
+        <span className="eyebrow">SIRADAKİ KÜÇÜK ADIMIN</span>
+        <h2 id="report-next-title">{nextStep.title}</h2>
+        <p>{nextStep.detail}</p>
+        <button className="primary-button" onClick={() => openAppView(nextStep.view)}>{nextStep.action} <AppIcon name="arrow-right" /></button>
+      </section>
       <div className="stat-grid report-stats">
         <ReportStat
           icon="sparkles"

@@ -45,6 +45,13 @@ export default function DailyHomeView({ onNavigate }: { onNavigate: (view: strin
         }
       } catch { /* A broken browser draft does not block the daily action. */ }
       if (!isValidUUID(owner)) return;
+      const now = new Date();
+      const nextWeek = new Date(now); nextWeek.setDate(now.getDate() + 7);
+      const { data: appointment } = await supabase.from('appointments').select('scheduled_start,status').eq('student_id', owner).in('status', ['pending', 'confirmed']).gte('scheduled_start', now.toISOString()).lte('scheduled_start', nextWeek.toISOString()).order('scheduled_start', { ascending: true }).limit(1).maybeSingle();
+      if (active && appointment) {
+        const when = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(appointment.scheduled_start));
+        setResume({ label: 'Yaklaşan Kur’an randevun', detail: `${when} · ${appointment.status === 'confirmed' ? 'Onaylandı' : 'Onay bekliyor'}`, view: 'quran-companion', tab: 'appointments' }); return;
+      }
       const { data } = await supabase.from('quran_study_goals').select('title,progress_percent').eq('user_id', owner).lt('progress_percent', 100).order('updated_at', { ascending: false }).limit(1).maybeSingle();
       if (active && data) setResume({ label: data.title, detail: `Kur’an çalışma hedefin · %${data.progress_percent} tamamlandı`, view: 'quran-companion', tab: 'study' });
     };

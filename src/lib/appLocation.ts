@@ -2,6 +2,7 @@ export const APP_VIEWS = ['dashboard', 'growth', 'focus', 'quran-companion', 'me
 export type AppView = typeof APP_VIEWS[number];
 export const JOURNAL_TABS = ['journal', 'matrix', 'sukur', 'lessons'] as const;
 export const QURAN_TABS = ['home', 'wheel', 'teachers', 'appointments', 'peers', 'study', 'manage'] as const;
+export const MESCIDIM_TABS = ['vakitler', 'asma', 'dua', 'etkinlikler'] as const;
 export function selectedValue<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
   return allowed.includes(value as T) ? value as T : fallback;
 }

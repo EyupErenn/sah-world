@@ -3,6 +3,17 @@ import type { JournalEntry } from '@/types'
 
 const DAY_NAMES=['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi']
 
+/** A practical invitation, not a clinical interpretation or a mandatory routine. */
+export function getWeeklyNextStep(journal: JournalEntry[], events: ActivityEvent[], now = new Date()): { title: string; detail: string; action: string; view: 'journal' | 'focus' } {
+  const start = new Date(now); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 6)
+  const recent = journal.filter(entry => entry.date >= dayKey(start) && entry.date <= dayKey(now))
+  const hasFocus = events.some(event => event.category === 'focus' && new Date(event.createdAt) >= start && new Date(event.createdAt) <= now)
+  if (!recent.length) return { title: 'Bugünden tek bir cümle sakla.', detail: 'Nasıl hissettiğini veya bugün önem verdiğin bir şeyi yaz. Uzun bir kayıt gerekmiyor.', action: 'Günlüğümü aç', view: 'journal' }
+  if (!hasFocus) return { title: 'Bir görevi tek bir odak oturumuna bağla.', detail: 'Yapacağın işi adlandır; oturum sonunda ortaya çıkan somut sonucu bir cümleyle not et.', action: 'Odak oturumu aç', view: 'focus' }
+  if (!recent.some(entry => entry.date === dayKey(now))) return { title: 'Bugünün küçük çıktısını günlüğüne taşı.', detail: 'Bugün yaptığın bir şeyi ve yarına bırakacağın tek adımı yaz. Hızlı kayıt da yeterli.', action: 'Bugünü kaydet', view: 'journal' }
+  return { title: 'Bir sonraki işin için tek bir çıktı seç.', detail: 'Başlamadan önce “Bu oturum bitince ne ortaya çıkacak?” sorusunu görev etiketiyle yanıtla.', action: 'Sonraki oturumu planla', view: 'focus' }
+}
+
 export function buildWeeklyInsights(journal:JournalEntry[],events:ActivityEvent[],now=new Date()):string[]{
   const currentStart=new Date(now);currentStart.setHours(0,0,0,0);currentStart.setDate(currentStart.getDate()-6)
   const previousStart=new Date(currentStart);previousStart.setDate(previousStart.getDate()-7)

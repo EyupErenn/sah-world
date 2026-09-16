@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { MESCIDIM_TABS, openAppView, selectedValue } from '@/lib/appLocation'
 import { AppIcon } from '@/components/ui/AppIcon'
 import PrayerTimes from './PrayerTimes'
 import MescidimLibrary from './MescidimLibrary'
@@ -9,18 +11,27 @@ import MosqueEventArchive from './MosqueEventArchive'
 type MescidimTab = 'vakitler' | 'asma' | 'dua' | 'etkinlikler'
 
 export default function MescidimView({ reward }: { reward: (amount: number, label: string, sourceType: string, sourceId: string) => void }) {
-  const [tab, setTab] = useState<MescidimTab>(() => {
+  const params = useSearchParams()
+  const [legacyTab] = useState<MescidimTab>(() => {
     if (typeof window === 'undefined') return 'vakitler'
     const requested = sessionStorage.getItem('sah:mescidim:tab')
     return requested === 'dua' || requested === 'asma' ? requested : 'vakitler'
   })
+  const tab = selectedValue(params.get('tab'), MESCIDIM_TABS, legacyTab)
+  const setTab = (next: MescidimTab) => openAppView('mescidim', next)
+  const localCommunity = tab === 'etkinlikler'
   const [initialOccasion] = useState(() => typeof window === 'undefined' ? undefined : sessionStorage.getItem('sah:mescidim:occasion') ?? undefined)
   useEffect(() => {
     sessionStorage.removeItem('sah:mescidim:tab')
     sessionStorage.removeItem('sah:mescidim:occasion')
   }, [])
   return <div className="mescidim-experience">
-    <section className="mosque-identity-hero">
+    <header className="page-heading"><div><span className="eyebrow">MESCİDİM</span><h1>{localCommunity ? 'Yerel cami topluluğu' : 'Kişisel manevi alanım'}</h1><p>{localCommunity ? 'Bursa Teknik Üniversitesi camisine ait etkinlik arşivi. Katılım isteğe bağlıdır.' : 'Hangi şehirde olursan ol, vakitler, zikir ve kaynaklı kütüphanen burada.'}</p></div></header>
+    <nav className="mescidim-scope-tabs" aria-label="Mescidim kapsamı">
+      <button role="tab" aria-selected={!localCommunity} onClick={() => setTab('vakitler')}><AppIcon name="lock" /> Kişisel alanım</button>
+      <button role="tab" aria-selected={localCommunity} onClick={() => setTab('etkinlikler')}><AppIcon name="building-mosque" /> BTÜ cami topluluğu</button>
+    </nav>
+    {localCommunity && <section className="mosque-identity-hero">
       <div className="mosque-identity-art" aria-hidden="true">
         <span className="mosque-moon" />
         <svg viewBox="0 0 420 230" role="img">
@@ -35,13 +46,12 @@ export default function MescidimView({ reward }: { reward: (amount: number, labe
         </svg>
       </div>
       <div className="mosque-identity-copy"><span className="eyebrow">BURSA TEKNİK ÜNİVERSİTESİ · MESCİDİM</span><h2>Şehit Astsubay Ömer Halisdemir Camii</h2><p>Vakitlerin, tefekkürün ve üniversite topluluğunun ortak hafızası. İbadet ritmini takip et; kaynaklı manevi kütüphaneyi ve camimizin etkinlik arşivini keşfet.</p><div><span><AppIcon name="map-pin" /> Bursa</span><span><AppIcon name="shield-check" /> Güvenli topluluk arşivi</span></div></div>
-    </section>
-    <nav className="mescidim-main-tabs" aria-label="Mescidim alanları">
+    </section>}
+    {!localCommunity && <nav className="mescidim-main-tabs" aria-label="Kişisel Mescidim alanları">
       <button className={tab === 'vakitler' ? 'active' : ''} onClick={() => setTab('vakitler')}><AppIcon name="clock"/><span><strong>Vakitler ve zikir</strong><small>Namaz takvimi · tesbih</small></span></button>
       <button className={tab === 'asma' ? 'active' : ''} onClick={() => setTab('asma')}><AppIcon name="sparkles"/><span><strong>Esmâü’l Hüsnâ</strong><small>99 isim · günlük tefekkür</small></span></button>
       <button className={tab === 'dua' ? 'active' : ''} onClick={() => setTab('dua')}><AppIcon name="book-2"/><span><strong>Dua Kütüphanesi</strong><small>Kaynaklı · aranabilir</small></span></button>
-      <button className={tab === 'etkinlikler' ? 'active' : ''} onClick={() => setTab('etkinlikler')}><AppIcon name="calendar-heart"/><span><strong>Etkinlik Arşivi</strong><small>Sohbet · eğitim · dayanışma</small></span></button>
-    </nav>
+    </nav>}
     {tab === 'vakitler' ? <PrayerTimes reward={reward} /> : tab === 'etkinlikler' ? <MosqueEventArchive /> : <MescidimLibrary initialTab={tab} initialOccasion={initialOccasion} onTabChange={setTab} key={tab} />}
   </div>
 }
