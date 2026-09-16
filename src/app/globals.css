@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+/* Daily core: exactly three content sections; detail loads only on request. */
+.core-app .daily-home { display: grid; gap: var(--space-6); max-width: 1100px; margin: 0 auto; grid-template-columns: 1fr 1fr; }
+.core-app .daily-home > section { padding: var(--space-8); border-radius: var(--radius-lg); min-width: 0; }
+.core-app .daily-next { grid-column: 1 / -1; position: relative; background: linear-gradient(135deg, rgba(79,70,229,.08), rgba(124,58,237,.04)); }
+.core-app .daily-next h1 { font-size: clamp(24px, 3vw, 40px); line-height: 1.2; max-width: 700px; margin: var(--space-4) 0; }
+.core-app .daily-next p, .core-app .daily-resume p { max-width: 650px; margin: var(--space-4) 0 var(--space-6); }
+.core-app .daily-home h2 { font-size: 20px; line-height: 1.5; margin: var(--space-3) 0; overflow-wrap: anywhere; }
+.core-app .daily-next-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--radius-md); background: rgba(79,70,229,.12); color: var(--brand-primary); margin-top: var(--space-4); }
+.core-app .daily-level { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: space-between; margin-top: var(--space-4); font-size: 12px; }
+.core-app .daily-progress progress { display: block; width: 100%; height: 8px; margin: var(--space-3) 0 var(--space-4); border: 0; border-radius: var(--radius-sm); background: rgba(79,70,229,.12); accent-color: var(--brand-primary); }
+.core-app .daily-progress progress::-webkit-progress-bar { background: rgba(79,70,229,.12); border-radius: var(--radius-sm); }
+.core-app .daily-progress progress::-webkit-progress-value { background: linear-gradient(90deg,var(--brand-primary),var(--brand-violet)); border-radius: var(--radius-sm); }
+.core-app #daily-growth-detail { margin-top: var(--space-6); }
+.core-app .daily-progress:has(#daily-growth-detail) { grid-column: 1 / -1; }
+@media (max-width: 767px) {
+  .core-app .daily-home { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+  .core-app .daily-home > section { padding: var(--space-6); }
+  .core-app .daily-next h1 { font-size: 24px; }
+}
+
 /* Route fallbacks are outside .core-app: do not depend on its scoped tokens. */
 .route-state-card .primary-button {
   color: #fff;

@@ -1,5 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
+import { QURAN_TABS, openAppView, selectedValue } from "@/lib/appLocation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { AppIcon } from "@/components/ui/AppIcon";
@@ -152,7 +154,10 @@ export default function QuranCompanionView({
 }) {
   const { user, profile, patchProfile } = useAuthStore();
   const journey = useJourneyStore();
-  const [tab, setTab] = useState<CompanionTab>(wheelEntry ? "wheel" : "home");
+  const searchParams = useSearchParams();
+  const requestedTab = selectedValue(searchParams.get('tab'), QURAN_TABS, 'home');
+  const tab = requestedTab === 'manage' && profile?.role !== 'hoca' && profile?.role !== 'admin' ? 'home' : requestedTab;
+  const setTab = (next: CompanionTab) => openAppView('quran-companion', next);
   const reducedMotion = useReducedMotion();
   const [teachers, setTeachers] = useState<HocaProfileRow[]>([]);
   const [appointments, setAppointments] = useState<AppointmentView[]>([]);
@@ -319,7 +324,7 @@ export default function QuranCompanionView({
           <AppIcon name="circle-check" /> {notice}
         </div>
       )}
-      <QuranInvitationVideo />
+      {tab === 'home' && <><QuranInvitationVideo />
       <section className="quran-companion-hero">
         <div className="quran-hero-mark" aria-hidden="true">
           <span>اقْرَأْ</span>
@@ -406,6 +411,8 @@ export default function QuranCompanionView({
         </article>
       </section>
 
+      </>}
+      {tab !== 'home' && <header className="page-heading"><div><span className="eyebrow">KUR’AN-I KERİM KARDEŞİM</span><h1>{tab === 'study' && goal ? goal.title : navItems.find(item => item.id === tab)?.label}</h1><p>{tab === 'study' ? goal ? `Kaldığın yer · Hedefinin %${goal.progress_percent} tamamlandı. Bir sonraki küçük adımını burada sürdür.` : 'Bir çalışma hedefi belirle; kaldığın yere her gelişinde geri dön.' : 'İhtiyacın olan alana doğrudan ulaş; yolculuğun sana ait.'}</p></div></header>}
       <nav
         className="quran-companion-tabs"
         aria-label="Kur’an Kardeşim alanları"
@@ -431,7 +438,7 @@ export default function QuranCompanionView({
           <button onClick={() => void load()}>Tekrar dene</button>
         </div>
       )}
-      {!profile?.quran_level && (
+      {tab === 'home' && !profile?.quran_level && (
         <LevelOnboarding onSelect={(level) => void saveLevel(level)} />
       )}
       <AnimatePresence mode="wait" initial={false}>
