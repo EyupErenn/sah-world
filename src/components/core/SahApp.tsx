@@ -1,5 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
+import { openAppView, readAppView } from "@/lib/appLocation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -18,14 +20,13 @@ import CommandPalette from "./CommandPalette";
 import MilestoneCelebration, { type Milestone } from "./MilestoneCelebration";
 import AwarenessProfileSummary from "./AwarenessProfileSummary";
 import ProfessionProfileSummary from "./ProfessionProfileSummary";
-import type { WisdomEntry } from "./DailyWisdomWheel";
-import type { JournalHubTab } from "./JournalHubView";
 import CommunityErrorBoundary from "./CommunityErrorBoundary";
 import type { GrowthNavigationCue } from "./GrowthTree";
 
 const DashboardView = dynamic(() => import("./DashboardView"), {
   loading: () => <DashboardLoading />,
 });
+const DailyHomeView = dynamic(() => import("./DailyHomeView"), { loading: () => <ViewSkeleton /> });
 const ReportsView = dynamic(() => import("./ReportsView"), {
   loading: () => <ViewSkeleton />,
 });
@@ -54,6 +55,7 @@ const AccountSettingsDialog = dynamic(() => import("./AccountSettingsDialog"));
 
 type ViewKey =
   | "dashboard"
+  | "growth"
   | "community"
   | "reports"
   | "focus"
@@ -82,6 +84,7 @@ const viewLabels: Partial<Record<ViewKey, string>> = Object.fromEntries(
 );
 viewLabels.dashboard = "Evrenim";
 viewLabels.community = "Topluluk";
+viewLabels.growth = "Gelişim detaylarım";
 
 export default function SahApp({
   initialUser,
@@ -92,20 +95,16 @@ export default function SahApp({
 }) {
   const { session, user, isAuthLoading, profile } = useAuthStore();
   const store = useJourneyStore();
-  const [view, setView] = useState<ViewKey>("dashboard");
+  const searchParams = useSearchParams();
+  const view = readAppView(searchParams);
+  const setView = useCallback((next: string) => {
+    openAppView(readAppView(new URLSearchParams({ view: next })));
+  }, []);
   const [moreOpen, setMoreOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [onboardingPreview, setOnboardingPreview] = useState(false);
-  const [wisdomEntry, setWisdomEntry] = useState<WisdomEntry>({
-    tab: "verse",
-    nonce: 0,
-  });
-  const [journalEntry, setJournalEntry] = useState<{
-    tab: JournalHubTab;
-    nonce: number;
-  }>({ tab: "journal", nonce: 0 });
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [milestone, setMilestone] = useState<Milestone>(null);
   const [transitionCue, setTransitionCue] = useState<(GrowthNavigationCue & { nonce: number }) | null>(null);
@@ -136,14 +135,7 @@ export default function SahApp({
         ),
       );
     }
-  }, []);
-
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("focus") === "1") {
-      const timer = window.setTimeout(() => setView("focus"), 0);
-      return () => window.clearTimeout(timer);
-    }
-  }, []);
+  }, [setView]);
 
   useEffect(() => {
     const openFocus = () => {
@@ -154,7 +146,7 @@ export default function SahApp({
     };
     window.addEventListener("sah:open-focus", openFocus);
     return () => window.removeEventListener("sah:open-focus", openFocus);
-  }, []);
+  }, [setView]);
 
   useEffect(() => {
     const showFocus = () => {
@@ -163,7 +155,8 @@ export default function SahApp({
       setProfileOpen(false);
     };
     const initialSync = window.setTimeout(() => {
-      if (useFocusTimerStore.getState().isFullscreen) showFocus();
+      // A restored fullscreen preference must not replace an explicit shared URL.
+      if (useFocusTimerStore.getState().isFullscreen && !new URLSearchParams(window.location.search).has('view')) showFocus();
     }, 0);
     const unsubscribe = useFocusTimerStore.subscribe((state, previous) => {
       if (state.isFullscreen && !previous.isFullscreen) showFocus();
@@ -172,7 +165,7 @@ export default function SahApp({
       window.clearTimeout(initialSync);
       unsubscribe();
     };
-  }, []);
+  }, [setView]);
 
   useEffect(() => {
     const closeMenu = (event: PointerEvent) => {
@@ -293,20 +286,12 @@ export default function SahApp({
       transitionCueTimer.current = window.setTimeout(() => setTransitionCue(null), 520);
     }
     if (next === "quran" || next === "hadis") {
-      setWisdomEntry({
-        tab: "archive",
-        archiveKind: next === "quran" ? "verse" : "hadith",
-        nonce: Date.now(),
-      });
-      setView("quran-companion");
+      openAppView("quran-companion", "wheel", { wisdom: "archive", archive: next === "quran" ? "verse" : "hadith" });
     } else if (next === "daily-wheel") {
-      setWisdomEntry({ tab: "verse", nonce: Date.now() });
-      setView("quran-companion");
+      openAppView("quran-companion", "wheel", { wisdom: "verse" });
     } else if (next === "matrix" || next === "sukur" || next === "lessons") {
-      setJournalEntry({ tab: next, nonce: Date.now() });
-      setView("journal");
+      openAppView("journal", next);
     } else if (next === "journal") {
-      setJournalEntry({ tab: "journal", nonce: Date.now() });
       setView("journal");
     } else if (next === "depot") {
       setView("dashboard");
@@ -538,6 +523,8 @@ export default function SahApp({
               transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
             >
               {view === "dashboard" ? (
+                <DailyHomeView onNavigate={navigate} />
+              ) : view === "growth" ? (
                 <DashboardView onNavigate={navigate} />
               ) : view === "reports" ? (
                 <ReportsView />
@@ -547,14 +534,10 @@ export default function SahApp({
                 </CommunityErrorBoundary>
               ) : view === "quran-companion" ? (
                 <QuranCompanionView
-                  key={wisdomEntry.nonce}
                   onNavigate={navigate}
-                  wheelEntry={wisdomEntry.nonce ? wisdomEntry : undefined}
                 />
               ) : view === "journal" ? (
                 <JournalHubView
-                  key={journalEntry.nonce}
-                  initialTab={journalEntry.tab}
                   onNavigate={navigate}
                 />
               ) : view === "focus" ? (

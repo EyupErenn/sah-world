@@ -8,6 +8,8 @@ import { supabase } from '@/lib/supabase'
 import { recordXpEvent } from '@/lib/xp'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useJourneyStore } from '@/store/useJourneyStore'
+import { useSearchParams } from 'next/navigation'
+import { openAppView, selectedValue } from '@/lib/appLocation'
 
 export type WisdomTab = ReflectionKind | 'archive'
 export type WisdomEntry = { tab: WisdomTab; archiveKind?: ReflectionKind; nonce: number }
@@ -103,9 +105,11 @@ export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
   const store = useJourneyStore()
   const user = useAuthStore((state) => state.session?.access_token === 'mock-token' ? undefined : state.user || state.session?.user)
   const identity = user?.id || 'guest'
-  const [tab, setTab] = useState<WisdomTab>(entry?.tab || 'verse')
-  const [mode, setMode] = useState<ReflectionKind>(entry?.tab === 'hadith' ? 'hadith' : 'verse')
-  const [archiveKind, setArchiveKind] = useState<'all' | ReflectionKind>(entry?.archiveKind || 'all')
+  const params = useSearchParams()
+  const tab = selectedValue(params.get('wisdom'), ['verse','hadith','archive'] as const, entry?.tab || 'verse')
+  const mode:ReflectionKind = tab === 'hadith' ? 'hadith' : 'verse'
+  const archiveKind = selectedValue(params.get('archive'), ['all','verse','hadith'] as const, entry?.archiveKind || 'all')
+  const setArchiveKind = (next:'all'|ReflectionKind) => openAppView('quran-companion','wheel',{wisdom:'archive',archive:next})
   const [selectedDate, setSelectedDate] = useState(todayKey)
   const [selectedIndex, setSelectedIndex] = useState(() => getDailyReflectionIndex('verse', VERSE_REFLECTIONS.length, identity))
   const [recentIds, setRecentIds] = useState<string[]>([])
@@ -205,10 +209,9 @@ export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
 
   const changeTab = (next: WisdomTab) => {
     if (isSpinning) return
-    setTab(next)
+    openAppView('quran-companion','wheel',{wisdom:next})
     setNotice('')
     if (next !== 'archive') {
-      setMode(next)
       setSelectedDate(todayKey())
       setRotation(0)
       setRevealStep(0)
@@ -261,6 +264,15 @@ export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
     setRevealStep(0)
     setIsRevealing(false)
     setNotice('Yeni seçim hazır. Üç adımda keşfet.')
+  }
+
+  const showDirectly = () => {
+    if (!selected || historyLoading || isSpinning || !isToday) return
+    setRevealStep(3)
+    recentIdsRef.current = [selected.id, ...recentIdsRef.current.filter(id => id !== selected.id)].slice(0, RECENT_LIMIT)
+    setRecentIds(recentIdsRef.current)
+    void recordReveal(mode, selected.id, false, identity, user?.id)
+    // No separate reward: both reveal paths share the same existing save/action.
   }
 
   const save = () => {
@@ -369,7 +381,8 @@ export default function DailyWisdomWheel({ entry }: { entry?: WisdomEntry }) {
 
               {isToday && <div className="ritual-progress" aria-hidden>{[1, 2, 3].map((step) => <i key={step} className={revealStep >= step ? 'complete' : isSpinning && revealStep + 1 === step ? 'active' : ''} />)}<span>{revealStep}/3</span></div>}
               <button className="spin-button" type="button" onClick={revealStep === 3 ? startOver : spin} disabled={isSpinning || !isToday || historyLoading} aria-busy={isSpinning} aria-label={isToday ? revealStep === 3 ? `Yeni bir seçim hazırla · ${availableCount} yakın zamanda gösterilmemiş seçenek` : nextSpinLabel(mode, revealStep) : 'Geçmiş gün · salt okunur'}><AppIcon name={revealStep === 3 ? 'restore' : 'refresh'} /> {isSpinning ? 'Çark dönüyor…' : !isToday ? 'Geçmiş gün · salt okunur' : revealStep === 3 ? 'Baştan Başla' : nextSpinLabel(mode, revealStep)}</button>
-              <p className="wheel-privacy"><AppIcon name={isToday ? 'shield-check' : 'history'} /> {isToday ? 'Sonuç baştan bellidir; her dönüş aynı güvenilir kaydın bir parçasını açar.' : 'Bu görünüm geçmişteki gerçek kaydı gösterir ve yeni seçim üretmez.'}</p>
+              {isToday && revealStep < 3 && <button className="text-button" disabled={historyLoading || isSpinning} onClick={showDirectly}>{mode === 'verse' ? 'Bugünün ayetini direkt göster' : 'Bugünün hadisini direkt göster'}</button>}
+              <p className="wheel-privacy"><AppIcon name={isToday ? 'shield-check' : 'history'} /> {isToday ? 'Üç adımda keşfet veya doğrudan oku. İki yol da aynı hatırlatmayı açar.' : 'Bu görünüm geçmişteki gerçek kaydı gösterir ve yeni seçim üretmez.'}</p>
             </div>
 
             <article className="wisdom-result" aria-live="polite" aria-busy={isSpinning || historyLoading} style={{ '--theme-color': themeColor } as CSSProperties}>

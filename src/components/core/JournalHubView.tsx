@@ -1,7 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { JOURNAL_TABS, openAppView, selectedValue } from "@/lib/appLocation";
 import { AppIcon } from "@/components/ui/AppIcon";
 import SectionTagline from "./SectionTagline";
 import SectionView from "./SectionView";
@@ -46,13 +47,13 @@ const tabs: Array<{
 ];
 
 export default function JournalHubView({
-  initialTab = "journal",
   onNavigate,
 }: {
-  initialTab?: JournalHubTab;
   onNavigate: (view: string) => void;
 }) {
-  const [tab, setTab] = useState<JournalHubTab>(initialTab);
+  const searchParams = useSearchParams();
+  const tab = selectedValue(searchParams.get('tab'), JOURNAL_TABS, 'journal');
+  const setTab = (next: JournalHubTab) => openAppView('journal', next);
   const reducedMotion = useReducedMotion();
 
   return (
