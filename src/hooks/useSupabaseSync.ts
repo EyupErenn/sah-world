@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useJourneyStore, type ExportSchema, ensureUUID, isValidUUID } from '@/store/useJourneyStore';
 import type { Profile } from '@/lib/supabase';
 import type { JournalEntry, QuranNote, HadisNote, EisenhowerTask, LessonEntry, SukurEntry, FocusSession } from '@/types';
+import { pendingJournalEntries, journalWriteVersion, journalWritesAfter } from '@/lib/journalOutbox';
 
 // ============================================================
 // Migration: localStorage → Supabase (bir kez çalışır)
@@ -196,6 +197,9 @@ export function useSupabaseSync() {
         const profile = profileData as Profile;
         setProfile(profile);
 
+        // Protect writes/acknowledgements occurring while this fetch is in flight.
+        const journalVersionBeforeFetch = journalWriteVersion();
+        const pendingBeforeFetch = pendingJournalEntries(authenticatedUserId);
         // 2. Tüm içerik tablolarını paralel çek
         const [
           { data: journalData },
@@ -303,6 +307,12 @@ export function useSupabaseSync() {
         }));
 
         // 3. Zustand store'a DB verilerini yükle (importAll)
+        const protectedJournal = [
+          ...pendingJournalEntries(authenticatedUserId),
+          ...journalWritesAfter(authenticatedUserId, journalVersionBeforeFetch),
+          ...pendingBeforeFetch,
+        ];
+        const pendingJournal = protectedJournal.filter((entry, index) => protectedJournal.findIndex(other => other.id === entry.id) === index);
         importAll({
           xp: profile.xp ?? 0,
           badges: profile.badges ?? [],
@@ -315,7 +325,7 @@ export function useSupabaseSync() {
             flavorText: '',
             color: '#6366f1',
           },
-          journal,
+          journal: [...pendingJournal, ...journal.filter(entry => !pendingJournal.some(pending => pending.id === entry.id))],
           quranNotes,
           hadisNotes,
           lessons,
