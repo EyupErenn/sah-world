@@ -26,7 +26,6 @@ import type { GrowthNavigationCue } from "./GrowthTree";
 const DashboardView = dynamic(() => import("./DashboardView"), {
   loading: () => <DashboardLoading />,
 });
-const DailyHomeView = dynamic(() => import("./DailyHomeView"), { loading: () => <ViewSkeleton /> });
 const ReportsView = dynamic(() => import("./ReportsView"), {
   loading: () => <ViewSkeleton />,
 });
@@ -523,7 +522,7 @@ export default function SahApp({
               transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
             >
               {view === "dashboard" ? (
-                <DailyHomeView onNavigate={navigate} />
+                <DashboardView onNavigate={navigate} />
               ) : view === "growth" ? (
                 <DashboardView onNavigate={navigate} />
               ) : view === "reports" ? (
