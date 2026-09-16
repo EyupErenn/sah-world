@@ -44,7 +44,9 @@ export default function FocusTimerView({
   );
   const [draftSound, setDraftSound] = useState<FocusSoundId>(timer.sound);
   const [draftVolume, setDraftVolume] = useState(timer.volume);
-  const [timelineOpen, setTimelineOpen] = useState(true);
+  // Start with the timer unobstructed, especially on narrow screens where
+  // the timeline is an overlay. Records remain available through the toggle.
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const [focusView, setFocusView] = useState<"timer" | "history">("timer");
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const lastBeepSecondRef = useRef<number | null>(null);
