@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
+  // A single Next dev compiler serves all cases; avoid CPU-count based fan-out
+  // starving lazy route compilation on developer machines and small CI runners.
+  workers: 2,
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],

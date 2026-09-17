@@ -20,35 +20,36 @@ import CommandPalette from "./CommandPalette";
 import MilestoneCelebration, { type Milestone } from "./MilestoneCelebration";
 import AwarenessProfileSummary from "./AwarenessProfileSummary";
 import ProfessionProfileSummary from "./ProfessionProfileSummary";
-import CommunityErrorBoundary from "./CommunityErrorBoundary";
+import SectionErrorBoundary from "./SectionErrorBoundary";
+import SectionSkeleton from "@/components/ui/SectionSkeleton";
 import type { GrowthNavigationCue } from "./GrowthTree";
 
 const DashboardView = dynamic(() => import("./DashboardView"), {
-  loading: () => <DashboardLoading />,
+  loading: () => <SectionSkeleton shape="scene" />,
 });
 const ReportsView = dynamic(() => import("./ReportsView"), {
-  loading: () => <ViewSkeleton />,
+  loading: () => <SectionSkeleton shape="report" />,
 });
 const CommunityView = dynamic(() => import("./CommunityView"), {
-  loading: () => <ViewSkeleton />,
+  loading: () => <SectionSkeleton />,
 });
 const SectionView = dynamic(() => import("./SectionView"), {
-  loading: () => <ViewSkeleton />,
+  loading: () => <SectionSkeleton />,
 });
 const JournalHubView = dynamic(() => import("./JournalHubView"), {
-  loading: () => <ViewSkeleton />,
+  loading: () => <SectionSkeleton shape="editor" />,
 });
 const FocusTimerView = dynamic(() => import("./FocusTimerView"), {
-  loading: () => <ViewSkeleton />,
+  loading: () => <SectionSkeleton shape="timer" />,
 });
 const AwarenessView = dynamic(() => import("./AwarenessView"), {
-  loading: () => <ViewSkeleton />,
+  loading: () => <SectionSkeleton shape="scene" />,
 });
 const ProfessionSchoolView = dynamic(() => import("./ProfessionSchoolView"), {
-  loading: () => <ViewSkeleton />,
+  loading: () => <SectionSkeleton />,
 });
 const QuranCompanionView = dynamic(() => import("./QuranCompanionView"), {
-  loading: () => <ViewSkeleton />,
+  loading: () => <SectionSkeleton />,
 });
 const AccountSettingsDialog = dynamic(() => import("./AccountSettingsDialog"));
 
@@ -521,6 +522,7 @@ export default function SahApp({
               exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}
               transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
             >
+              <SectionErrorBoundary key={view} sectionName={viewLabels[view] ?? "Kişisel alan"}>
               {view === "dashboard" ? (
                 <DashboardView onNavigate={navigate} />
               ) : view === "growth" ? (
@@ -528,9 +530,7 @@ export default function SahApp({
               ) : view === "reports" ? (
                 <ReportsView />
               ) : view === "community" ? (
-                <CommunityErrorBoundary>
-                  <CommunityView />
-                </CommunityErrorBoundary>
+                <CommunityView />
               ) : view === "quran-companion" ? (
                 <QuranCompanionView
                   onNavigate={navigate}
@@ -551,6 +551,7 @@ export default function SahApp({
               ) : (
                 <SectionView section={view} onNavigate={navigate} />
               )}
+              </SectionErrorBoundary>
             </motion.div>
           </AnimatePresence>
         </main>
@@ -630,30 +631,5 @@ function AppLoading() {
       </div>
       <p>Güvenli alanın hazırlanıyor…</p>
     </main>
-  );
-}
-
-function DashboardLoading() {
-  return (
-    <div className="dashboard-preloader loading-static" role="status" aria-live="polite" aria-label="SAH alanın hazırlanıyor">
-      <div className="preloader-mark"><span>S</span><i /><i /></div>
-      <div className="preloader-wordmark"><strong>SAH</strong><span>Kendine ait alan hazırlanıyor</span></div>
-      <div className="preloader-line"><span /></div>
-    </div>
-  );
-}
-
-function ViewSkeleton() {
-  return (
-    <div className="view-skeleton" aria-busy="true" aria-live="polite">
-      <span />
-      <span />
-      <div>
-        <i />
-        <i />
-        <i />
-      </div>
-      <p>İçerik hazırlanıyor…</p>
-    </div>
   );
 }

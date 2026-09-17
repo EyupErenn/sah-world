@@ -8,7 +8,7 @@ async function openGuest(page: Page, url: string) {
   await page.goto(url);
   await page.getByRole('button', { name: 'DEV: Misafir görünümü' }).click();
 }
-test('home shows the growth simulation by default on desktop, tablet and mobile', async ({ page }) => {
+test('home shows the growth simulation by default on desktop, tablet and mobile', async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   await openGuest(page, '/');
   await expect(page.locator('[data-growth-scene]')).toBeVisible();
@@ -17,6 +17,8 @@ test('home shows the growth simulation by default on desktop, tablet and mobile'
     await page.setViewportSize({ width, height: 900 });
     await expect(page.locator('[data-growth-scene]')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await expect(page.locator('button[data-habitat]')).toHaveCount(7);
+    await page.locator('[data-growth-scene]').screenshot({ path: testInfo.outputPath(`growth-${width}.png`) });
   }
   await page.getByRole('button', { name: 'Günlük', exact: true }).filter({ visible: true }).first().click();
   await expect(page.locator('.journal-notebook')).toBeVisible();

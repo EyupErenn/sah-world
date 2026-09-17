@@ -122,6 +122,7 @@ export default function GrowthScene({ data, events = [], loading = false, now, o
       <ol className={styles.journey} aria-label="On seviyelik gelişim yolculuğu">{LEVELS.map((item, index) => <li key={item.name} data-current={index === levelIndex} data-complete={index < levelIndex}><span tabIndex={0} aria-current={index === levelIndex ? 'step' : undefined} aria-label={`${item.name}, ${index + 1}. seviye, ${item.xp} XH`}><StageIcon index={index} /><small role="tooltip">{item.name} · {item.xp} XH</small></span></li>)}</ol>
       <div className={styles.journeyCaption}><span>Tohum</span><span>10 AŞAMALI YOLCULUK</span><span>Evren</span></div>
       <div className={styles.next}><StageIcon index={Math.min(9, levelIndex + 1)} /><div><strong>{next ? 'Sıradaki gelişim sahnesi' : 'Gelişim sahnen tamamlandı'}</strong><p>{next ? `${next.name} · ${data.xhToNext} XH kaldı` : 'Evrenin bütün katmanları görünür'}</p></div></div>
+      {!loading && !data.weeklyActions && <button className={styles.emptyAction} onClick={() => onNavigate('journal')}><AppIcon name="plus" />İlk hareketini yap</button>}
     </div>
     <div className={styles.visual}>
       <header className={styles.period}><span><i />SON 7 GÜN · CANLI ETKİNLİK</span><button type="button" onClick={() => onNavigate('reports')}>Etkinlik akışını aç <AppIcon name="arrow-right" /></button></header>
@@ -129,7 +130,6 @@ export default function GrowthScene({ data, events = [], loading = false, now, o
         <div className={styles.art}>
           <BotanicalScene uid={uid} stage={data.stage} fedAreas={data.fedAreas} vitality={vitality} playing={playing} pulse={pulse !== null} label={`${level.name}, seviye ${data.level}/10, son 7 günde ${data.weeklyActions} hareket, ${data.fedAreas} alan besleniyor`} />
           <span className={styles.output}><AppIcon name="arrow-up" /><span><strong>{pulse ? `+${pulse.amount} XH` : 'XH'}</strong><small>Gelişim çıktısı</small></span></span>
-          {!loading && !data.weeklyActions && <button className={styles.emptyAction} onClick={() => onNavigate('journal')}><AppIcon name="plus" />İlk hareketini yap</button>}
         </div>
         <svg className={styles.connections} viewBox="0 0 880 624" preserveAspectRatio="none" aria-hidden="true">
           {data.habitats.map((habitat) => <g key={habitat.id} data-flow={habitat.id} data-active={habitat.count7d > 0} className={styles.flow} style={{ '--habitat': `var(--habitat-${habitat.id})` } as CSSProperties}>

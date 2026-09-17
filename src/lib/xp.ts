@@ -11,6 +11,7 @@ export async function recordXpEvent(input: { sourceType: string; sourceId: strin
     label: input.label,
     xp_amount: input.amount,
   }, { onConflict: 'user_id,source_type,source_id', ignoreDuplicates: true });
-  if (error && error.code !== '42P01') console.warn('[SAH XP] Olay kaydedilemedi:', error.message);
+  // Error details may contain a personal task/journal label; never log them.
+  if (error && error.code !== '42P01') console.warn('[SAH XP] Olay kaydedilemedi');
   if (!error && typeof window !== 'undefined') window.dispatchEvent(new Event('sah:activity-changed'));
 }

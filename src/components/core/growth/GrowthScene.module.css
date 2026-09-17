@@ -70,4 +70,11 @@
 @media (max-width:620px) {
   .info{display:flex;padding:24px;gap:0}.eyebrow{font-size:10px}.heading{margin:16px 0}.heading h2{font-size:40px}.description{margin:0 0 24px;font-size:12px}.stats{width:100%;margin-bottom:8px}.note{padding:8px 0;margin-bottom:24px}.progressCopy{width:100%;gap:8px}.progressCopy>span{font-size:10px}.progress{width:100%}.journey{width:100%;margin-top:24px}.journeyCaption{width:100%}.next{width:100%;margin-top:24px}.visual{padding:24px 16px 16px}.period{padding:0;gap:8px;flex-wrap:wrap}.period>span{font-size:9px}.period button{padding:8px;font-size:10px}.art{border-radius:40% 40% 24px 24px / 25% 25% 24px 24px;min-height:0}.output{top:32px;right:16px;font-size:10px}.output small{font-size:8px}.orbit{gap:16px}.habitats{display:flex;flex-direction:column;gap:8px;overflow:visible;padding:8px 0}.habitat,.habitat[data-habitat]{width:100%;min-width:0;min-height:88px;padding:16px;grid-template-columns:40px minmax(0,1fr) 16px}.habitatIcon{width:40px;height:40px;font-size:22px}.habitatCopy strong{font-size:13px}.habitatCopy small{font-size:11px}.week{gap:4px}.week i{height:4px}.hint{font-size:10px;text-align:left;margin-inline:0}.emptyAction{font-size:11px;padding:8px 16px}
 }
+.period button { min-height:44px; }
+.emptyAction { position:static; transform:none; grid-column:1/-1; justify-self:start; align-self:flex-start; min-height:44px; margin-top:24px; white-space:normal; }
+/* Tablet: show every activity source without a hidden horizontal carousel. */
+@media (min-width:621px) and (max-width:1279px) {
+  .habitats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); overflow:visible; padding:8px 0; }
+  .habitat,.habitat[data-habitat] { width:100%; min-width:0; }
+}
 @media (prefers-reduced-motion:reduce) {.root *,.root *::after{animation:none!important;transition:none!important}.cloud,.treeWind{will-change:auto}.flowLight,.liveFlow,.rootDrop,.burst{display:none}.root[data-ready="true"] [data-layer]{opacity:1}}
