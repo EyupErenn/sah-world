@@ -62,6 +62,7 @@ No recognized service-role JWT, `sb_secret_`, GitHub PAT or private-key pattern 
 - Tablet activity cards now use a visible two-column grid instead of a horizontal carousel; mobile retains the vertical list and desktop retains the surrounding nodes. Scene control has a 44px minimum target.
 - Moved the first-activity button into the information column; it previously covered the small seed/sprout in the illustration.
 - Fixed mobile header CSS hiding the search icon along with its label.
+- Linux CI found a 375px awareness narrative overflow that Windows did not reproduce. Narrative grid children now allow shrinking and long headings wrap instead of expanding their tracks; the compact route header can wrap as well. The test reports offending element classes to diagnose any recurrence.
 - Focus records start collapsed: at narrow widths the previous default overlay obscured the entire timer. The explicit records toggle still opens/closes the panel. Driving/3D code is untouched.
 - Global MotionConfig respects the device reduced-motion preference; existing section transitions remain. This does not certify every legacy GSAP/custom animation.
 - Replaced generic dynamic-import placeholders with shared scene/editor/timer/report/card-shaped skeletons. Initial loading of every main dynamic view uses this component. Internal background revalidation/loading states have not all been converted.

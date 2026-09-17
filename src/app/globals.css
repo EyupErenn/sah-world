@@ -1004,3 +1004,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 @media(max-width:1180px) and (min-width:901px){.awareness-opening{padding:52px}.awareness-opening-copy h2{font-size:48px}.awareness-story-grid{grid-template-columns:1fr}.awareness-visual-rail{display:none}.awareness-story-panels{padding:0 36px}.awareness-story-copy h2{overflow-wrap:anywhere}.awareness-source-dock{width:min(700px,calc(100% - 48px))}}
 .awareness-profile-summary>span:nth-child(2){display:grid;gap:2px}
 .awareness-experience .awareness-story{min-height:0;padding:0;border-radius:0;display:block;grid-template-columns:none;gap:0;background:var(--awareness-night)}
+/* Narrative headings must not impose a min-content width on narrow grids.
+   Font metrics differ between Android/Linux and Windows; wrap, never clip text. */
+.awareness-story-grid > *, .awareness-story-panel, .awareness-story-copy { min-width:0; }
+.awareness-opening-copy h2, .awareness-story-copy h2, .awareness-resolution-bridge h2 { overflow-wrap:anywhere; }
+@media(max-width:620px) {
+  .awareness-route-bar { flex-wrap:wrap; gap:12px; }
+  .awareness-route-bar > div { min-width:0; }
+  .awareness-story-grid { grid-template-columns:minmax(0,1fr); }
+}

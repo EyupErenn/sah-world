@@ -15,7 +15,11 @@ test('seven main sections render at 375px with reduced motion and usable navigat
     await expect(page.locator('.view-motion-shell')).toHaveCSS('opacity', '1');
     await expect(page.locator('.view-motion-shell h1, .view-motion-shell h2, .focus-dial').first()).toBeVisible();
     await expect(page.getByText('Bu bölüm şu anda görüntülenemiyor.')).toHaveCount(0);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), view).toBe(true);
+    const overflow = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth,
+      elements: [...document.querySelectorAll('main *')].filter(el => {
+        const r = el.getBoundingClientRect(); return r.width > 0 && r.right > window.innerWidth + 1 && getComputedStyle(el).position !== 'absolute';
+      }).slice(0, 8).map(el => el.className.toString()) }));
+    expect(overflow.width, `${view}: ${JSON.stringify(overflow)}`).toBeLessThanOrEqual(overflow.viewport);
     await page.screenshot({ path: testInfo.outputPath(`${view}-375.png`) });
     const smallNav = await page.locator('.mobile-nav button, .quran-companion-tabs button, .journal-hub-tabs button, .mescidim-main-tabs button').evaluateAll(buttons => buttons.filter(button => {
       const rect = button.getBoundingClientRect();
